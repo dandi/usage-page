@@ -892,10 +892,19 @@ function update_totals(dandiset_id: string) {
     const totals = ALL_DANDISET_TOTALS[dandiset_id];  // Include 'archive' as a special key
 
     try {
-        const format_count = (value: number | string | undefined) =>
+        const format_metric = (value: number | string | undefined) =>
             typeof value === "number" ? value.toLocaleString() : String(value ?? "--");
         const human_readable_bytes_sent = format_bytes(totals.total_bytes_sent);
-        const header = `A total of ${human_readable_bytes_sent} was transferred in ${format_count(totals.total_number_of_requests)} web requests and ${format_count(totals.total_number_of_downloads)} full downloads by ${format_count(totals.number_of_requesters)} unique visitors across ${format_count(totals.number_of_unique_regions)} regions in ${format_count(totals.number_of_unique_countries)} countries. <sup>*</sup>`;
+        const web_requests = format_metric(totals.total_number_of_requests);
+        const downloads = format_metric(totals.total_number_of_downloads);
+        const visitors = format_metric(totals.number_of_requesters);
+        const regions = format_metric(totals.number_of_unique_regions);
+        const countries = format_metric(totals.number_of_unique_countries);
+        const header =
+            `A total of ${human_readable_bytes_sent} was transferred in ` +
+            `${web_requests} web requests and ${downloads} full downloads ` +
+            `by ${visitors} unique visitors across ${regions} regions in ` +
+            `${countries} countries. <sup>*</sup>`;
         totals_element!.innerHTML = dandiset_id === "undetermined"
                 ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>This can occur if the same file exists within more than one Dandiset at a time.`
                 : header;
