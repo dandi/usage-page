@@ -1508,8 +1508,11 @@ function load_dandiset_histogram(): Promise<void> {
             }))
             .sort((a, b) => b.bytes - a.bytes);
 
-        const sorted_dandiset_ids = combined.map(item => item.dandiset_id);
-        const sorted_bytes_sent = combined.map(item => item.bytes);
+        // Exclude 'undetermined' from the plot only (table retains all entries)
+        const plot_combined = combined.filter(item => item.raw_id !== "undetermined");
+
+        const sorted_dandiset_ids = plot_combined.map(item => item.dandiset_id);
+        const sorted_bytes_sent = plot_combined.map(item => item.bytes);
         const human_readable_bytes_sent = sorted_bytes_sent.map(bytes => format_bytes(bytes));
 
         const plot_data = [
