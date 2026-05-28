@@ -27,13 +27,15 @@ export function color_with_alpha(color: string, alpha: number): string {
     return color;
 }
 
-export function parse_by_day_tsv(text: string): { dates: string[]; bytes: number[] } {
+export function parse_by_day_tsv(text: string): { dates: string[]; bytes: number[]; requests: number[]; downloads: number[] } {
     const rows = text.split("\n").filter((row) => row.trim() !== "");
     if (rows.length < 2) throw new Error("TSV file does not contain enough data.");
     const raw_data = rows.slice(1).map((row) => row.split("\t"));
     return {
         dates: raw_data.map((row) => row[0]),
         bytes: raw_data.map((row) => parseInt(row[1], 10)),
+        requests: raw_data.map((row) => parseInt(row[2] || "0", 10)),
+        downloads: raw_data.map((row) => parseInt(row[3] || "0", 10)),
     };
 }
 
