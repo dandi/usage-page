@@ -893,7 +893,7 @@ function update_totals(dandiset_id: string) {
 
     try {
         const format_count = (value: number | string | undefined) =>
-            typeof value === "number" ? value.toLocaleString() : String(value ?? 0);
+            typeof value === "number" ? value.toLocaleString() : String(value ?? "--");
         const human_readable_bytes_sent = format_bytes(totals.total_bytes_sent);
         const header = `A total of ${human_readable_bytes_sent} was transferred in ${format_count(totals.total_number_of_requests)} web requests and ${format_count(totals.total_number_of_downloads)} full downloads by ${format_count(totals.number_of_requesters)} unique visitors across ${format_count(totals.number_of_unique_regions)} regions in ${format_count(totals.number_of_unique_countries)} countries. <sup>*</sup>`;
         totals_element!.innerHTML = dandiset_id === "undetermined"
