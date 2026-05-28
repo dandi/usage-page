@@ -91,6 +91,17 @@ describe("parse_by_day_tsv", () => {
     it("throws for an empty string", () => {
         expect(() => parse_by_day_tsv("")).toThrow("TSV file does not contain enough data.");
     });
+
+    it("parses bytes correctly when additional columns are present", () => {
+        const extended = [
+            "date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads",
+            "2024-01-01\t1000\t20\t4",
+            "2024-01-02\t2000\t30\t8",
+        ].join("\n");
+        const { dates, bytes } = parse_by_day_tsv(extended);
+        expect(dates).toEqual(["2024-01-01", "2024-01-02"]);
+        expect(bytes).toEqual([1000, 2000]);
+    });
 });
 
 // ── parse_by_asset_type_per_week_tsv ─────────────────────────────────────────

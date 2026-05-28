@@ -10,14 +10,18 @@ const BASE_TSV_URL = `${BASE_URL}/content/summaries`;
 
 const ARCHIVE_TOTALS = JSON.stringify({
     total_bytes_sent: 15000000000000,
+    total_number_of_downloads: 1450000,
+    total_number_of_requests: 8200000,
+    number_of_requesters: 12000,
     number_of_unique_regions: 150,
     number_of_unique_countries: 60,
 });
 
 const ALL_DANDISET_TOTALS = JSON.stringify({
-    "000001": { total_bytes_sent: 5000000000, number_of_unique_regions: 10, number_of_unique_countries: 5 },
-    "000002": { total_bytes_sent: 3000000000, number_of_unique_regions: 8, number_of_unique_countries: 4 },
-    "000003": { total_bytes_sent: 1000000000, number_of_unique_regions: 5, number_of_unique_countries: 3 },
+    "000001": { total_bytes_sent: 5000000000, total_number_of_downloads: 900, total_number_of_requests: 6400, number_of_requesters: 320, number_of_unique_regions: 10, number_of_unique_countries: 5 },
+    "000002": { total_bytes_sent: 3000000000, total_number_of_downloads: 450, total_number_of_requests: 4100, number_of_requesters: 210, number_of_unique_regions: 8, number_of_unique_countries: 4 },
+    "000003": { total_bytes_sent: 1000000000, total_number_of_downloads: 120, total_number_of_requests: 1200, number_of_requesters: "<50", number_of_unique_regions: 5, number_of_unique_countries: 3 },
+    undetermined: { total_bytes_sent: 250000000, total_number_of_downloads: 60, total_number_of_requests: 300, number_of_requesters: 75, number_of_unique_regions: 4, number_of_unique_countries: 2 },
 });
 
 const REGION_COORDS_YAML = `\
@@ -33,14 +37,14 @@ GB/England:
 `;
 
 const BY_DAY_TSV = `\
-date\tbytes_sent
-2024-01-01\t100000000
-2024-01-02\t200000000
-2024-01-03\t150000000
-2024-01-04\t300000000
-2024-01-05\t250000000
-2024-01-06\t180000000
-2024-01-07\t220000000
+date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads
+2024-01-01\t100000000\t400\t120
+2024-01-02\t200000000\t600\t180
+2024-01-03\t150000000\t500\t140
+2024-01-04\t300000000\t1000\t320
+2024-01-05\t250000000\t700\t220
+2024-01-06\t180000000\t550\t160
+2024-01-07\t220000000\t630\t190
 `;
 
 const BY_REGION_TSV = `\

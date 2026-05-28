@@ -306,8 +306,11 @@ const REGION_CODES_TO_LATITUDE_LONGITUDE_URL = `${BASE_URL}/content/region_codes
 
 interface DandisetTotals {
     total_bytes_sent: number;
-    number_of_unique_regions: number;
-    number_of_unique_countries: number;
+    total_number_of_downloads: number;
+    total_number_of_requests: number;
+    number_of_requesters: number | string;
+    number_of_unique_regions: number | string;
+    number_of_unique_countries: number | string;
 }
 
 let REGION_CODES_TO_LATITUDE_LONGITUDE: Record<string, { latitude: number; longitude: number }> = {};
@@ -889,19 +892,19 @@ function update_totals(dandiset_id: string) {
     const totals = ALL_DANDISET_TOTALS[dandiset_id];  // Include 'archive' as a special key
 
     try {
+        const format_count = (value: number | string | undefined) =>
+            typeof value === "number" ? value.toLocaleString() : String(value ?? 0);
         const human_readable_bytes_sent = format_bytes(totals.total_bytes_sent);
-        const header = `A total of ${human_readable_bytes_sent} was used by ${totals.number_of_unique_regions} regions across ${totals.number_of_unique_countries} countries. <sup>*</sup>`;
-        totals_element!.innerHTML = dandiset_id === "unassociated"
-            ? header + `<br>However, the usage could not be associated with any Dandiset.<br>This can occur if a previously uploaded file was replaced prior to publication.`
-            : dandiset_id === "undetermined"
+        const header = `A total of ${human_readable_bytes_sent} was transferred in ${format_count(totals.total_number_of_requests)} web requests and ${format_count(totals.total_number_of_downloads)} full downloads by ${format_count(totals.number_of_requesters)} unique visitors across ${format_count(totals.number_of_unique_regions)} regions in ${format_count(totals.number_of_unique_countries)} countries. <sup>*</sup>`;
+        totals_element!.innerHTML = dandiset_id === "undetermined"
                 ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>This can occur if the same file exists within more than one Dandiset at a time.`
-                : header
+                : header;
 
         // Add the footnote
         const footnote = document.createElement("div");
         footnote.style.fontSize = "0.5em";
         footnote.style.marginTop = "7px";
-        footnote.innerHTML = "<sup>*</sup> These values are only estimates for publicly released datasets and are subject to change as additional information becomes available.";
+        footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may improve over time. Activity that cannot be confidently attributed to one Dandiset is reported as undetermined.";
         totals_element!.appendChild(footnote);
     } catch (error) {
         console.error("Error:", error);
@@ -1212,7 +1215,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
     // ── Grouped mode: overlay top-N dandisets (archive view only) ────────────
     if (OVER_TIME_GROUP_BY === "dandisets" && dandiset_id === "archive") {
         const top_dandiset_ids = Object.entries(ALL_DANDISET_TOTALS)
-            .filter(([id]) => id !== "archive" && id !== "undetermined" && id !== "unassociated")
+            .filter(([id]) => id !== "archive" && id !== "undetermined")
             .sort((a, b) => b[1].total_bytes_sent - a[1].total_bytes_sent)
             .slice(0, TOP_N_DANDISETS)
             .map(([id]) => id);
@@ -1458,8 +1461,8 @@ function load_histogram(dandiset_id: string): Promise<void> | string {
     const plot_element = document.getElementById("histogram_plot");
     const section_el = (plot_element && plot_element.closest('.view-section')) as HTMLElement | null;
 
-    // Suppress entire histogram section if 'undetermined' or 'unassociated' is selected (nonsensical there)
-    if (dandiset_id === "undetermined" || dandiset_id === "unassociated") {
+    // Suppress entire histogram section if 'undetermined' is selected (nonsensical there)
+    if (dandiset_id === "undetermined") {
         if (plot_element) {
             plot_element.innerText = "";
         }
