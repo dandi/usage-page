@@ -363,7 +363,7 @@ input[type="number"]:focus {
 }
 
 .plot-table th {
-    text-align: left;
+    text-align: center;
     font-weight: 600;
     color: var(--color-text-secondary);
     border-bottom: 2px solid var(--color-border);
@@ -396,6 +396,7 @@ input[type="number"]:focus {
     padding: 5px 6px;
     border-bottom: 1px solid var(--color-border);
     color: var(--color-text);
+    text-align: center;
 }
 
 .plot-table td:not(:last-child) {
@@ -405,7 +406,7 @@ input[type="number"]:focus {
 
 .plot-table td:last-child,
 .plot-table th:last-child {
-    text-align: right;
+    text-align: center;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
 }
@@ -643,7 +644,7 @@ input[type="number"]:focus {
 
 #top_regions_table th,
 #aws_histogram th {
-    text-align: left;
+    text-align: center;
     font-weight: 600;
     color: var(--color-text-secondary);
     border-bottom: 2px solid var(--color-border);
@@ -655,7 +656,7 @@ input[type="number"]:focus {
 
 #top_regions_table th:last-child,
 #aws_histogram th:last-child {
-    text-align: right;
+    text-align: center;
 }
 
 #top_regions_table td,
@@ -663,11 +664,12 @@ input[type="number"]:focus {
     padding: 5px 12px;
     border-bottom: 1px solid var(--color-border);
     color: var(--color-text);
+    text-align: center;
 }
 
 #top_regions_table td:last-child,
 #aws_histogram td:last-child {
-    text-align: right;
+    text-align: center;
     font-variant-numeric: tabular-nums;
 }
 

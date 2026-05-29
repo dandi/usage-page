@@ -7,6 +7,7 @@
 - Excluded the 'undetermined' Dandiset ID from the usage-per-dandiset histogram plot while keeping it visible in the table view. ([#191](https://github.com/dandi/usage-page/pull/191))
 - Grey out the plot-specific gear-wheel settings buttons (`ot_settings_btn`, `hist_settings_btn`) when their section is in table view, since those settings only affect plots; the panel is also closed automatically when switching to table view. ([#179](https://github.com/dandi/usage-page/pull/179))
 - Appended the first 8 characters of the latest git commit hash to the version string displayed in the bottom-left footer (e.g. `v1.3.8+a25561a7`). ([#174](https://github.com/dandi/usage-page/pull/174))
+- Added `number_of_requests` and `number_of_downloads` to Plotly hover text for all plot types (over-time, per-dandiset histogram, per-asset histogram, geographic scatter, geographic choropleth) and as new columns in all sortable table views. ([#201](https://github.com/dandi/usage-page/pull/201))
 
 #### 🏠 Internal
 

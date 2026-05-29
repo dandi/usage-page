@@ -175,7 +175,7 @@ export function apply_geo_view_mode(view: string): void {
 export function render_sortable_table(
     container_id: string,
     title: string,
-    columns: Array<{label: string; key: string; numeric: boolean}>,
+    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string}>,
     rows: Array<Record<string, unknown>>,
     format_fn: (bytes: number) => string = format_bytes_default,
     data_url?: string
@@ -215,7 +215,7 @@ export function render_sortable_table(
         sorted.forEach((row) => {
             html += "<tr>";
             columns.forEach((col) => {
-                const val = col.numeric ? format_fn(row[col.key] as number) : escape_html(String(row[col.key] ?? ""));
+                const val = col.numeric ? (col.format_fn ?? format_fn)(row[col.key] as number) : escape_html(String(row[col.key] ?? ""));
                 html += `<td>${val}</td>`;
             });
             html += "</tr>";

@@ -423,4 +423,25 @@ describe("render_sortable_table", () => {
         const cell = document.querySelector("#my_table tbody td:last-child")!;
         expect(cell.textContent).toBe("1 KB");
     });
+
+    it("uses per-column format_fn when provided, overriding the table-level formatter", () => {
+        const count_format = (n: number) => n.toLocaleString("en-US");
+        const cols_with_override = [
+            { label: "Name", key: "name", numeric: false },
+            { label: "Bytes", key: "bytes", numeric: true },
+            { label: "Count", key: "count", numeric: true, format_fn: count_format },
+        ];
+        render_sortable_table(
+            "my_table",
+            "Title",
+            cols_with_override,
+            [{ name: "x", bytes: 1000000, count: 42000 }],
+            (n: number) => `${n}B`,
+        );
+        const cells = document.querySelectorAll("#my_table tbody td");
+        // bytes cell uses table-level formatter
+        expect((cells[1] as HTMLElement).textContent).toBe("1000000B");
+        // count cell uses per-column formatter
+        expect((cells[2] as HTMLElement).textContent).toBe("42,000");
+    });
 });
