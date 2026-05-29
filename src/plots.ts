@@ -330,7 +330,9 @@ let USE_HISTOGRAM_TABLE = false;
 let GEOJSON_DATA: { features: any[] } | null = null;
 let NAME_ALIASES: Record<string, Record<string, string>> | null = null;
 
-
+/** Returns a Plotly hover-text fragment for one metric; empty string if value is NaN. */
+const hover_metric = (label: string, value: number): string =>
+    isNaN(value) ? "" : `<br>${label}: ${value.toLocaleString()}`;
 
 /**
  * Reads all URL parameters and synchronises them to the global state variables
@@ -1307,6 +1309,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     const aligned_req = global_bins.map((k) => date_to_req.get(k) || 0);
                     const aligned_dl = global_bins.map((k) => date_to_dl.get(k) || 0);
                     const plot_data = USE_CUMULATIVE ? make_cumulative(aligned_bytes) : aligned_bytes;
+                    const display_req = USE_CUMULATIVE ? make_cumulative(aligned_req) : aligned_req;
+                    const display_dl = USE_CUMULATIVE ? make_cumulative(aligned_dl) : aligned_dl;
                     const human_readable = plot_data.map((b) => format_bytes(b));
                     return {
                         ...(USE_OT_LINE_PLOT
@@ -1322,8 +1326,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         y: plot_data,
                         text: global_bins.map((date, idx) =>
                             `DANDI:${series.id}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable[idx]}` +
-                            `<br>Requests: ${aligned_req[idx].toLocaleString()}` +
-                            `<br>Downloads: ${aligned_dl[idx].toLocaleString()}`
+                            hover_metric("Requests", display_req[idx]) +
+                            hover_metric("Downloads", display_dl[idx])
                         ),
                         textposition: "none",
                         hoverinfo: "text",
@@ -1373,6 +1377,20 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     const other_dl = global_bins.map((date) =>
                         Math.max(0, (date_to_archive_dl.get(date) || 0) - (topn_dl_by_date.get(date) || 0))
                     );
+                    // Build display (cumulative if applicable) versions for hover text
+                    let display_other_req: number[];
+                    let display_other_dl: number[];
+                    if (USE_CUMULATIVE) {
+                        const cum_archive_req = make_cumulative(global_bins.map((k) => date_to_archive_req.get(k) || 0));
+                        const cum_archive_dl = make_cumulative(global_bins.map((k) => date_to_archive_dl.get(k) || 0));
+                        const cum_topn_req = make_cumulative(global_bins.map((k) => topn_req_by_date.get(k) || 0));
+                        const cum_topn_dl = make_cumulative(global_bins.map((k) => topn_dl_by_date.get(k) || 0));
+                        display_other_req = global_bins.map((_, i) => Math.max(0, cum_archive_req[i] - cum_topn_req[i]));
+                        display_other_dl = global_bins.map((_, i) => Math.max(0, cum_archive_dl[i] - cum_topn_dl[i]));
+                    } else {
+                        display_other_req = other_req;
+                        display_other_dl = other_dl;
+                    }
                     const other_human_readable = other_y.map((b) => format_bytes(b));
                     plot_info.push({
                         ...(USE_OT_LINE_PLOT
@@ -1388,8 +1406,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         y: other_y,
                         text: global_bins.map((date, idx) =>
                             `Other<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${other_human_readable[idx]}` +
-                            `<br>Requests: ${other_req[idx].toLocaleString()}` +
-                            `<br>Downloads: ${other_dl[idx].toLocaleString()}`
+                            hover_metric("Requests", display_other_req[idx]) +
+                            hover_metric("Downloads", display_other_dl[idx])
                         ),
                         textposition: "none",
                         hoverinfo: "text",
@@ -1461,8 +1479,12 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
 
             // Convert to cumulative if the checkbox is checked
             let plot_data = bytes_sent;
+            let plot_requests = requests;
+            let plot_downloads = downloads;
             if (USE_CUMULATIVE) {
                 plot_data = make_cumulative(bytes_sent);
+                plot_requests = make_cumulative(requests);
+                plot_downloads = make_cumulative(downloads);
             }
 
             const human_readable_bytes_sent = plot_data.map((bytes) => format_bytes(bytes));
@@ -1484,8 +1506,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     y: plot_data,
                     text: dates.map((date, index) =>
                         `${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable_bytes_sent[index]}` +
-                        `<br>Requests: ${requests[index].toLocaleString()}` +
-                        `<br>Downloads: ${downloads[index].toLocaleString()}`
+                        hover_metric("Requests", plot_requests[index]) +
+                        hover_metric("Downloads", plot_downloads[index])
                     ),
                     textposition: "none",
                     hoverinfo: "text",
@@ -1607,8 +1629,8 @@ function load_dandiset_histogram(): Promise<void> {
                 y: sorted_bytes_sent,
                 text: sorted_dandiset_ids.map((dandiset_id, index) =>
                     `${dandiset_id}<br>${human_readable_bytes_sent[index]}` +
-                    `<br>Requests: ${sorted_requests[index].toLocaleString()}` +
-                    `<br>Downloads: ${sorted_downloads[index].toLocaleString()}`
+                    hover_metric("Requests", sorted_requests[index]) +
+                    hover_metric("Downloads", sorted_downloads[index])
                 ),
                 textposition: "none",
                 hoverinfo: "text",
@@ -1710,8 +1732,8 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
                     y: sorted_bytes_sent,
                     text: sorted_asset_names.map((name, index) =>
                         `${name}<br>${human_readable_bytes_sent[index]}` +
-                        `<br>Requests: ${sorted_requests[index].toLocaleString()}` +
-                        `<br>Downloads: ${sorted_downloads[index].toLocaleString()}`
+                        hover_metric("Requests", sorted_requests[index]) +
+                        hover_metric("Downloads", sorted_downloads[index])
                     ),
                     textposition: "none",
                     hoverinfo: "text",
@@ -2081,8 +2103,8 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                     bytes_sent.push(bytes);
                     hover_texts.push(
                         `${region}<br>${human_readable_bytes_sent}` +
-                        (isNaN(requests) ? "" : `<br>Requests: ${requests.toLocaleString()}`) +
-                        (isNaN(downloads) ? "" : `<br>Downloads: ${downloads.toLocaleString()}`)
+                        hover_metric("Requests", requests) +
+                        hover_metric("Downloads", downloads)
                     );
                 }
             });
@@ -2212,8 +2234,8 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 z_values.push(Math.log10(bytes));
                 hover_texts.push(
                     `${iso2}/${name}<br>${format_bytes(bytes)}` +
-                    (isNaN(feature_requests[idx]) ? "" : `<br>Requests: ${feature_requests[idx].toLocaleString()}`) +
-                    (isNaN(feature_downloads[idx]) ? "" : `<br>Downloads: ${feature_downloads[idx].toLocaleString()}`)
+                    hover_metric("Requests", feature_requests[idx]) +
+                    hover_metric("Downloads", feature_downloads[idx])
                 );
             }
         });
