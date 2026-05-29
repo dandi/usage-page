@@ -2081,8 +2081,8 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                     bytes_sent.push(bytes);
                     hover_texts.push(
                         `${region}<br>${human_readable_bytes_sent}` +
-                        `<br>Requests: ${requests.toLocaleString()}` +
-                        `<br>Downloads: ${downloads.toLocaleString()}`
+                        (isNaN(requests) ? "" : `<br>Requests: ${requests.toLocaleString()}`) +
+                        (isNaN(downloads) ? "" : `<br>Downloads: ${downloads.toLocaleString()}`)
                     );
                 }
             });
@@ -2212,8 +2212,8 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 z_values.push(Math.log10(bytes));
                 hover_texts.push(
                     `${iso2}/${name}<br>${format_bytes(bytes)}` +
-                    `<br>Requests: ${feature_requests[idx].toLocaleString()}` +
-                    `<br>Downloads: ${feature_downloads[idx].toLocaleString()}`
+                    (isNaN(feature_requests[idx]) ? "" : `<br>Requests: ${feature_requests[idx].toLocaleString()}`) +
+                    (isNaN(feature_downloads[idx]) ? "" : `<br>Downloads: ${feature_downloads[idx].toLocaleString()}`)
                 );
             }
         });
