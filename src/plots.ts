@@ -908,7 +908,7 @@ function update_totals(dandiset_id: string) {
             `by ${visitors} unique visitors across ${regions} regions in ` +
             `${countries} countries. <sup>*</sup>`;
         totals_element!.innerHTML = dandiset_id === "undetermined"
-                ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>This can occur if the same file exists within more than one Dandiset at a time.`
+                ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication.`
                 : header;
 
         // Add the footnote
