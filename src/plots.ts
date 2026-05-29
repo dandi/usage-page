@@ -908,14 +908,14 @@ function update_totals(dandiset_id: string) {
             `by ${visitors} unique visitors across ${regions} regions in ` +
             `${countries} countries. <sup>*</sup>`;
         totals_element!.innerHTML = dandiset_id === "undetermined"
-                ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>This can occur if the same file exists within more than one Dandiset at a time.`
+                ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication.`
                 : header;
 
         // Add the footnote
         const footnote = document.createElement("div");
         footnote.style.fontSize = "0.5em";
         footnote.style.marginTop = "7px";
-        footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may improve over time. Activity that cannot be confidently attributed to one Dandiset is reported as undetermined.";
+        footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may change over time.<br>Activity that cannot be confidently attributed to a Dandiset or any other field is reported as 'undetermined'.";
         totals_element!.appendChild(footnote);
     } catch (error) {
         console.error("Error:", error);
