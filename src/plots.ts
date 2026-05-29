@@ -915,7 +915,7 @@ function update_totals(dandiset_id: string) {
         const footnote = document.createElement("div");
         footnote.style.fontSize = "0.5em";
         footnote.style.marginTop = "7px";
-        footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may change over time. Activity that cannot be confidently attributed to a Dandiset or any other field is reported as 'undetermined'.";
+        footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may change over time.<br>Activity that cannot be confidently attributed to a Dandiset or any other field is reported as 'undetermined'.";
         totals_element!.appendChild(footnote);
     } catch (error) {
         console.error("Error:", error);
