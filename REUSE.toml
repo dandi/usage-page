@@ -1,0 +1,7 @@
+version = 1
+
+[[annotations]]
+path = "**"
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2024 DANDI contributors <info@dandiarchive.org>"
+SPDX-License-Identifier = "MIT"
