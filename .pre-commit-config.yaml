@@ -21,6 +21,11 @@ repos:
     - tomli
     exclude: '(gadm_admin1_simplified\.topojson|name_aliases\.json|package-lock\.json)$'
 
+- repo: https://github.com/fsfe/reuse-tool
+  rev: v6.2.0
+  hooks:
+  - id: reuse
+
 - repo: https://github.com/compilerla/conventional-pre-commit
   rev: v4.4.0
   hooks:
