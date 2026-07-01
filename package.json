@@ -34,7 +34,7 @@
   "homepage": "https://github.com/dandi/access-page#readme",
   "devDependencies": {
     "@chromatic-com/playwright": "^0.13.4",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.1",
     "@storybook/html-vite": "^10.3.6",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.7.0",
