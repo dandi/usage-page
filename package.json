@@ -34,7 +34,7 @@
   "homepage": "https://github.com/dandi/access-page#readme",
   "devDependencies": {
     "@chromatic-com/playwright": "^0.13.4",
-    "@playwright/test": "^1.60.0",
+    "@playwright/test": "^1.61.1",
     "@storybook/html-vite": "^10.3.6",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.7.0",
@@ -42,7 +42,7 @@
     "@types/topojson-client": "^3.1.5",
     "@vitest/coverage-v8": "^4.1.9",
     "ast-v8-to-istanbul": "^1.0.0",
-    "chromatic": "^16.10.0",
+    "chromatic": "^17.8.0",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-report": "^3.0.1",
     "istanbul-reports": "^3.2.0",
@@ -50,12 +50,12 @@
     "prettier": "^3.8.3",
     "storybook": "^10.3.6",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16",
+    "vite": "^8.1.2",
     "vitest": "^4.1.6"
   },
   "dependencies": {
     "js-yaml": "^4.2.0",
-    "plotly.js-dist-min": "^3.5.1",
+    "plotly.js-dist-min": "^3.6.0",
     "topojson-client": "^3.1.0"
   },
   "overrides": {
