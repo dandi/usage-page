@@ -40,7 +40,7 @@
     "@types/node": "^25.7.0",
     "@types/plotly.js": "^3.0.10",
     "@types/topojson-client": "^3.1.5",
-    "@vitest/coverage-v8": "^4.1.6",
+    "@vitest/coverage-v8": "^4.1.9",
     "ast-v8-to-istanbul": "^1.0.0",
     "chromatic": "^16.10.0",
     "istanbul-lib-coverage": "^3.2.2",
