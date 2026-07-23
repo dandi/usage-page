@@ -4,7 +4,7 @@
 
 #### 🚀 Enhancement
 
-- Added pointers to the underlying source data ([dandi/access-summaries](https://github.com/dandi/access-summaries)): a data-repository icon in the header beside the existing code icon, a per-Dandiset link beside the selector to the GitHub folder of summary tables for the current selection, a "Data ▾" menu on every table view (GitHub file view · raw download · containing folder) replacing the previous raw-CDN "Data" link, and a "View source data on GitHub" modebar button on every plot. ([#224](https://github.com/dandi/usage-page/issues/224))
+- Added pointers to the underlying source data ([dandi/access-summaries](https://github.com/dandi/access-summaries)): a data-repository icon in the header beside the existing code icon, a per-Dandiset link beside the selector to the GitHub folder of summary tables for the current selection, a "Data ▾" menu on every table view (GitHub file view · raw download · containing folder) replacing the previous raw-CDN "Data" link, and a "View source data on GitHub" modebar button on every plot. ([#234](https://github.com/dandi/usage-page/pull/234))
 
 - Excluded the 'undetermined' Dandiset ID from the usage-per-dandiset histogram plot while keeping it visible in the table view. ([#191](https://github.com/dandi/usage-page/pull/191))
 - Grey out the plot-specific gear-wheel settings buttons (`ot_settings_btn`, `hist_settings_btn`) when their section is in table view, since those settings only affect plots; the panel is also closed automatically when switching to table view. ([#179](https://github.com/dandi/usage-page/pull/179))
