@@ -8,6 +8,7 @@ updates:
       - "CodyCBakerPhD"
     assignees:
       - "CodyCBakerPhD"
+    labels: []
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -17,3 +18,4 @@ updates:
       - "CodyCBakerPhD"
     assignees:
       - "CodyCBakerPhD"
+    labels: []
