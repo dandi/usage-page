@@ -54,7 +54,7 @@
     "vitest": "^4.1.6"
   },
   "dependencies": {
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^4.3.0",
     "plotly.js-dist-min": "^3.6.0",
     "topojson-client": "^3.1.0"
   },
