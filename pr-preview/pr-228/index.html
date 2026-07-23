@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Dandiset Usage Summaries</title>
+
+    <script>
+      const GA_MEASUREMENT_ID = 'G-25PBWE3SLK';
+      const ANALYTICS_CONSENT_KEY = 'analytics_consent';
+
+      function getAnalyticsConsent() {
+          try {
+              return localStorage.getItem(ANALYTICS_CONSENT_KEY);
+          } catch {
+              return null;
+          }
+      }
+
+      function setAnalyticsConsent(value) {
+          try {
+              localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
+          } catch {}
+      }
+
+      function loadGoogleAnalytics() {
+          if (window.gtag) return;
+
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){ window.dataLayer.push(arguments); }
+          window.gtag = gtag;
+          window.gtag('js', new Date());
+          window.gtag('config', GA_MEASUREMENT_ID);
+
+          const gtagScript = document.createElement('script');
+          gtagScript.async = true;
+          gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
+          document.head.appendChild(gtagScript);
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+          const banner = document.getElementById('analytics_consent_banner');
+          const acceptBtn = document.getElementById('analytics_accept_btn');
+          const declineBtn = document.getElementById('analytics_decline_btn');
+          if (!banner || !acceptBtn || !declineBtn) return;
+
+          const consent = getAnalyticsConsent();
+          if (consent === 'accepted') {
+              loadGoogleAnalytics();
+              banner.hidden = true;
+          } else if (consent === 'declined') {
+              banner.hidden = true;
+          } else {
+              banner.hidden = false;
+          }
+
+          acceptBtn.addEventListener('click', () => {
+              setAnalyticsConsent('accepted');
+              loadGoogleAnalytics();
+              banner.hidden = true;
+          });
+
+          declineBtn.addEventListener('click', () => {
+              setAnalyticsConsent('declined');
+              banner.hidden = true;
+          });
+      });
+    </script>
+
+    <link rel="icon" href="./assets/dandi-usage-favicon-lm4HVhV6.ico" type="image/x-icon">
+
+    <!-- Anti-FOUC: apply the saved theme and suppress transitions before the
+         stylesheet is parsed so the first paint already uses the correct
+         colours and no CSS animations play during initial state setup.
+         NOTE: the defaulting logic (anything other than 'light' → dark) must
+         stay in sync with initTheme() in plots.ts. -->
+    <script>
+      try {
+        const t = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+      } catch {}
+      document.documentElement.classList.add('preload');
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+
+  <script type="module" crossorigin src="./assets/index-DlTAT9P5.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-nInc4ddk.css">
+</head>
+<body>
+    <header class="site-header">
+        <a href="https://dandiarchive.org" class="site-brand" target="_blank" rel="noopener">
+            <img src="./assets/dandi-usage-logo-BLclr_4P.svg" alt="" class="site-logo">
+            DANDI
+        </a>
+        <span class="site-title">Usage Summaries</span>
+        <div class="site-header-spacer"></div>
+        <button id="theme_toggle_btn" class="theme-toggle-btn" aria-label="Switch to light mode" title="Switch to light mode"></button>
+        <a href="https://github.com/dandi/access-page" class="site-github-link" target="_blank" rel="noopener" aria-label="View on GitHub">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        </a>
+    </header>
+    <div class="page-content">
+    <div class="ControllerContainer">
+        <div class="SubControllerContainer">
+            <label for="dandiset_selector">Dandiset:</label>
+            <select id="dandiset_selector"></select>
+        </div>
+        <div class="separator"></div>
+        <div class="settings-wrapper">
+            <button class="settings-btn" id="settings_btn" aria-label="Open settings" aria-expanded="false" title="Settings">
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.07-2.07a7.07 7.07 0 0 0 .07-.93 7.07 7.07 0 0 0-.07-.93l2-1.56a.48.48 0 0 0 .11-.61l-1.9-3.28a.48.48 0 0 0-.58-.21l-2.36.95a6.93 6.93 0 0 0-1.6-.93l-.36-2.51A.47.47 0 0 0 12 1H8a.47.47 0 0 0-.47.41l-.36 2.51a6.93 6.93 0 0 0-1.6.93L3.21 3.9a.47.47 0 0 0-.58.21L.73 7.38a.47.47 0 0 0 .11.61l2 1.56A7.2 7.2 0 0 0 2.77 10a7.2 7.2 0 0 0 .07.93l-2 1.56a.48.48 0 0 0-.11.61l1.9 3.28a.48.48 0 0 0 .58.21l2.36-.95c.5.35 1.03.64 1.6.93l.36 2.51c.06.24.27.41.52.41h3.8c.25 0 .46-.17.52-.41l.36-2.51a6.93 6.93 0 0 0 1.6-.93l2.36.95c.22.08.47 0 .58-.21l1.9-3.28a.47.47 0 0 0-.11-.61l-2-1.56z"/>
+                </svg>
+            </button>
+            <div class="settings-panel" id="settings_panel" aria-hidden="true">
+                <div class="settings-panel-title">Settings</div>
+                <div class="SubControllerContainer">
+                    <label for="log_scale">Log Scale</label>
+                    <span class="info-icon" data-tooltip="Applies to non-geographic plots" tabindex="0" role="img" aria-label="Log Scale: Applies to non-geographic plots">i</span>
+                    <input type="checkbox" id="log_scale" />
+                </div>
+                <div class="SubControllerContainer">
+                    <label for="prefix">Prefix</label>
+                    <span class="info-icon" data-tooltip="Applies to totals and hover values" tabindex="0" role="img" aria-label="Prefix: Applies to totals and hover values">i</span>
+                    <select id="prefix">
+                        <option value="decimal">Decimal</option>
+                        <option value="binary">Binary</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="totals"></div>
+    <div class="ControllerContainer PlotViewControls" id="over_time">
+        <a href="#over_time" class="section-anchor" aria-label="Link to this section">#</a>
+        <div class="SubControllerContainer">
+            <span class="radio-label">View:</span>
+            <div class="radio-toggle">
+                <input type="radio" id="over_time_view_plot" name="over_time_view" value="plot" checked />
+                <label for="over_time_view_plot">Plot</label>
+                <input type="radio" id="over_time_view_table" name="over_time_view" value="table" />
+                <label for="over_time_view_table">Table</label>
+            </div>
+        </div>
+    </div>
+    <div class="ControllerContainer PlotViewControls" id="over_time_aggregate_controls">
+        <div class="SubControllerContainer">
+            <span class="radio-label">Aggregate:</span>
+            <div class="radio-toggle">
+                <input type="radio" id="aggregation_daily" name="time_aggregation" value="daily" checked />
+                <label for="aggregation_daily">Daily</label>
+                <input type="radio" id="aggregation_weekly" name="time_aggregation" value="weekly" />
+                <label for="aggregation_weekly">Weekly</label>
+                <input type="radio" id="aggregation_monthly" name="time_aggregation" value="monthly" />
+                <label for="aggregation_monthly">Monthly</label>
+                <input type="radio" id="aggregation_yearly" name="time_aggregation" value="yearly" />
+                <label for="aggregation_yearly">Yearly</label>
+            </div>
+        </div>
+        <div class="SubControllerContainer" id="over_time_group_by_container">
+            <label for="over_time_group_by">Group by:</label>
+            <select id="over_time_group_by">
+                <option value="none">None</option>
+                <option value="dandisets">Dandisets</option>
+                <option value="asset_type">Asset type</option>
+            </select>
+        </div>
+        <div id="ot_settings_container" style="display:contents">
+        <div class="separator"></div>
+        <div class="settings-wrapper">
+            <button class="settings-btn" id="ot_settings_btn" aria-label="Open usage over time settings" aria-expanded="false" title="Usage over time settings">
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.07-2.07a7.07 7.07 0 0 0 .07-.93 7.07 7.07 0 0 0-.07-.93l2-1.56a.48.48 0 0 0 .11-.61l-1.9-3.28a.48.48 0 0 0-.58-.21l-2.36.95a6.93 6.93 0 0 0-1.6-.93l-.36-2.51A.47.47 0 0 0 12 1H8a.47.47 0 0 0-.47.41l-.36 2.51a6.93 6.93 0 0 0-1.6.93L3.21 3.9a.47.47 0 0 0-.58.21L.73 7.38a.47.47 0 0 0 .11.61l2 1.56A7.2 7.2 0 0 0 2.77 10a7.2 7.2 0 0 0 .07.93l-2 1.56a.48.48 0 0 0-.11.61l1.9 3.28a.48.48 0 0 0 .58.21l2.36-.95c.5.35 1.03.64 1.6.93l.36 2.51c.06.24.27.41.52.41h3.8c.25 0 .46-.17.52-.41l.36-2.51a6.93 6.93 0 0 0 1.6-.93l2.36.95c.22.08.47 0 .58-.21l1.9-3.28a.47.47 0 0 0-.11-.61l-2-1.56z"/>
+                </svg>
+            </button>
+            <div class="settings-panel" id="ot_settings_panel" aria-hidden="true">
+                <div class="settings-panel-title">Plot Settings</div>
+                <div class="SubControllerContainer">
+                    <label for="cumulative">Cumulative</label>
+                    <input type="checkbox" id="cumulative" />
+                </div>
+                <div class="SubControllerContainer">
+                    <label for="ot_plot_type">Plot Type</label>
+                    <select id="ot_plot_type">
+                        <option value="bar">Bar</option>
+                        <option value="line">Line</option>
+                    </select>
+                </div>
+                <div class="SubControllerContainer">
+                    <label for="ot_stacked">Stacking</label>
+                    <span class="info-icon" data-tooltip="Only applies to 'group by'" tabindex="0" role="img" aria-label="Stacking: Only applies to 'group by'">i</span>
+                    <select id="ot_stacked">
+                        <option value="stacked" selected>Stacked</option>
+                        <option value="overlay">Overlay</option>
+                    </select>
+                </div>
+                <div class="SubControllerContainer">
+                    <label for="top_n_dandisets">Top Dandisets</label>
+                    <span class="info-icon" data-tooltip="Only applies to 'group by'" tabindex="0" role="img" aria-label="Top Dandisets: Only applies to 'group by'">i</span>
+                    <input type="number" id="top_n_dandisets" min="1" value="8" />
+                </div>
+            </div>
+        </div>
+        </div><!-- /#ot_settings_container -->
+    </div>
+    <div class="view-section">
+        <div id="over_time_plot"></div>
+        <div id="over_time_table" class="plot-table" style="display:none;"></div>
+    </div>
+    <div class="ControllerContainer PlotViewControls" id="histogram">
+        <a href="#histogram" class="section-anchor" aria-label="Link to this section">#</a>
+        <div class="SubControllerContainer">
+            <span class="radio-label">View:</span>
+            <div class="radio-toggle">
+                <input type="radio" id="histogram_view_plot" name="histogram_view" value="plot" checked />
+                <label for="histogram_view_plot">Plot</label>
+                <input type="radio" id="histogram_view_table" name="histogram_view" value="table" />
+                <label for="histogram_view_table">Table</label>
+            </div>
+        </div>
+        <div class="separator"></div>
+        <div class="settings-wrapper">
+            <button class="settings-btn" id="hist_settings_btn" aria-label="Open usage per dandiset settings" aria-expanded="false" title="Usage per dandiset settings">
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <path d="M10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.07-2.07a7.07 7.07 0 0 0 .07-.93 7.07 7.07 0 0 0-.07-.93l2-1.56a.48.48 0 0 0 .11-.61l-1.9-3.28a.48.48 0 0 0-.58-.21l-2.36.95a6.93 6.93 0 0 0-1.6-.93l-.36-2.51A.47.47 0 0 0 12 1H8a.47.47 0 0 0-.47.41l-.36 2.51a6.93 6.93 0 0 0-1.6.93L3.21 3.9a.47.47 0 0 0-.58.21L.73 7.38a.47.47 0 0 0 .11.61l2 1.56A7.2 7.2 0 0 0 2.77 10a7.2 7.2 0 0 0 .07.93l-2 1.56a.48.48 0 0 0-.11.61l1.9 3.28a.48.48 0 0 0 .58.21l2.36-.95c.5.35 1.03.64 1.6.93l.36 2.51c.06.24.27.41.52.41h3.8c.25 0 .46-.17.52-.41l.36-2.51a6.93 6.93 0 0 0 1.6-.93l2.36.95c.22.08.47 0 .58-.21l1.9-3.28a.47.47 0 0 0-.11-.61l-2-1.56z"/>
+                </svg>
+            </button>
+            <div class="settings-panel" id="hist_settings_panel" aria-hidden="true">
+                <div class="settings-panel-title">Plot Settings</div>
+                <div class="SubControllerContainer">
+                    <label for="hist_plot_type">Plot Type</label>
+                    <select id="hist_plot_type">
+                        <option value="bar">Bar</option>
+                        <option value="line">Line</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="view-section">
+        <div id="histogram_plot"></div>
+        <div id="histogram_table" class="plot-table" style="display:none;"></div>
+    </div>
+    <div class="ControllerContainer PlotViewControls" id="geo">
+        <a href="#geo" class="section-anchor" aria-label="Link to this section">#</a>
+        <div class="SubControllerContainer">
+            <span class="radio-label">View:</span>
+            <div class="radio-toggle">
+                <input type="radio" id="geo_view_regions" name="geo_view" value="regions" checked />
+                <label for="geo_view_regions">Regions</label>
+                <input type="radio" id="geo_view_points" name="geo_view" value="points" />
+                <label for="geo_view_points">Points</label>
+                <input type="radio" id="geo_view_table" name="geo_view" value="table" />
+                <label for="geo_view_table">Table</label>
+                <input type="radio" id="geo_view_aws" name="geo_view" value="aws" />
+                <label for="geo_view_aws">AWS</label>
+            </div>
+        </div>
+    </div>
+    <div class="view-section">
+        <div id="geography_heatmap"></div>
+        <div class="tables-row" id="geo_table_section" style="display:none;">
+            <div id="top_regions_table"></div>
+            <div id="aws_histogram"></div>
+        </div>
+    </div>
+    </div>
+    <footer class="site-footer">
+        <span class="site-version" id="site_version"></span>
+        <a href="https://centerforopenneuroscience.org" class="con-brand" target="_blank" rel="noopener" aria-label="Center for Open Neuroscience">
+            <img src="./assets/con-logo-F8_OuRqh.png" alt="Center for Open Neuroscience" class="con-logo">
+        </a>
+    </footer>
+    <div id="analytics_consent_banner" class="consent-banner" hidden role="region" aria-label="Analytics consent">
+        <p class="consent-banner-text">We use analytics tracking to understand how this page is used. No tracking is enabled unless you accept.</p>
+        <div class="consent-banner-actions">
+            <button type="button" id="analytics_accept_btn" class="consent-btn consent-btn-accept">Accept</button>
+            <button type="button" id="analytics_decline_btn" class="consent-btn">Decline</button>
+        </div>
+    </div>
+</body>
+</html>
