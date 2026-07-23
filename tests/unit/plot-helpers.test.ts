@@ -5,6 +5,7 @@ import {
     fetchWithRetry,
     apply_view_mode,
     apply_geo_view_mode,
+    derive_data_source_urls,
     render_sortable_table,
 } from "../../src/plot-helpers.js";
 
@@ -443,5 +444,120 @@ describe("render_sortable_table", () => {
         expect((cells[1] as HTMLElement).textContent).toBe("1000000B");
         // count cell uses per-column formatter
         expect((cells[2] as HTMLElement).textContent).toBe("42,000");
+    });
+});
+
+// ── derive_data_source_urls ───────────────────────────────────────────────────
+
+describe("derive_data_source_urls", () => {
+    it("derives GitHub file and folder URLs from a raw.githubusercontent.com URL", () => {
+        const result = derive_data_source_urls(
+            "https://raw.githubusercontent.com/dandi/access-summaries/main/content/summaries/000003/by_day.tsv"
+        );
+        expect(result.raw).toBe(
+            "https://raw.githubusercontent.com/dandi/access-summaries/main/content/summaries/000003/by_day.tsv"
+        );
+        expect(result.file).toBe(
+            "https://github.com/dandi/access-summaries/blob/main/content/summaries/000003/by_day.tsv"
+        );
+        expect(result.folder).toBe(
+            "https://github.com/dandi/access-summaries/tree/main/content/summaries/000003"
+        );
+    });
+
+    it("derives the containing folder for a file one level deep", () => {
+        const result = derive_data_source_urls(
+            "https://raw.githubusercontent.com/dandi/access-summaries/main/content/totals.json"
+        );
+        expect(result.file).toBe("https://github.com/dandi/access-summaries/blob/main/content/totals.json");
+        expect(result.folder).toBe("https://github.com/dandi/access-summaries/tree/main/content");
+    });
+
+    it("points the folder at the ref root for a file at the repository root", () => {
+        const result = derive_data_source_urls(
+            "https://raw.githubusercontent.com/owner/repo/v1.0/README.md"
+        );
+        expect(result.file).toBe("https://github.com/owner/repo/blob/v1.0/README.md");
+        expect(result.folder).toBe("https://github.com/owner/repo/tree/v1.0");
+    });
+
+    it("returns null file/folder for a non-raw.githubusercontent.com URL", () => {
+        const result = derive_data_source_urls("https://example.com/data.tsv");
+        expect(result.raw).toBe("https://example.com/data.tsv");
+        expect(result.file).toBeNull();
+        expect(result.folder).toBeNull();
+    });
+});
+
+// ── render_sortable_table "Data ▾" menu ───────────────────────────────────────
+
+describe("render_sortable_table data menu", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Size", key: "bytes", numeric: true },
+    ];
+    const rows = [{ name: "alpha", bytes: 300 }];
+    const fmt = (n: number) => `${n}B`;
+    const raw_url = "https://raw.githubusercontent.com/dandi/access-summaries/main/content/summaries/000003/by_day.tsv";
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+    });
+
+    it("renders a Data menu instead of a plain link for raw.githubusercontent.com URLs", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        expect(document.querySelector("#my_table .table-data-menu")).not.toBeNull();
+        expect(document.querySelector("#my_table a.table-data-link")).toBeNull();
+    });
+
+    it("renders file, raw, and folder menu items with derived hrefs", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const hrefs = Array.from(
+            document.querySelectorAll("#my_table .table-data-menu-panel a")
+        ).map((a) => (a as HTMLAnchorElement).href);
+        expect(hrefs).toEqual([
+            "https://github.com/dandi/access-summaries/blob/main/content/summaries/000003/by_day.tsv",
+            raw_url,
+            "https://github.com/dandi/access-summaries/tree/main/content/summaries/000003",
+        ]);
+    });
+
+    it("is closed by default and opens on button click", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const menu = document.querySelector("#my_table .table-data-menu")!;
+        const btn = menu.querySelector(".table-data-menu-btn") as HTMLElement;
+        expect(menu.classList.contains("open")).toBe(false);
+        expect(btn.getAttribute("aria-expanded")).toBe("false");
+        btn.click();
+        expect(menu.classList.contains("open")).toBe(true);
+        expect(btn.getAttribute("aria-expanded")).toBe("true");
+    });
+
+    it("closes when clicking outside the menu", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const menu = document.querySelector("#my_table .table-data-menu")!;
+        const btn = menu.querySelector(".table-data-menu-btn") as HTMLElement;
+        btn.click();
+        expect(menu.classList.contains("open")).toBe(true);
+        document.body.click();
+        expect(menu.classList.contains("open")).toBe(false);
+        expect(btn.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("closes on Escape", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const menu = document.querySelector("#my_table .table-data-menu")!;
+        const btn = menu.querySelector(".table-data-menu-btn") as HTMLElement;
+        btn.click();
+        menu.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        expect(menu.classList.contains("open")).toBe(false);
+    });
+
+    it("keeps a plain Data link for URLs that are not raw.githubusercontent.com", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, "https://example.com/data.tsv");
+        expect(document.querySelector("#my_table .table-data-menu")).toBeNull();
+        const link = document.querySelector("#my_table a.table-data-link") as HTMLAnchorElement | null;
+        expect(link).not.toBeNull();
+        expect(link!.href).toBe("https://example.com/data.tsv");
     });
 });
