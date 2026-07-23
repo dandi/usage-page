@@ -1,6 +1,6 @@
 {
   "name": "access-page",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "description": "Visualizations of data usage across the archive.",
   "private": true,
   "type": "module",

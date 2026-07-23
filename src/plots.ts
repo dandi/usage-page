@@ -13,6 +13,7 @@ import {
     fetchWithRetry,
     apply_view_mode,
     apply_geo_view_mode,
+    derive_data_source_urls,
     render_sortable_table,
 } from "./plot-helpers.js";
 import { load as loadYaml } from "js-yaml";
@@ -81,7 +82,10 @@ function applyTheme(layout: Partial<Plotly.Layout>): Partial<Plotly.Layout> {
 
 // ── Shared Plotly config ─────────────────────────────────────────────────────
 // Replaces the default PNG camera button with a paired group containing both
-// PNG and SVG download buttons, keeping them side-by-side in the modebar.
+// PNG and SVG download buttons, keeping them side-by-side in the modebar, and
+// adds a "view source data" button that opens the plot's backing file on
+// GitHub (the target is read from the plot element's data-source-data-url
+// attribute, set via set_plot_source_url() at each render site).
 const PLOTLY_CONFIG: Partial<Plotly.Config> = {
     modeBarButtonsToRemove: ['toImage' as Plotly.ModeBarDefaultButtons],
     modeBarButtonsToAdd: [
@@ -106,8 +110,36 @@ const PLOTLY_CONFIG: Partial<Plotly.Config> = {
                 },
             },
         ] as any,
+        [
+            {
+                name: 'View source data on GitHub',
+                icon: {
+                    // Material Design "database" (stacked cylinder) icon
+                    width: 24,
+                    height: 24,
+                    path: 'M12 3C7.58 3 4 4.79 4 7s3.58 4 8 4 8-1.79 8-4-3.58-4-8-4zM4 9v3c0 2.21 3.58 4 8 4s8-1.79 8-4V9c0 2.21-3.58 4-8 4s-8-1.79-8-4zm0 5v3c0 2.21 3.58 4 8 4s8-1.79 8-4v-3c0 2.21-3.58 4-8 4s-8-1.79-8-4z',
+                },
+                click: (gd: Plotly.PlotlyHTMLElement) => {
+                    const url = (gd as unknown as HTMLElement).dataset.sourceDataUrl;
+                    if (url) window.open(url, '_blank', 'noopener');
+                },
+            },
+        ] as any,
     ],
 };
+
+/**
+ * Records the source-data file behind a plot on its container element, so the
+ * shared "View source data on GitHub" modebar button knows where to link.
+ * Prefers the version-tracked GitHub file view when the URL can be derived
+ * from a raw.githubusercontent.com URL; falls back to the URL as given.
+ */
+function set_plot_source_url(plot_element_id: string, raw_url: string) {
+    const element = document.getElementById(plot_element_id);
+    if (!element) return;
+    const { file } = derive_data_source_urls(raw_url);
+    element.dataset.sourceDataUrl = file ?? raw_url;
+}
 
 /**
  * Reads the saved theme preference from localStorage.  When no preference has
@@ -830,6 +862,7 @@ Promise.all([archiveTotalsPromise, allDandisetTotalsPromise])
             const id = validateDandisetId(rawId);
             selector.value = id;
             apply_over_time_group_by_visibility();
+            update_dandiset_data_link(id);
             update_totals(id);
             return [
                 load_over_time_plot(id),
@@ -886,6 +919,19 @@ Promise.all([archiveTotalsPromise, allDandisetTotalsPromise])
             over_time_plot_element.innerText = "Failed to load Dandiset IDs and populate default plots.";
         }
     });
+
+// Points the source-data link beside the Dandiset selector at the GitHub
+// folder containing all summary tables for the current selection.
+function update_dandiset_data_link(dandiset_id: string) {
+    const link = document.getElementById("dandiset_data_link") as HTMLAnchorElement | null;
+    if (!link) return;
+    const { folder } = derive_data_source_urls(`${BASE_TSV_URL}/${dandiset_id}/by_day.tsv`);
+    if (folder) link.href = folder;
+    const selection = dandiset_id === "archive" ? "the entire archive" : dandiset_id;
+    const label = `Source data tables for ${selection} on GitHub`;
+    link.title = label;
+    link.setAttribute("aria-label", label);
+}
 
 // Function to display scalar totals
 function update_totals(dandiset_id: string) {
@@ -1193,6 +1239,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 }
 
                 Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
+                set_plot_source_url(plot_element_id, tsv_url);
                 attach_legend_tooltips(plot_element_id, ASSET_TYPE_DESCRIPTIONS);
 
                 // Table: show total bytes per time bin (sum across all asset types)
@@ -1420,6 +1467,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 layout.legend = { title: { text: "Dandiset" } };
 
                 Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
+                set_plot_source_url(plot_element_id, archive_tsv_url);
 
                 // Render archive table view even in grouped mode
                 const per_bin_titles: Record<string, string> = {
@@ -1525,6 +1573,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
             const layout = build_over_time_layout(dates);
 
             Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
+            set_plot_source_url(plot_element_id, by_day_summary_tsv_url);
 
             // Render table view (sortable by column header click; default: bytes descending)
             const date_col_labels: Record<string, string> = {
@@ -1661,6 +1710,7 @@ function load_dandiset_histogram(): Promise<void> {
         });
 
         Plotly.newPlot(plot_element_id, plot_data as Plotly.Data[], layout, PLOTLY_CONFIG);
+        set_plot_source_url(plot_element_id, ALL_DANDISET_TOTALS_URL);
 
         // Render table view (sortable by column header click; default: bytes descending)
         const count_format = (n: number) => n.toLocaleString();
@@ -1760,6 +1810,7 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             });
 
             Plotly.newPlot(plot_element_id, plot_data as Plotly.Data[], layout, PLOTLY_CONFIG);
+            set_plot_source_url(plot_element_id, by_asset_summary_tsv_url);
 
             // Render table view (sortable by column header click; default: bytes descending)
             const count_format = (n: number) => n.toLocaleString();
@@ -2153,6 +2204,7 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
             });
 
             Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
+            set_plot_source_url(plot_element_id, by_region_summary_tsv_url);
         })
         .catch((error) => {
             console.error("Error:", error);
@@ -2332,6 +2384,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         };
 
         Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG).then(() => {
+            set_plot_source_url(plot_element_id, by_region_summary_tsv_url);
             const el = document.getElementById(plot_element_id);
             if (el && (el as any)._fullLayout && (el as any)._fullLayout.map && (el as any)._fullLayout.map._subplot) {
                 const map = (el as any)._fullLayout.map._subplot.map;

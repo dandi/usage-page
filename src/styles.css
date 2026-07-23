@@ -124,6 +124,13 @@ body {
     fill: currentColor;
 }
 
+/* ── Header link to the data repository (GitHub mark + database badge) ──
+   The badge circle is filled with --color-header (the always-dark header blue)
+   so it visually "cuts out" a corner of the GitHub mark in both themes. */
+.site-data-link svg {
+    overflow: visible;
+}
+
 /* ── Theme toggle button ──
    Colors are hardcoded white (matching .site-github-link) because the header
    background (--color-header) is always the same dark blue in both themes. */
@@ -350,6 +357,63 @@ input[type="number"]:focus {
     text-decoration: underline;
 }
 
+/* ── "Data ▾" source menu in table headers ── */
+.table-data-menu {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.table-data-menu-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--color-accent);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.table-data-menu-btn:hover {
+    text-decoration: underline;
+}
+
+.table-data-caret {
+    font-size: 0.75em;
+}
+
+.table-data-menu-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 6px;
+    min-width: 200px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    z-index: 150;
+    flex-direction: column;
+}
+
+.table-data-menu.open .table-data-menu-panel {
+    display: flex;
+}
+
+.table-data-menu-panel a {
+    display: block;
+    padding: 6px 9px;
+    border-radius: 4px;
+    color: var(--color-text);
+    text-decoration: none;
+    font-size: 0.85em;
+    white-space: nowrap;
+}
+
+.table-data-menu-panel a:hover {
+    background: rgba(var(--color-accent-rgb), 0.12);
+}
+
 .plot-table-container {
     max-height: 480px;
     overflow-y: auto;
@@ -521,6 +585,21 @@ input[type="number"]:focus {
     width: 16px;
     height: 16px;
     fill: currentColor;
+}
+
+/* ── Per-Dandiset source-data link (database icon beside the selector) ──
+   Reuses .settings-btn for the bordered-button look; the database icon is
+   stroke-based rather than filled. */
+.dandiset-data-link {
+    text-decoration: none;
+}
+
+.dandiset-data-link svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 /* ── Settings drop-down panel ── */

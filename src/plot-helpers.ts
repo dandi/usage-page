@@ -155,6 +155,31 @@ export function apply_geo_view_mode(view: string): void {
     if (awsEl)     awsEl.style.display     = (view === "aws")   ? "" : "none";
 }
 
+// ── Source-data URL derivation ────────────────────────────────────────────────
+
+/**
+ * Derives version-tracked GitHub web URLs from a raw.githubusercontent.com
+ * file URL, so views can link to the file's rendered GitHub page (with
+ * history/blame) and to its containing folder in addition to the raw content.
+ *
+ * @param raw_url - A `https://raw.githubusercontent.com/<owner>/<repo>/<ref>/<path>` URL.
+ * @returns `file` (blob view) and `folder` (tree view) GitHub URLs, or `null`
+ *          for both when the input is not a raw.githubusercontent.com URL.
+ */
+export function derive_data_source_urls(raw_url: string): { raw: string; file: string | null; folder: string | null } {
+    const match = raw_url.match(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+)$/);
+    if (!match) {
+        return { raw: raw_url, file: null, folder: null };
+    }
+    const [, owner, repo, ref, path] = match;
+    const dir = path.split("/").slice(0, -1).join("/");
+    return {
+        raw: raw_url,
+        file: `https://github.com/${owner}/${repo}/blob/${ref}/${path}`,
+        folder: `https://github.com/${owner}/${repo}/tree/${ref}${dir ? "/" + dir : ""}`,
+    };
+}
+
 // ── Sortable table renderer ───────────────────────────────────────────────────
 
 /**
@@ -169,8 +194,10 @@ export function apply_geo_view_mode(view: string): void {
  * @param rows - Data rows (plain objects keyed by column.key).
  * @param format_fn - Formatter applied to numeric cell values.  Defaults to
  *        `format_bytes` (decimal SI suffixes).
- * @param data_url - Optional URL to the source data file; when
- *        provided a "Data" hyperlink is rendered top-right in the table header.
+ * @param data_url - Optional URL to the source data file; when provided a
+ *        "Data ▾" menu (GitHub file view / raw download / containing folder)
+ *        is rendered top-right in the table header.  Falls back to a plain
+ *        "Data" hyperlink when the URL is not a raw.githubusercontent.com URL.
  */
 export function render_sortable_table(
     container_id: string,
@@ -200,9 +227,19 @@ export function render_sortable_table(
             return factor * String(va).localeCompare(String(vb), undefined, { numeric: true });
         });
 
-        const data_link = data_url
-            ? `<a class="table-data-link" href="${escape_html(data_url)}" target="_blank" rel="noopener">Data</a>`
-            : "";
+        let data_link = "";
+        if (data_url) {
+            const { raw, file, folder } = derive_data_source_urls(data_url);
+            data_link = file && folder
+                ? `<div class="table-data-menu">` +
+                  `<button type="button" class="table-data-menu-btn" aria-haspopup="true" aria-expanded="false">Data <span class="table-data-caret">▾</span></button>` +
+                  `<div class="table-data-menu-panel" role="menu">` +
+                  `<a href="${escape_html(file)}" target="_blank" rel="noopener" role="menuitem">View file on GitHub</a>` +
+                  `<a href="${escape_html(raw)}" target="_blank" rel="noopener" role="menuitem">Download raw file</a>` +
+                  `<a href="${escape_html(folder)}" target="_blank" rel="noopener" role="menuitem">Browse data folder</a>` +
+                  `</div></div>`
+                : `<a class="table-data-link" href="${escape_html(data_url)}" target="_blank" rel="noopener">Data</a>`;
+        }
         let html = `<div class="plot-table-header"><h3>${escape_html(title)}</h3>${data_link}</div>`;
         html += '<div class="plot-table-container"><table><thead><tr>';
         columns.forEach((col) => {
@@ -222,6 +259,35 @@ export function render_sortable_table(
         });
         html += "</tbody></table></div>";
         container!.innerHTML = html;
+
+        // Attach "Data ▾" menu handlers after innerHTML is set
+        const menu = container!.querySelector(".table-data-menu");
+        const menu_btn = menu?.querySelector(".table-data-menu-btn");
+        if (menu && menu_btn) {
+            const close_menu = () => {
+                menu.classList.remove("open");
+                menu_btn.setAttribute("aria-expanded", "false");
+                document.removeEventListener("click", on_document_click);
+            };
+            const on_document_click = (event: MouseEvent) => {
+                if (!menu.contains(event.target as Node)) close_menu();
+            };
+            menu_btn.addEventListener("click", () => {
+                const open = menu.classList.toggle("open");
+                menu_btn.setAttribute("aria-expanded", String(open));
+                if (open) {
+                    document.addEventListener("click", on_document_click);
+                } else {
+                    document.removeEventListener("click", on_document_click);
+                }
+            });
+            menu.addEventListener("keydown", (event) => {
+                if ((event as KeyboardEvent).key === "Escape") {
+                    close_menu();
+                    (menu_btn as HTMLElement).focus();
+                }
+            });
+        }
 
         // Attach sort click handlers after innerHTML is set
         container!.querySelectorAll("th[data-key]").forEach((th) => {
