@@ -108,10 +108,13 @@ export function parse_dandiset_titles_jsonl(text: string): Record<string, string
 
 /**
  * Formats a Dandiset ID for display, appending " - <title>" when a title is
- * known. Falls back to the bare ID (e.g. "archive", "undetermined", or any
- * ID missing from the lookup) when no title is available.
+ * known. The "archive" sentinel ID (the whole-archive selection) is always
+ * rendered as "(All) - Archive" instead of being looked up. Falls back to
+ * the bare ID (e.g. "undetermined", or any ID missing from the lookup) when
+ * no title is available.
  */
 export function format_dandiset_label(id: string, titles: Record<string, string>): string {
+    if (id === "archive") return "(All) - Archive";
     const title = titles[id];
     return title ? `${id} - ${title}` : id;
 }

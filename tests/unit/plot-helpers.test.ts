@@ -494,8 +494,12 @@ describe("format_dandiset_label", () => {
         expect(format_dandiset_label("999999", { "000003": "Alpha dataset" })).toBe("999999");
     });
 
-    it("falls back to the bare ID for special selections like 'archive'", () => {
-        expect(format_dandiset_label("archive", {})).toBe("archive");
+    it("renders the 'archive' sentinel ID as '(All) - Archive' instead of looking it up", () => {
+        expect(format_dandiset_label("archive", {})).toBe("(All) - Archive");
+    });
+
+    it("renders 'archive' as '(All) - Archive' even if a title happens to be registered for it", () => {
+        expect(format_dandiset_label("archive", { archive: "Should be ignored" })).toBe("(All) - Archive");
     });
 
     it("falls back to the bare ID when the titles map is empty", () => {
