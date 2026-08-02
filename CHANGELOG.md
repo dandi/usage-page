@@ -4,6 +4,7 @@
 
 #### 🚀 Enhancement
 
+- Annotated Dandiset ID displays with their current title fetched from an external Dandiset-ID-to-title cache: the Dandiset selector dropdown, the "Usage per Dandiset" histogram's hover text and grouped over-time plot hover text now show "ID - Title", and the histogram table gained a new "Name" column. The "archive" (whole-archive) selection is always labeled "(All) - Archive". Falls back to the bare ID when a title is unavailable. ([#236](https://github.com/dandi/usage-page/pull/236))
 - Added pointers to the underlying source data ([dandi/access-summaries](https://github.com/dandi/access-summaries)): a data-repository icon in the header beside the existing code icon, a per-Dandiset link beside the selector to the GitHub folder of summary tables for the current selection, a "Data ▾" menu on every table view (GitHub file view · raw download · containing folder) replacing the previous raw-CDN "Data" link, and a "View source data on GitHub" modebar button on every plot. ([#234](https://github.com/dandi/usage-page/pull/234))
 
 - Excluded the 'undetermined' Dandiset ID from the usage-per-dandiset histogram plot while keeping it visible in the table view. ([#191](https://github.com/dandi/usage-page/pull/191))
