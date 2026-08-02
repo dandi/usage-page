@@ -84,6 +84,38 @@ export async function fetchWithRetry(url: string, options: RequestInit = {}, max
     throw new Error("fetchWithRetry: exhausted retries");
 }
 
+// ── Dandiset ID → title mapping ────────────────────────────────────────────
+
+/**
+ * Parses a newline-delimited JSON (JSONL) file where each line is a single
+ * `{ "<dandiset_id>": "<title>" }` object, merging them into one lookup map.
+ * Blank lines and lines that fail to parse are skipped so a single malformed
+ * entry doesn't prevent the rest of the file from loading.
+ */
+export function parse_dandiset_titles_jsonl(text: string): Record<string, string> {
+    const titles: Record<string, string> = {};
+    text.split("\n").forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        try {
+            Object.assign(titles, JSON.parse(trimmed));
+        } catch {
+            // Skip malformed lines rather than failing the whole page.
+        }
+    });
+    return titles;
+}
+
+/**
+ * Formats a Dandiset ID for display, appending " - <title>" when a title is
+ * known. Falls back to the bare ID (e.g. "archive", "undetermined", or any
+ * ID missing from the lookup) when no title is available.
+ */
+export function format_dandiset_label(id: string, titles: Record<string, string>): string {
+    const title = titles[id];
+    return title ? `${id} - ${title}` : id;
+}
+
 // ── View-mode helpers ─────────────────────────────────────────────────────────
 
 /**

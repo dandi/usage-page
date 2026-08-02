@@ -15,6 +15,8 @@ import {
     apply_geo_view_mode,
     derive_data_source_urls,
     render_sortable_table,
+    parse_dandiset_titles_jsonl,
+    format_dandiset_label,
 } from "./plot-helpers.js";
 import { load as loadYaml } from "js-yaml";
 import Plotly from "plotly.js-dist-min";
@@ -335,6 +337,8 @@ const BASE_TSV_URL = `${BASE_URL}/content/summaries`;
 const ARCHIVE_TOTALS_URL = `${BASE_URL}/content/archive_totals.json`;
 const ALL_DANDISET_TOTALS_URL = `${BASE_URL}/content/totals.json`;
 const REGION_CODES_TO_LATITUDE_LONGITUDE_URL = `${BASE_URL}/content/region_codes_to_coordinates.yaml`;
+const DANDISET_ID_TO_TITLE_URL =
+    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-title/derivatives/derivatives/dandiset_id_to_title.jsonl";
 
 interface DandisetTotals {
     total_bytes_sent: number;
@@ -347,6 +351,8 @@ interface DandisetTotals {
 
 let REGION_CODES_TO_LATITUDE_LONGITUDE: Record<string, { latitude: number; longitude: number }> = {};
 let ALL_DANDISET_TOTALS: Record<string, DandisetTotals> = {};
+// Maps a Dandiset ID to its current title, used to annotate ID displays with a human-readable name.
+let DANDISET_TITLES: Record<string, string> = {};
 let USE_LOG_SCALE = false;
 let USE_CUMULATIVE = false;
 let USE_OT_LINE_PLOT = false;
@@ -817,8 +823,19 @@ const allDandisetTotalsPromise = fetchWithRetry(ALL_DANDISET_TOTALS_URL)
         throw error; // Propagate so Promise.all rejects and its .catch() renders the error message
     });
 
+// Dandiset titles are cosmetic (ID displays fall back to the bare ID when
+// missing), so a failure here is logged but does not block the rest of the page.
+const dandisetTitlesPromise = fetchWithRetry(DANDISET_ID_TO_TITLE_URL)
+    .then((response) => response.text())
+    .then((dandiset_titles_text) => {
+        Object.assign(DANDISET_TITLES, parse_dandiset_titles_jsonl(dandiset_titles_text));
+    })
+    .catch((error) => {
+        console.error("Error loading dandiset titles:", error);
+    });
+
 // Populate the dropdown with IDs and render initial plots only after both fetches complete
-Promise.all([archiveTotalsPromise, allDandisetTotalsPromise])
+Promise.all([archiveTotalsPromise, allDandisetTotalsPromise, dandisetTitlesPromise])
     .then(() => {
         // Re-sync from URL here as a safety net: if DOMContentLoaded fired
         // before the data was ready, the global state is already correct, but
@@ -850,7 +867,7 @@ Promise.all([archiveTotalsPromise, allDandisetTotalsPromise])
         dandiset_ids.forEach((id) => {
             const option = document.createElement("option");
             option.value = id;
-            option.textContent = id;
+            option.textContent = format_dandiset_label(id, DANDISET_TITLES);
             selector.appendChild(option);
         });
 
@@ -1373,7 +1390,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         x: global_bins,
                         y: plot_data,
                         text: global_bins.map((date, idx) =>
-                            `DANDI:${series.id}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable[idx]}` +
+                            `DANDI:${format_dandiset_label(series.id, DANDISET_TITLES)}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable[idx]}` +
                             hover_metric("Requests", display_req[idx]) +
                             hover_metric("Downloads", display_dl[idx])
                         ),
@@ -1652,13 +1669,17 @@ function load_dandiset_histogram(): Promise<void> {
     .then((data) => {
         // Exclude 'archive' and cast IDs to strings; sort by bytes descending
         const combined = Object.keys(data)
-            .map(dandiset_id => ({
-                raw_id: String(dandiset_id),
-                dandiset_id: "Dandiset ID " + String(dandiset_id),
-                bytes: data[dandiset_id].total_bytes_sent,
-                requests: data[dandiset_id].total_number_of_requests as number,
-                downloads: data[dandiset_id].total_number_of_downloads as number,
-            }))
+            .map(dandiset_id => {
+                const raw_id = String(dandiset_id);
+                return {
+                    raw_id,
+                    dandiset_id: format_dandiset_label(raw_id, DANDISET_TITLES),
+                    title: DANDISET_TITLES[raw_id] ?? "",
+                    bytes: data[dandiset_id].total_bytes_sent,
+                    requests: data[dandiset_id].total_number_of_requests as number,
+                    downloads: data[dandiset_id].total_number_of_downloads as number,
+                };
+            })
             .sort((a, b) => b.bytes - a.bytes);
 
         // Exclude 'undetermined' from the plot only (table retains all entries)
@@ -1716,6 +1737,7 @@ function load_dandiset_histogram(): Promise<void> {
         const count_format = (n: number) => n.toLocaleString();
         render_sortable_table("histogram_table", "", [
             { label: "Dandiset ID", key: "raw_id", numeric: false },
+            { label: "Name", key: "title", numeric: false },
             { label: "Usage", key: "bytes", numeric: true },
             { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
             { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },

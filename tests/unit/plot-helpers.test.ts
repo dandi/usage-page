@@ -7,6 +7,8 @@ import {
     apply_geo_view_mode,
     derive_data_source_urls,
     render_sortable_table,
+    parse_dandiset_titles_jsonl,
+    format_dandiset_label,
 } from "../../src/plot-helpers.js";
 
 // ── escape_html ───────────────────────────────────────────────────────────────
@@ -444,6 +446,60 @@ describe("render_sortable_table", () => {
         expect((cells[1] as HTMLElement).textContent).toBe("1000000B");
         // count cell uses per-column formatter
         expect((cells[2] as HTMLElement).textContent).toBe("42,000");
+    });
+});
+
+// ── parse_dandiset_titles_jsonl ────────────────────────────────────────────────
+
+describe("parse_dandiset_titles_jsonl", () => {
+    it("parses one title per line into a single lookup map", () => {
+        const text = '{"000003": "Alpha dataset"}\n{"000004": "Beta dataset"}';
+        expect(parse_dandiset_titles_jsonl(text)).toEqual({
+            "000003": "Alpha dataset",
+            "000004": "Beta dataset",
+        });
+    });
+
+    it("skips blank lines", () => {
+        const text = '{"000003": "Alpha dataset"}\n\n\n{"000004": "Beta dataset"}\n';
+        expect(parse_dandiset_titles_jsonl(text)).toEqual({
+            "000003": "Alpha dataset",
+            "000004": "Beta dataset",
+        });
+    });
+
+    it("skips malformed lines without throwing", () => {
+        const text = '{"000003": "Alpha dataset"}\nnot json\n{"000004": "Beta dataset"}';
+        expect(parse_dandiset_titles_jsonl(text)).toEqual({
+            "000003": "Alpha dataset",
+            "000004": "Beta dataset",
+        });
+    });
+
+    it("returns an empty object for empty input", () => {
+        expect(parse_dandiset_titles_jsonl("")).toEqual({});
+    });
+});
+
+// ── format_dandiset_label ──────────────────────────────────────────────────────
+
+describe("format_dandiset_label", () => {
+    it("appends the title with a dash when known", () => {
+        expect(format_dandiset_label("000003", { "000003": "Alpha dataset" })).toBe(
+            "000003 - Alpha dataset"
+        );
+    });
+
+    it("falls back to the bare ID when the title is unknown", () => {
+        expect(format_dandiset_label("999999", { "000003": "Alpha dataset" })).toBe("999999");
+    });
+
+    it("falls back to the bare ID for special selections like 'archive'", () => {
+        expect(format_dandiset_label("archive", {})).toBe("archive");
+    });
+
+    it("falls back to the bare ID when the titles map is empty", () => {
+        expect(format_dandiset_label("000003", {})).toBe("000003");
     });
 });
 
