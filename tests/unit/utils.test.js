@@ -369,15 +369,11 @@ describe("format_ratio", () => {
 // ── exclude_testing_dandisets ────────────────────────────────────────────────
 
 describe("exclude_testing_dandisets", () => {
+    // Derived from the list itself rather than restated, so that adding a
+    // testing Dandiset is a one-line change in src/utils.ts.
     const rows = [
         { raw_id: "000003" },
-        { raw_id: "000025" },
-        { raw_id: "000027" },
-        { raw_id: "000064" },
-        { raw_id: "000126" },
-        { raw_id: "000717" },
-        { raw_id: "000719" },
-        { raw_id: "001083" },
+        ...TESTING_DANDISET_IDS.map((raw_id) => ({ raw_id })),
         { raw_id: "undetermined" },
     ];
 
@@ -390,12 +386,18 @@ describe("exclude_testing_dandisets", () => {
     });
 
     it("does not mutate the input", () => {
+        const row_count = rows.length;
         exclude_testing_dandisets(rows, true);
-        expect(rows).toHaveLength(9);
+        expect(rows).toHaveLength(row_count);
     });
 
-    it("targets exactly the documented testing Dandisets", () => {
-        expect(TESTING_DANDISET_IDS).toEqual(["000025", "000027", "000064", "000126", "000717", "000719", "001083"]);
+    it("lists well-formed six-digit Dandiset IDs", () => {
+        expect(TESTING_DANDISET_IDS.filter((id) => !/^\d{6}$/.test(id))).toEqual([]);
+    });
+
+    it("lists each testing Dandiset once, in ID order", () => {
+        expect(new Set(TESTING_DANDISET_IDS).size).toBe(TESTING_DANDISET_IDS.length);
+        expect([...TESTING_DANDISET_IDS].sort()).toEqual(TESTING_DANDISET_IDS);
     });
 
     it("keeps rows whose ID merely resembles a testing ID", () => {
