@@ -493,7 +493,6 @@ function syncFromUrl() {
     const histogramRadio = document.querySelector(`input[name="histogram_view"][value="${histogramValue}"]`) as HTMLInputElement | null;
     if (histogramRadio) histogramRadio.checked = true;
     apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
-    setSettingsBtnDisabled("hist_settings_btn", "hist_settings_panel", USE_HISTOGRAM_TABLE);
 
     // Ignore testing Dandisets
     const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets") as HTMLInputElement | null;
@@ -505,34 +504,16 @@ function syncFromUrl() {
 }
 
 /**
- * Shows the "Ignore testing dataset" checkbox only where it applies: the table
- * view of the per-Dandiset histogram, which is the archive-wide selection.
- * Any other selection lists assets rather than Dandisets, and the plot view has
- * no rows to filter.
+ * Shows the "Ignore testing datasets" setting only where it applies: the
+ * per-Dandiset table, which is the archive-wide selection.  Any other selection
+ * lists assets rather than Dandisets, so there is nothing to filter.
  */
 function apply_ignore_testing_visibility() {
     const container = document.getElementById("hist_ignore_testing_container");
     if (!container) return;
     const selector = document.getElementById("dandiset_selector") as HTMLSelectElement | null;
     const is_archive = !selector || selector.value === "archive";
-    container.style.display = USE_HISTOGRAM_TABLE && is_archive ? "" : "none";
-}
-
-/**
- * Disables or re-enables a settings button.  When disabling, also closes the
- * panel if it is currently open.
- */
-function setSettingsBtnDisabled(btnId: string, panelId: string, disabled: boolean): void {
-    const btn = document.getElementById(btnId) as HTMLButtonElement | null;
-    const panel = document.getElementById(panelId);
-    if (btn) {
-        btn.disabled = disabled;
-        if (disabled && panel) {
-            panel.classList.remove("open");
-            btn.setAttribute("aria-expanded", "false");
-            panel.setAttribute("aria-hidden", "true");
-        }
-    }
+    container.style.display = is_archive ? "" : "none";
 }
 
 /**
@@ -735,12 +716,10 @@ window.addEventListener("load", () => {
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
             apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
-            setSettingsBtnDisabled("hist_settings_btn", "hist_settings_panel", USE_HISTOGRAM_TABLE);
-            apply_ignore_testing_visibility();
         });
     });
 
-    // Add event listener for the "Ignore testing dataset" checkbox
+    // Add event listener for the "Ignore testing datasets" checkbox
     const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets");
     if (ignoreTestingCheckbox) {
         ignoreTestingCheckbox.addEventListener("change", () => {

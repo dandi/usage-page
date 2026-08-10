@@ -363,6 +363,13 @@ function download_text_file(text: string, filename: string, mime_type: string): 
 // ── Sortable table renderer ───────────────────────────────────────────────────
 
 /**
+ * The sort each table is currently under, so that re-rendering it with new
+ * rows can restore it.  Keyed by the container element (rather than its ID) so
+ * the state disappears with the element it belongs to.
+ */
+const TABLE_SORT_STATE = new WeakMap<HTMLElement, { key: string; asc: boolean; signature: string }>();
+
+/**
  * Renders a sortable HTML table inside a container element.
  * Clicking a column header re-sorts the table in place and updates the sort
  * indicator (▲ ascending / ▼ descending / ⇅ unsorted).
@@ -401,12 +408,23 @@ export function render_sortable_table(
     // a named or leading column rather than the last keeps the default ordering
     // stable as further metric columns are added.
     // sort_asc: true = ascending (A→Z / low→high), false = descending (Z→A / high→low)
-    let sort_key = (
+    const default_sort_key = (
         columns.find((col) => col.default_sort) ??
         columns.find((col) => col.numeric) ??
         columns[columns.length - 1]
     ).key;
-    let sort_asc  = false; // start descending so highest values appear first
+
+    // Re-rendering a table with fresh rows (a settings toggle, a reload of the
+    // same view) keeps whatever sort the user last chose for it, instead of
+    // snapping back to the default.  The remembered state only applies to a
+    // table with the same columns, so a container that later shows a different
+    // table (the per-asset table replacing the per-Dandiset one, say) starts
+    // from that table's own default.
+    const signature = columns.map((col) => col.key).join(" ");
+    const remembered = TABLE_SORT_STATE.get(container);
+    const restored = remembered?.signature === signature ? remembered : null;
+    let sort_key = restored?.key ?? default_sort_key;
+    let sort_asc  = restored?.asc ?? false; // start descending so highest values appear first
 
     function render_table() {
         const sorted = [...rows].sort((a, b) => {
@@ -524,6 +542,7 @@ export function render_sortable_table(
                     sort_key = key;
                     sort_asc  = false; // first click on a new column → descending (high→low)
                 }
+                TABLE_SORT_STATE.set(container!, { key: sort_key, asc: sort_asc, signature });
                 render_table();
             });
         });

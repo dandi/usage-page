@@ -1056,3 +1056,84 @@ describe("render_sortable_table table download", () => {
         expect(document.querySelector("#my_table .table-data-menu")!.classList.contains("open")).toBe(false);
     });
 });
+
+// ── render_sortable_table sort persistence across re-renders ──────────────────
+
+describe("render_sortable_table sort persistence", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Ratio", key: "ratio", numeric: true },
+        { label: "Total", key: "total", numeric: true, default_sort: true },
+    ];
+    const rows = [
+        { name: "alpha", ratio: 9, total: 100 },
+        { name: "beta", ratio: 5, total: 300 },
+        { name: "gamma", ratio: 7, total: 200 },
+    ];
+    const fmt = (n: number) => String(n);
+
+    const sorted_key = () => (document.querySelector("#my_table th.th-sorted") as HTMLElement).dataset.key;
+    const indicator = () => document.querySelector("#my_table th.th-sorted .sort-indicator")!.textContent;
+    const first_name = () => document.querySelector("#my_table tbody tr:first-child td:first-child")!.textContent;
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+    });
+
+    it("keeps the user's sort column when the same table is re-rendered", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+        expect(sorted_key()).toBe("ratio");
+
+        // Same table, fewer rows — as when a filter setting is toggled
+        render_sortable_table("my_table", "Title", columns, rows.slice(0, 2), fmt);
+
+        expect(sorted_key()).toBe("ratio");
+        expect(first_name()).toBe("alpha");
+    });
+
+    it("keeps the sort direction as well as the column", () => {
+        const th = document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement;
+        th.click();
+        th.click(); // second click flips to ascending
+        expect(indicator()).toBe("▲");
+
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+
+        expect(sorted_key()).toBe("ratio");
+        expect(indicator()).toBe("▲");
+        expect(first_name()).toBe("beta");
+    });
+
+    it("starts from the default sort when the columns change", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+
+        const other_columns = [
+            { label: "Name", key: "name", numeric: false },
+            { label: "Bytes", key: "bytes", numeric: true },
+        ];
+        render_sortable_table("my_table", "Other table", other_columns, [{ name: "alpha", bytes: 1 }], fmt);
+
+        expect(sorted_key()).toBe("bytes");
+    });
+
+    it("does not leak one table's sort into another table", () => {
+        document.body.innerHTML = '<div id="my_table"></div><div id="other_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+
+        render_sortable_table("other_table", "Title", columns, rows, fmt);
+
+        expect((document.querySelector("#other_table th.th-sorted") as HTMLElement).dataset.key).toBe("total");
+    });
+
+    it("uses the default sort for a freshly created container", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+
+        // Replacing the container element discards the state tied to it
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+
+        expect(sorted_key()).toBe("total");
+    });
+});
