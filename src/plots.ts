@@ -1783,7 +1783,7 @@ function load_dandiset_histogram(): Promise<void> {
         const layout = applyTheme({
             bargap: 0,
             title: {
-                text: `Usage per Dandiset`,
+                text: `${bytes_unit(peak_plotted_value(plot_data, false), USE_BINARY)} per Dandiset`,
                 font: { size: 24 }
             },
             xaxis: {
@@ -1807,7 +1807,7 @@ function load_dandiset_histogram(): Promise<void> {
 
         // Render table view (sortable by column header click; default: bytes descending)
         const count_format = (n: number) => n.toLocaleString();
-        render_sortable_table("histogram_table", "", [
+        render_sortable_table("histogram_table", "Usage per Dandiset", [
             { label: "Dandiset ID", key: "raw_id", numeric: false },
             { label: "Name", key: "title", numeric: false },
             { label: "Usage", key: "bytes", numeric: true },
@@ -1892,7 +1892,7 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             const layout = applyTheme({
                 bargap: 0,
                 title: {
-                    text: `Usage per asset`,
+                    text: `${bytes_unit(peak_plotted_value(plot_data, false), USE_BINARY)} per asset`,
                     font: { size: 24 }
                 },
                 xaxis: {
