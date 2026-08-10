@@ -7,6 +7,8 @@ import {
     aggregate_by_timebin,
     format_bytes,
     bytes_unit,
+    scaled_metric,
+    format_ratio,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -288,5 +290,76 @@ describe("bytes_unit", () => {
 
     it("clamps to the largest known unit for absurdly large values", () => {
         expect(bytes_unit(1e40)).toBe("YB");
+    });
+});
+
+// ── scaled_metric ────────────────────────────────────────────────────────────
+
+describe("scaled_metric", () => {
+    it("divides the numerator by the denominator", () => {
+        expect(scaled_metric(600, 4)).toBe(150);
+    });
+
+    it("returns a fractional ratio when the numerator is smaller", () => {
+        expect(scaled_metric(1, 8)).toBe(0.125);
+    });
+
+    it("returns zero when the numerator is zero", () => {
+        expect(scaled_metric(0, 101)).toBe(0);
+    });
+
+    it("returns NaN for a zero denominator instead of Infinity", () => {
+        expect(scaled_metric(500, 0)).toBeNaN();
+    });
+
+    it("returns NaN for a negative denominator", () => {
+        expect(scaled_metric(500, -1)).toBeNaN();
+    });
+
+    it("returns NaN when either operand is missing", () => {
+        expect(scaled_metric(undefined, 4)).toBeNaN();
+        expect(scaled_metric(600, undefined)).toBeNaN();
+    });
+
+    it("returns NaN when either operand is not finite", () => {
+        expect(scaled_metric(NaN, 4)).toBeNaN();
+        expect(scaled_metric(600, Infinity)).toBeNaN();
+    });
+
+    it("computes bytes sent per stored byte for realistic magnitudes", () => {
+        expect(scaled_metric(164445122622529, 2559248010229)).toBeCloseTo(64.255, 3);
+    });
+});
+
+// ── format_ratio ─────────────────────────────────────────────────────────────
+
+describe("format_ratio", () => {
+    it("renders values of 100 or more as whole numbers with thousands separators", () => {
+        expect(format_ratio(94966.4)).toBe("94,966");
+        expect(format_ratio(100)).toBe("100");
+    });
+
+    it("keeps two decimals for values between 1 and 100", () => {
+        expect(format_ratio(20.1333)).toBe("20.13");
+        expect(format_ratio(1)).toBe("1");
+    });
+
+    it("keeps two significant digits for values below 1", () => {
+        expect(format_ratio(0.171914)).toBe("0.17");
+        expect(format_ratio(0.00456)).toBe("0.0046");
+    });
+
+    it("renders zero as '0'", () => {
+        expect(format_ratio(0)).toBe("0");
+    });
+
+    it("renders non-finite values as '--'", () => {
+        expect(format_ratio(NaN)).toBe("--");
+        expect(format_ratio(Infinity)).toBe("--");
+        expect(format_ratio(-Infinity)).toBe("--");
+    });
+
+    it("renders a missing value as '--'", () => {
+        expect(format_ratio(undefined)).toBe("--");
     });
 });

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { gzipSync } from "node:zlib";
 import {
     escape_html,
     make_cumulative,
@@ -8,6 +9,9 @@ import {
     derive_data_source_urls,
     render_sortable_table,
     parse_dandiset_titles_jsonl,
+    parse_dandiset_numbers_jsonl,
+    decode_maybe_gzipped_response,
+    fetch_maybe_gzipped_text,
     format_dandiset_label,
 } from "../../src/plot-helpers.js";
 
@@ -576,6 +580,101 @@ describe("parse_dandiset_titles_jsonl", () => {
     });
 });
 
+// ── parse_dandiset_numbers_jsonl ──────────────────────────────────────────────
+
+describe("parse_dandiset_numbers_jsonl", () => {
+    it("parses one number per line into a single lookup map", () => {
+        const text = '{"000003": 101}\n{"000004": 87}';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101, "000004": 87 });
+    });
+
+    it("keeps zero values", () => {
+        expect(parse_dandiset_numbers_jsonl('{"000003": 0}')).toEqual({ "000003": 0 });
+    });
+
+    it("preserves large byte counts exactly", () => {
+        expect(parse_dandiset_numbers_jsonl('{"001412": 1067232272269263}')).toEqual({
+            "001412": 1067232272269263,
+        });
+    });
+
+    it("skips blank lines and trailing newlines", () => {
+        const text = '{"000003": 101}\n\n\n{"000004": 87}\n';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101, "000004": 87 });
+    });
+
+    it("skips malformed lines without throwing", () => {
+        const text = '{"000003": 101}\nnot json\n{"000004": 87}';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101, "000004": 87 });
+    });
+
+    it("drops entries whose value is not a finite number", () => {
+        const text = '{"000003": 101}\n{"000004": null}\n{"000005": "87"}';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101 });
+    });
+
+    it("returns an empty object for empty input", () => {
+        expect(parse_dandiset_numbers_jsonl("")).toEqual({});
+    });
+});
+
+// ── decode_maybe_gzipped_response ─────────────────────────────────────────────
+
+describe("decode_maybe_gzipped_response", () => {
+    const jsonl = '{"000003": 101}\n{"000004": 87}\n';
+
+    it("inflates a gzipped body", async () => {
+        const response = new Response(new Uint8Array(gzipSync(Buffer.from(jsonl))));
+        expect(await decode_maybe_gzipped_response(response)).toBe(jsonl);
+    });
+
+    it("inflates a body large enough to arrive in multiple chunks", async () => {
+        const big = Array.from({ length: 20000 }, (_, i) => `{"${String(i).padStart(6, "0")}": ${i}}`).join("\n");
+        const response = new Response(new Uint8Array(gzipSync(Buffer.from(big))));
+        expect(await decode_maybe_gzipped_response(response)).toBe(big);
+    });
+
+    it("passes through a body that was already decompressed upstream", async () => {
+        const response = new Response(jsonl);
+        expect(await decode_maybe_gzipped_response(response)).toBe(jsonl);
+    });
+
+    it("returns an empty string for an empty body", async () => {
+        const response = new Response("");
+        expect(await decode_maybe_gzipped_response(response)).toBe("");
+    });
+
+    it("rejects when the gzipped body is corrupt", async () => {
+        // Valid gzip magic number followed by garbage
+        const corrupt = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04]);
+        await expect(decode_maybe_gzipped_response(new Response(corrupt))).rejects.toThrow();
+    });
+});
+
+// ── fetch_maybe_gzipped_text ──────────────────────────────────────────────────
+
+describe("fetch_maybe_gzipped_text", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("fetches and inflates a gzipped file", async () => {
+        const jsonl = '{"000003": 101}\n';
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue(new Response(new Uint8Array(gzipSync(Buffer.from(jsonl))), { status: 200 }))
+        );
+        expect(await fetch_maybe_gzipped_text("https://example.com/data.jsonl.gz")).toBe(jsonl);
+    });
+
+    it("propagates a permanent fetch failure", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" }));
+        await expect(fetch_maybe_gzipped_text("https://example.com/missing.jsonl.gz")).rejects.toThrow(
+            "HTTP error 404: Not Found"
+        );
+    });
+});
+
 // ── format_dandiset_label ──────────────────────────────────────────────────────
 
 describe("format_dandiset_label", () => {
@@ -714,5 +813,44 @@ describe("render_sortable_table data menu", () => {
         const link = document.querySelector("#my_table a.table-data-link") as HTMLAnchorElement | null;
         expect(link).not.toBeNull();
         expect(link!.href).toBe("https://example.com/data.tsv");
+    });
+});
+
+// ── render_sortable_table missing numeric values ──────────────────────────────
+
+describe("render_sortable_table with missing numeric values", () => {
+    // NaN is how a scaled metric reports "no ratio available" (unknown or zero
+    // denominator); such rows must never displace rows that do have a value.
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Ratio", key: "ratio", numeric: true, format_fn: (n: number) => (isFinite(n) ? String(n) : "--") },
+    ];
+    const rows = [
+        { name: "alpha", ratio: 3 },
+        { name: "beta", ratio: NaN },
+        { name: "gamma", ratio: 1 },
+        { name: "delta", ratio: 2 },
+    ];
+
+    const rendered_names = () =>
+        Array.from(document.querySelectorAll("#my_table tbody tr td:first-child")).map((td) => td.textContent);
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, (n) => String(n));
+    });
+
+    it("sorts rows without a value last when sorting descending", () => {
+        expect(rendered_names()).toEqual(["alpha", "delta", "gamma", "beta"]);
+    });
+
+    it("keeps rows without a value last when sorting ascending", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+        expect(rendered_names()).toEqual(["gamma", "delta", "alpha", "beta"]);
+    });
+
+    it("renders the missing value through the column formatter", () => {
+        const last_cell = document.querySelector("#my_table tbody tr:last-child td:last-child")!;
+        expect(last_cell.textContent).toBe("--");
     });
 });

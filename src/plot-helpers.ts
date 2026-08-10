@@ -84,26 +84,105 @@ export async function fetchWithRetry(url: string, options: RequestInit = {}, max
     throw new Error("fetchWithRetry: exhausted retries");
 }
 
-// ── Dandiset ID → title mapping ────────────────────────────────────────────
+// ── Gzip decoding ─────────────────────────────────────────────────────────────
 
 /**
- * Parses a newline-delimited JSON (JSONL) file where each line is a single
- * `{ "<dandiset_id>": "<title>" }` object, merging them into one lookup map.
- * Blank lines and lines that fail to parse are skipped so a single malformed
- * entry doesn't prevent the rest of the file from loading.
+ * Decodes a fetched response body that may be gzip-compressed into text.
+ *
+ * The gzipped derivative files are served as raw `application/octet-stream`
+ * bytes (no `Content-Encoding: gzip` header), so the browser hands them over
+ * still compressed and they have to be inflated here.  A caching layer that
+ * *does* advertise the encoding will have transparently decompressed the body
+ * already, so the gzip magic number is checked first and an already-plain body
+ * is simply decoded as text.
  */
-export function parse_dandiset_titles_jsonl(text: string): Record<string, string> {
-    const titles: Record<string, string> = {};
+export async function decode_maybe_gzipped_response(response: Response): Promise<string> {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const is_gzipped = bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+    if (!is_gzipped) return new TextDecoder().decode(bytes);
+    if (typeof DecompressionStream === "undefined") {
+        throw new Error("Gzipped data cannot be decoded: DecompressionStream is unavailable.");
+    }
+
+    const stream = new DecompressionStream("gzip");
+    const writer = stream.writable.getWriter();
+    // Feeding the stream is deliberately not awaited here: the writes only
+    // settle once the reader below drains the decompressed output, so awaiting
+    // them first would deadlock.  A corrupt body rejects on both ends of the
+    // stream, and it is the reader's rejection that is propagated, so the
+    // writer's duplicate is swallowed rather than left unhandled.
+    writer
+        .write(bytes)
+        .then(() => writer.close())
+        .catch(() => {});
+
+    const reader = stream.readable.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+}
+
+/**
+ * Fetches a (possibly gzipped) file and returns its decoded text, retrying
+ * transient failures via `fetchWithRetry`.
+ */
+export async function fetch_maybe_gzipped_text(url: string): Promise<string> {
+    return decode_maybe_gzipped_response(await fetchWithRetry(url));
+}
+
+// ── Dandiset ID → value mappings ───────────────────────────────────────────
+
+/**
+ * Walks a newline-delimited JSON (JSONL) file where each line is a single
+ * `{ "<dandiset_id>": <value> }` object, invoking `visit` for every key/value
+ * pair.  Blank lines and lines that fail to parse are skipped so a single
+ * malformed entry doesn't prevent the rest of the file from loading.
+ */
+function for_each_jsonl_entry(text: string, visit: (key: string, value: unknown) => void): void {
     text.split("\n").forEach((line) => {
         const trimmed = line.trim();
         if (!trimmed) return;
+        let parsed: unknown;
         try {
-            Object.assign(titles, JSON.parse(trimmed));
+            parsed = JSON.parse(trimmed);
         } catch {
             // Skip malformed lines rather than failing the whole page.
+            return;
         }
+        if (parsed === null || typeof parsed !== "object") return;
+        Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => visit(key, value));
+    });
+}
+
+/**
+ * Parses a JSONL file of `{ "<dandiset_id>": "<title>" }` lines into one
+ * lookup map of Dandiset ID → title.
+ */
+export function parse_dandiset_titles_jsonl(text: string): Record<string, string> {
+    const titles: Record<string, string> = {};
+    for_each_jsonl_entry(text, (key, value) => {
+        titles[key] = value as string;
     });
     return titles;
+}
+
+/**
+ * Parses a JSONL file of `{ "<dandiset_id>": <number> }` lines (the asset-count
+ * and total-size derivatives) into one lookup map of Dandiset ID → number.
+ * Entries whose value is not a finite number are dropped, so a malformed value
+ * shows up as missing data rather than as a bogus metric.
+ */
+export function parse_dandiset_numbers_jsonl(text: string): Record<string, number> {
+    const numbers: Record<string, number> = {};
+    for_each_jsonl_entry(text, (key, value) => {
+        if (typeof value === "number" && isFinite(value)) numbers[key] = value;
+    });
+    return numbers;
 }
 
 /**
@@ -262,7 +341,16 @@ export function render_sortable_table(
             const vb = b[sort_key];
             const factor = sort_asc ? 1 : -1;
             if (typeof va === "number" && typeof vb === "number") {
-                return factor * ((va as number) - (vb as number));
+                // Rows without a value for this column (NaN, e.g. a scaled
+                // metric whose denominator is unknown) always sink to the
+                // bottom, in both sort directions.
+                const va_missing = !isFinite(va);
+                const vb_missing = !isFinite(vb);
+                if (va_missing || vb_missing) {
+                    if (va_missing && vb_missing) return 0;
+                    return va_missing ? 1 : -1;
+                }
+                return factor * (va - vb);
             }
             // Numeric-aware locale comparison handles Dandiset IDs like "000123"
             return factor * String(va).localeCompare(String(vb), undefined, { numeric: true });

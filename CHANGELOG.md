@@ -4,6 +4,9 @@
 
 #### 🚀 Enhancement
 
+- Added four "scaled" usage metrics to the per-Dandiset table, normalising raw usage by how much content each Dandiset actually holds: "Bytes / Size" (bytes sent per byte stored), "Views / Asset", "Downloads / Asset" and "Requests / Asset". Their denominators come from two new data sources, [dandi-cache/dandiset-id-to-number-of-assets](https://github.com/dandi-cache/dandiset-id-to-number-of-assets) and [dandi-cache/dandiset-id-to-total-size](https://github.com/dandi-cache/dandiset-id-to-total-size), which are gzipped JSONL files fetched from the GitHub raw CDN and decompressed in the browser. A failure to load either one leaves the rest of the page working. ([#241](https://github.com/dandi/usage-page/pull/241))
+- Rendered a scaled metric as "--" when its denominator is unknown (a Dandiset missing from the content derivatives, such as 'undetermined') or zero, rather than as a blank, zero, or infinite value. Table rows without a value for the sorted column now always sink to the bottom, in both sort directions. ([#241](https://github.com/dandi/usage-page/pull/241))
+
 - Surfaced the view counts now published by [dandi/access-summaries](https://github.com/dandi/access-summaries) (`number_of_views` in `by_day.tsv`, `by_region.tsv` and `by_asset.tsv`; `total_number_of_views` in `totals.json` and `archive_totals.json`) throughout the page: a new "Views" column in every sortable table (over-time, per-Dandiset histogram, per-asset histogram, per-region, AWS regions), a `Views` entry in the hover text of every plot (over-time single-series and both grouped modes, per-Dandiset and per-asset histograms, geographic scatter and choropleth), and a view count in the totals sentence above the plots with an explanatory footnote. ([#240](https://github.com/dandi/usage-page/pull/240))
 - Renamed the "Usage" column of every table view to "Bytes". ([#240](https://github.com/dandi/usage-page/pull/240))
 - Ordered the metric columns of every table view as "Views", "Downloads", "Requests" (after the leading "Bytes" column). ([#240](https://github.com/dandi/usage-page/pull/240))
@@ -26,6 +29,8 @@
 - Fixed version-check CI parsing in the dependency-only `package.json` branch by replacing a malformed heredoc with `node -e`, so Dependabot dependency bumps no longer fail unexpectedly. ([#181](https://github.com/dandi/usage-page/pull/181))
 
 #### 🧪 Tests
+
+- Added unit tests for the new gzipped-JSONL data path (`parse_dandiset_numbers_jsonl`, `decode_maybe_gzipped_response`, `fetch_maybe_gzipped_text`), the `scaled_metric` and `format_ratio` helpers, and the table renderer's handling of missing numeric values. The Chromatic fixtures now serve gzipped asset-count and total-size files, so the snapshot run exercises the client-side decompression too. ([#241](https://github.com/dandi/usage-page/pull/241))
 
 - Extracted `escape_html`, `make_cumulative`, `fetchWithRetry`, `apply_view_mode`, `apply_geo_view_mode`, and `render_sortable_table` into a new `src/plot-helpers.ts` module and added 50 unit tests covering all six helpers; raised overall statement coverage from 5% to 13%. ([#175](https://github.com/dandi/usage-page/pull/175))
 - Added `stories/PlotSections.stories.js` with Storybook stories for the over-time plot, histogram, geography, and sortable-table components in both dark and light themes. ([#175](https://github.com/dandi/usage-page/pull/175))

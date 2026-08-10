@@ -7,6 +7,8 @@ import {
     aggregate_by_timebin,
     format_bytes as format_bytes_pure,
     bytes_unit,
+    scaled_metric,
+    format_ratio,
 } from "./utils.js";
 import {
     escape_html,
@@ -17,6 +19,8 @@ import {
     derive_data_source_urls,
     render_sortable_table,
     parse_dandiset_titles_jsonl,
+    parse_dandiset_numbers_jsonl,
+    fetch_maybe_gzipped_text,
     format_dandiset_label,
 } from "./plot-helpers.js";
 import { load as loadYaml } from "js-yaml";
@@ -340,6 +344,13 @@ const ALL_DANDISET_TOTALS_URL = `${BASE_URL}/content/totals.json`;
 const REGION_CODES_TO_LATITUDE_LONGITUDE_URL = `${BASE_URL}/content/region_codes_to_coordinates.yaml`;
 const DANDISET_ID_TO_TITLE_URL =
     "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-title/derivatives/derivatives/dandiset_id_to_title.jsonl";
+// Content of each Dandiset (asset count and stored size), used to scale the raw
+// usage metrics into per-asset and per-stored-byte rates.  Both are gzipped
+// JSONL and are decompressed client-side.
+const DANDISET_ID_TO_NUMBER_OF_ASSETS_URL =
+    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-number-of-assets/dist/derivatives/dandiset_id_to_number_of_assets.jsonl.gz";
+const DANDISET_ID_TO_TOTAL_SIZE_URL =
+    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-total-size/dist/derivatives/dandiset_id_to_total_size.jsonl.gz";
 
 // Landing page for a Dandiset on the DANDI archive.
 const DANDI_ARCHIVE_DANDISET_URL = "https://dandiarchive.org/dandiset";
@@ -369,6 +380,11 @@ let REGION_CODES_TO_LATITUDE_LONGITUDE: Record<string, { latitude: number; longi
 let ALL_DANDISET_TOTALS: Record<string, DandisetTotals> = {};
 // Maps a Dandiset ID to its current title, used to annotate ID displays with a human-readable name.
 let DANDISET_TITLES: Record<string, string> = {};
+// Maps a Dandiset ID to the number of assets it contains and to its total
+// stored size in bytes; both are the denominators of the scaled metrics shown
+// in the per-Dandiset table.
+let DANDISET_ASSET_COUNTS: Record<string, number> = {};
+let DANDISET_TOTAL_SIZES: Record<string, number> = {};
 let USE_LOG_SCALE = false;
 let USE_CUMULATIVE = false;
 let USE_OT_LINE_PLOT = false;
@@ -850,8 +866,33 @@ const dandisetTitlesPromise = fetchWithRetry(DANDISET_ID_TO_TITLE_URL)
         console.error("Error loading dandiset titles:", error);
     });
 
+// Asset counts and stored sizes are only the denominators of the scaled metrics
+// in the per-Dandiset table, which fall back to "--" when unavailable, so a
+// failure here is logged but does not block the rest of the page.
+const dandisetAssetCountsPromise = fetch_maybe_gzipped_text(DANDISET_ID_TO_NUMBER_OF_ASSETS_URL)
+    .then((asset_counts_text) => {
+        Object.assign(DANDISET_ASSET_COUNTS, parse_dandiset_numbers_jsonl(asset_counts_text));
+    })
+    .catch((error) => {
+        console.error("Error loading dandiset asset counts:", error);
+    });
+
+const dandisetTotalSizesPromise = fetch_maybe_gzipped_text(DANDISET_ID_TO_TOTAL_SIZE_URL)
+    .then((total_sizes_text) => {
+        Object.assign(DANDISET_TOTAL_SIZES, parse_dandiset_numbers_jsonl(total_sizes_text));
+    })
+    .catch((error) => {
+        console.error("Error loading dandiset total sizes:", error);
+    });
+
 // Populate the dropdown with IDs and render initial plots only after both fetches complete
-Promise.all([archiveTotalsPromise, allDandisetTotalsPromise, dandisetTitlesPromise])
+Promise.all([
+    archiveTotalsPromise,
+    allDandisetTotalsPromise,
+    dandisetTitlesPromise,
+    dandisetAssetCountsPromise,
+    dandisetTotalSizesPromise,
+])
     .then(() => {
         // Re-sync from URL here as a safety net: if DOMContentLoaded fired
         // before the data was ready, the global state is already correct, but
@@ -1754,14 +1795,27 @@ function load_dandiset_histogram(): Promise<void> {
         const combined = Object.keys(data)
             .map(dandiset_id => {
                 const raw_id = String(dandiset_id);
+                const bytes = data[dandiset_id].total_bytes_sent as number;
+                const requests = data[dandiset_id].total_number_of_requests as number;
+                const downloads = data[dandiset_id].total_number_of_downloads as number;
+                const views = data[dandiset_id].total_number_of_views as number;
+                // Denominators of the scaled metrics; missing for Dandisets
+                // absent from the content derivatives (such as 'undetermined'),
+                // in which case the ratios come out as NaN and render as "--".
+                const number_of_assets = DANDISET_ASSET_COUNTS[raw_id];
+                const total_size = DANDISET_TOTAL_SIZES[raw_id];
                 return {
                     raw_id,
                     dandiset_id: format_dandiset_label(raw_id, DANDISET_TITLES),
                     title: DANDISET_TITLES[raw_id] ?? "",
-                    bytes: data[dandiset_id].total_bytes_sent,
-                    requests: data[dandiset_id].total_number_of_requests as number,
-                    downloads: data[dandiset_id].total_number_of_downloads as number,
-                    views: data[dandiset_id].total_number_of_views as number,
+                    bytes,
+                    requests,
+                    downloads,
+                    views,
+                    bytes_per_size: scaled_metric(bytes, total_size),
+                    views_per_asset: scaled_metric(views, number_of_assets),
+                    downloads_per_asset: scaled_metric(downloads, number_of_assets),
+                    requests_per_asset: scaled_metric(requests, number_of_assets),
                 };
             })
             .sort((a, b) => b.bytes - a.bytes);
@@ -1828,6 +1882,10 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Views", key: "views", numeric: true, format_fn: count_format },
             { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
             { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
+            { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
+            { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Requests / Asset", key: "requests_per_asset", numeric: true, format_fn: format_ratio },
         ], combined, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
