@@ -4,7 +4,7 @@
 
 #### 🚀 Enhancement
 
-- Added four "scaled" usage metrics to the per-Dandiset table, normalising raw usage by how much content each Dandiset actually holds: "Bytes / Size" (bytes sent per byte stored), "Views / Asset", "Downloads / Asset" and "Requests / Asset". Their denominators come from two new data sources, [dandi-cache/dandiset-id-to-number-of-assets](https://github.com/dandi-cache/dandiset-id-to-number-of-assets) and [dandi-cache/dandiset-id-to-total-size](https://github.com/dandi-cache/dandiset-id-to-total-size), which are gzipped JSONL files fetched from the GitHub raw CDN and decompressed in the browser. A failure to load either one leaves the rest of the page working. ([#241](https://github.com/dandi/usage-page/pull/241))
+- Added four "scaled" usage metrics to the per-Dandiset table, normalizing raw usage by how much content each Dandiset actually holds: "Bytes / Size" (bytes sent per byte stored), "Views / Asset", "Downloads / Asset" and "Requests / Asset". Their denominators come from two new data sources, [dandi-cache/dandiset-id-to-number-of-assets](https://github.com/dandi-cache/dandiset-id-to-number-of-assets) and [dandi-cache/dandiset-id-to-total-size](https://github.com/dandi-cache/dandiset-id-to-total-size), which are gzipped JSONL files fetched from the GitHub raw CDN and decompressed in the browser. A failure to load either one leaves the rest of the page working. ([#241](https://github.com/dandi/usage-page/pull/241))
 - Rendered a scaled metric as "--" when its denominator is unknown (a Dandiset missing from the content derivatives, such as 'undetermined') or zero, rather than as a blank, zero, or infinite value. Table rows without a value for the sorted column now always sink to the bottom, in both sort directions. ([#241](https://github.com/dandi/usage-page/pull/241))
 
 - Surfaced the view counts now published by [dandi/access-summaries](https://github.com/dandi/access-summaries) (`number_of_views` in `by_day.tsv`, `by_region.tsv` and `by_asset.tsv`; `total_number_of_views` in `totals.json` and `archive_totals.json`) throughout the page: a new "Views" column in every sortable table (over-time, per-Dandiset histogram, per-asset histogram, per-region, AWS regions), a `Views` entry in the hover text of every plot (over-time single-series and both grouped modes, per-Dandiset and per-asset histograms, geographic scatter and choropleth), and a view count in the totals sentence above the plots with an explanatory footnote. ([#240](https://github.com/dandi/usage-page/pull/240))
@@ -23,6 +23,8 @@
 - Added `number_of_requests` and `number_of_downloads` to Plotly hover text for all plot types (over-time, per-dandiset histogram, per-asset histogram, geographic scatter, geographic choropleth) and as new columns in all sortable table views. ([#201](https://github.com/dandi/usage-page/pull/201))
 
 #### 🏠 Internal
+
+- Recorded the American-English spelling convention in `AGENTS.md`, and added `CLAUDE.md` as a symlink to it so both filenames resolve to the same instructions. ([#241](https://github.com/dandi/usage-page/pull/241))
 
 - Updated the version-check CI workflow to not trigger on `package-lock.json` changes; updated `AGENTS.md` to match. ([#174](https://github.com/dandi/usage-page/pull/174))
 - Updated the version-check workflow to allow dependency-only `package.json` changes (for example Dependabot dependency bumps) without requiring a package version bump. ([#189](https://github.com/dandi/usage-page/pull/189))
