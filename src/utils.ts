@@ -106,7 +106,7 @@ export function format_bytes(bytes: number, decimals = 2, use_binary = false): s
  * (and distort) the per-Dandiset metrics.  The per-Dandiset table can be told
  * to leave them out.
  */
-export const TESTING_DANDISET_IDS = ["000027", "000126", "000717"];
+export const TESTING_DANDISET_IDS = ["000027", "000126", "000717", "001083"];
 
 /**
  * Returns `rows` without the testing Dandisets when `exclude` is true, and
