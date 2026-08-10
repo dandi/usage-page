@@ -306,7 +306,9 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
  * @param columns - Column definitions.  `numeric: true` formats the cell value with
  *        `format_fn()`; otherwise the raw value is displayed as-is.  An optional
  *        `link_fn(row)` turns a non-numeric cell into a hyperlink: it returns the
- *        target URL, or `null` for rows that should stay plain text.
+ *        target URL, or `null` for rows that should stay plain text.  An optional
+ *        `default_sort: true` marks the column the table is sorted by on first
+ *        render, for tables whose primary metric is not their leftmost one.
  * @param rows - Data rows (plain objects keyed by column.key).
  * @param format_fn - Formatter applied to numeric cell values.  Defaults to
  *        `format_bytes` (decimal SI suffixes).
@@ -318,7 +320,7 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
 export function render_sortable_table(
     container_id: string,
     title: string,
-    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string; link_fn?: (row: Record<string, unknown>) => string | null}>,
+    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string; link_fn?: (row: Record<string, unknown>) => string | null; default_sort?: boolean}>,
     rows: Array<Record<string, unknown>>,
     format_fn: (bytes: number) => string = format_bytes_default,
     data_url?: string
@@ -326,13 +328,17 @@ export function render_sortable_table(
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    // Default: sort by the first numeric column (the primary "Bytes" metric in
-    // every table here) descending, falling back to the last column when no
-    // column is numeric.  Anchoring to the first numeric column rather than the
-    // last keeps the default ordering stable as further metric columns are
-    // appended.
+    // Default: sort by the column flagged `default_sort`, else by the first
+    // numeric column (the primary "Bytes" metric in most tables here),
+    // falling back to the last column when no column is numeric.  Anchoring to
+    // a named or leading column rather than the last keeps the default ordering
+    // stable as further metric columns are added.
     // sort_asc: true = ascending (A→Z / low→high), false = descending (Z→A / high→low)
-    let sort_key = (columns.find((col) => col.numeric) ?? columns[columns.length - 1]).key;
+    let sort_key = (
+        columns.find((col) => col.default_sort) ??
+        columns.find((col) => col.numeric) ??
+        columns[columns.length - 1]
+    ).key;
     let sort_asc  = false; // start descending so highest values appear first
 
     function render_table() {

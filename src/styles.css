@@ -331,6 +331,14 @@ input[type="number"]:focus {
     padding: 0 16px;
 }
 
+/* The per-Dandiset table carries both the scaled metrics and the raw totals
+   they derive from, so it gets a wider window than the other tables to keep
+   all of its columns visible at once.  It still shrinks to the available
+   width on narrower screens, where the container scrolls horizontally. */
+#histogram_table.plot-table {
+    max-width: min(1600px, 100%);
+}
+
 .plot-table h3 {
     font-weight: 300;
     font-size: 1.1em;

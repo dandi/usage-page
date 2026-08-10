@@ -1878,14 +1878,18 @@ function load_dandiset_histogram(): Promise<void> {
         render_sortable_table("histogram_table", "Usage per Dandiset", [
             { label: "Dandiset ID", key: "raw_id", numeric: false },
             { label: "Name", key: "title", numeric: false, link_fn: (row) => dandiset_archive_url(row.raw_id) },
-            { label: "Bytes", key: "bytes", numeric: true },
-            { label: "Views", key: "views", numeric: true, format_fn: count_format },
-            { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
-            { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
+            // The scaled metrics lead, since they are what makes Dandisets of
+            // very different sizes comparable; the raw totals they are derived
+            // from follow.  "Total Bytes" stays the default sort so the table's
+            // initial ordering still matches the plot beside it.
             { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
             { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Requests / Asset", key: "requests_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
+            { label: "Total Views", key: "views", numeric: true, format_fn: count_format },
+            { label: "Total Downloads", key: "downloads", numeric: true, format_fn: count_format },
+            { label: "Total Requests", key: "requests", numeric: true, format_fn: count_format },
         ], combined, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);

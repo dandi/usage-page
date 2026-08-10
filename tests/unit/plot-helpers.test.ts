@@ -854,3 +854,43 @@ describe("render_sortable_table with missing numeric values", () => {
         expect(last_cell.textContent).toBe("--");
     });
 });
+
+// ── render_sortable_table default_sort column flag ────────────────────────────
+
+describe("render_sortable_table default_sort flag", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Ratio", key: "ratio", numeric: true },
+        { label: "Total", key: "total", numeric: true, default_sort: true },
+    ];
+    const rows = [
+        { name: "alpha", ratio: 9, total: 100 },
+        { name: "beta", ratio: 5, total: 300 },
+        { name: "gamma", ratio: 7, total: 200 },
+    ];
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, (n) => String(n));
+    });
+
+    it("sorts by the flagged column instead of the first numeric one", () => {
+        const sorted_header = document.querySelector("#my_table th.th-sorted");
+        expect((sorted_header as HTMLElement).dataset.key).toBe("total");
+        const first_name = document.querySelector("#my_table tbody tr:first-child td:first-child")!;
+        expect(first_name.textContent).toBe("beta");
+    });
+
+    it("still starts descending on the flagged column", () => {
+        const totals = Array.from(document.querySelectorAll("#my_table tbody tr td:last-child")).map(
+            (td) => td.textContent
+        );
+        expect(totals).toEqual(["300", "200", "100"]);
+    });
+
+    it("lets a click move the sort to another column", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+        const first_name = document.querySelector("#my_table tbody tr:first-child td:first-child")!;
+        expect(first_name.textContent).toBe("alpha");
+    });
+});
