@@ -25,6 +25,13 @@ const ALL_DANDISET_TOTALS = JSON.stringify({
     undetermined: { total_bytes_sent: 250000000, total_number_of_downloads: 60, total_number_of_requests: 300, total_number_of_views: 40, number_of_requesters: 75, number_of_unique_regions: 4, number_of_unique_countries: 2 },
 });
 
+// Titles for the mock Dandisets.  "000003" is deliberately left out so the
+// snapshot also covers a row whose name is unknown (and so is not hyperlinked).
+const DANDISET_TITLES_JSONL = `\
+{"000001": "Mock electrophysiology recordings"}
+{"000002": "Mock calcium imaging dataset"}
+`;
+
 const REGION_COORDS_YAML = `\
 US/California:
   latitude: 36.7783
@@ -76,6 +83,9 @@ date\tNeurophysiology\tMicroscopy\tVideo\tMiscellaneous
  * values above.  Must be called before page.goto().
  */
 async function setupDataMocks(page) {
+    await page.route("**/dandiset_id_to_title.jsonl", (route) =>
+        route.fulfill({ status: 200, contentType: "text/plain", body: DANDISET_TITLES_JSONL }),
+    );
     await page.route(`${BASE_URL}/content/archive_totals.json`, (route) =>
         route.fulfill({ status: 200, contentType: "application/json", body: ARCHIVE_TOTALS }),
     );

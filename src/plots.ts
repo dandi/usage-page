@@ -341,6 +341,20 @@ const REGION_CODES_TO_LATITUDE_LONGITUDE_URL = `${BASE_URL}/content/region_codes
 const DANDISET_ID_TO_TITLE_URL =
     "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-title/derivatives/derivatives/dandiset_id_to_title.jsonl";
 
+// Landing page for a Dandiset on the DANDI archive.
+const DANDI_ARCHIVE_DANDISET_URL = "https://dandiarchive.org/dandiset";
+
+/**
+ * Returns the DANDI archive landing-page URL for a Dandiset ID, or null when
+ * the ID is not a real Dandiset (for example the "undetermined" bucket, which
+ * has no archive page to link to).
+ */
+function dandiset_archive_url(dandiset_id: unknown): string | null {
+    return typeof dandiset_id === "string" && /^\d{6}$/.test(dandiset_id)
+        ? `${DANDI_ARCHIVE_DANDISET_URL}/${dandiset_id}`
+        : null;
+}
+
 interface DandisetTotals {
     total_bytes_sent: number;
     total_number_of_downloads: number;
@@ -1809,7 +1823,7 @@ function load_dandiset_histogram(): Promise<void> {
         const count_format = (n: number) => n.toLocaleString();
         render_sortable_table("histogram_table", "Usage per Dandiset", [
             { label: "Dandiset ID", key: "raw_id", numeric: false },
-            { label: "Name", key: "title", numeric: false },
+            { label: "Name", key: "title", numeric: false, link_fn: (row) => dandiset_archive_url(row.raw_id) },
             { label: "Usage", key: "bytes", numeric: true },
             { label: "Views", key: "views", numeric: true, format_fn: count_format },
             { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },

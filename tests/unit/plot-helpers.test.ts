@@ -387,6 +387,68 @@ describe("render_sortable_table", () => {
         expect(heading.innerHTML).toBe("&lt;b&gt;Bold&lt;/b&gt;");
     });
 
+    // ── link_fn (hyperlinked cells) ──────────────────────────────────────────
+
+    const link_columns = [
+        { label: "Name", key: "name", numeric: false, link_fn: (row: Record<string, unknown>) => (row.url as string | null) ?? null },
+        { label: "Size", key: "bytes", numeric: true },
+    ];
+
+    it("renders a hyperlink in a cell when link_fn returns a URL", () => {
+        const link_rows = [{ name: "alpha", bytes: 300, url: "https://example.com/alpha" }];
+        render_sortable_table("my_table", "Title", link_columns, link_rows, fmt);
+        const link = document.querySelector("#my_table tbody td:first-child a") as HTMLAnchorElement | null;
+        expect(link).not.toBeNull();
+        expect(link!.href).toBe("https://example.com/alpha");
+        expect(link!.textContent).toBe("alpha");
+        expect(link!.target).toBe("_blank");
+        expect(link!.rel).toBe("noopener");
+    });
+
+    it("leaves the cell as plain text when link_fn returns null", () => {
+        const link_rows = [{ name: "alpha", bytes: 300, url: null }];
+        render_sortable_table("my_table", "Title", link_columns, link_rows, fmt);
+        expect(document.querySelector("#my_table tbody td:first-child a")).toBeNull();
+        expect(document.querySelector("#my_table tbody td:first-child")!.textContent).toBe("alpha");
+    });
+
+    it("does not link an empty cell, which would be invisible to click", () => {
+        const link_rows = [{ name: "", bytes: 300, url: "https://example.com/alpha" }];
+        render_sortable_table("my_table", "Title", link_columns, link_rows, fmt);
+        expect(document.querySelector("#my_table tbody td:first-child a")).toBeNull();
+    });
+
+    it("ignores link_fn URLs that are not http(s)", () => {
+        const link_rows = [{ name: "alpha", bytes: 300, url: "javascript:alert(1)" }];
+        render_sortable_table("my_table", "Title", link_columns, link_rows, fmt);
+        expect(document.querySelector("#my_table tbody td:first-child a")).toBeNull();
+        expect(document.querySelector("#my_table tbody td:first-child")!.textContent).toBe("alpha");
+    });
+
+    it("escapes both the link text and the href", () => {
+        const link_rows = [{ name: '<script>x</script>', bytes: 300, url: 'https://example.com/"onmouseover="alert(1)' }];
+        render_sortable_table("my_table", "Title", link_columns, link_rows, fmt);
+        const cell = document.querySelector("#my_table tbody td:first-child")!;
+        const link = cell.querySelector("a") as HTMLAnchorElement;
+        expect(cell.innerHTML).not.toContain("<script>");
+        expect(cell.textContent).toBe("<script>x</script>");
+        // The quote in the URL must stay escaped so it cannot close the href
+        // attribute and introduce an event handler of its own.
+        expect(link.outerHTML).not.toMatch(/href="[^"]*"[^>]*onmouseover/);
+        expect(link.getAttributeNames()).not.toContain("onmouseover");
+    });
+
+    it("keeps hyperlinked cells sortable by their text value", () => {
+        const link_rows = [
+            { name: "beta", bytes: 100, url: "https://example.com/beta" },
+            { name: "alpha", bytes: 300, url: "https://example.com/alpha" },
+        ];
+        render_sortable_table("my_table", "Title", link_columns, link_rows, fmt);
+        (document.querySelector('#my_table th[data-key="name"]') as HTMLElement).click();
+        const first = document.querySelector("#my_table tbody tr:first-child td:first-child a")!;
+        expect(first.textContent).toBe("beta"); // descending on first click
+    });
+
     it("renders a data link when data_url is provided", () => {
         render_sortable_table("my_table", "Title", columns, rows, fmt, "https://example.com/data.tsv");
         const link = document.querySelector("#my_table a.table-data-link") as HTMLAnchorElement | null;
