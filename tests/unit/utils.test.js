@@ -9,6 +9,8 @@ import {
     bytes_unit,
     scaled_metric,
     format_ratio,
+    exclude_testing_dandisets,
+    TESTING_DANDISET_IDS,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -361,5 +363,43 @@ describe("format_ratio", () => {
 
     it("renders a missing value as '--'", () => {
         expect(format_ratio(undefined)).toBe("--");
+    });
+});
+
+// ── exclude_testing_dandisets ────────────────────────────────────────────────
+
+describe("exclude_testing_dandisets", () => {
+    const rows = [
+        { raw_id: "000003" },
+        { raw_id: "000027" },
+        { raw_id: "000126" },
+        { raw_id: "000717" },
+        { raw_id: "undetermined" },
+    ];
+
+    it("drops every testing Dandiset when asked to", () => {
+        expect(exclude_testing_dandisets(rows, true)).toEqual([{ raw_id: "000003" }, { raw_id: "undetermined" }]);
+    });
+
+    it("returns the rows unchanged when not asked to", () => {
+        expect(exclude_testing_dandisets(rows, false)).toBe(rows);
+    });
+
+    it("does not mutate the input", () => {
+        exclude_testing_dandisets(rows, true);
+        expect(rows).toHaveLength(5);
+    });
+
+    it("targets exactly the documented testing Dandisets", () => {
+        expect(TESTING_DANDISET_IDS).toEqual(["000027", "000126", "000717"]);
+    });
+
+    it("keeps rows whose ID merely resembles a testing ID", () => {
+        const near_misses = [{ raw_id: "0000027" }, { raw_id: "00027" }, { raw_id: "000027x" }];
+        expect(exclude_testing_dandisets(near_misses, true)).toEqual(near_misses);
+    });
+
+    it("returns an empty array for empty input", () => {
+        expect(exclude_testing_dandisets([], true)).toEqual([]);
     });
 });

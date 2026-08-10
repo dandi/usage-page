@@ -294,6 +294,72 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
     };
 }
 
+// ── Table download ────────────────────────────────────────────────────────────
+
+interface TableColumn {
+    label: string;
+    key: string;
+    numeric: boolean;
+    format_fn?: (val: number) => string;
+    link_fn?: (row: Record<string, unknown>) => string | null;
+    default_sort?: boolean;
+}
+
+/**
+ * Returns the text a table cell displays for one column of one row: numeric
+ * columns go through the column's formatter (or the table's default one),
+ * everything else is stringified as-is.
+ */
+function table_cell_text(col: TableColumn, row: Record<string, unknown>, format_fn: (val: number) => string): string {
+    return col.numeric ? (col.format_fn ?? format_fn)(row[col.key] as number) : String(row[col.key] ?? "");
+}
+
+/**
+ * Serializes a table to tab-separated values exactly as it is displayed: the
+ * same columns in the same order, the same formatted cell text, and `rows` in
+ * whatever order they are passed (the caller passes the current sort order).
+ * This is what the "Download table" menu item hands back, since the on-page
+ * table carries derived columns that no single source file contains.
+ *
+ * Tabs and newlines inside a cell are collapsed to spaces so one stray value
+ * cannot break the column alignment of the whole file.
+ */
+export function build_table_tsv(
+    columns: TableColumn[],
+    rows: Array<Record<string, unknown>>,
+    format_fn: (bytes: number) => string = format_bytes_default
+): string {
+    const sanitize = (text: string) => text.replace(/[\t\r\n]+/g, " ");
+    const lines = [columns.map((col) => sanitize(col.label)).join("\t")];
+    rows.forEach((row) => {
+        lines.push(columns.map((col) => sanitize(table_cell_text(col, row, format_fn))).join("\t"));
+    });
+    return lines.join("\n") + "\n";
+}
+
+/**
+ * Derives a download filename from a table's heading, e.g. "Usage per
+ * Dandiset" → "usage_per_dandiset.tsv".
+ */
+export function table_download_filename(title: string): string {
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    return `${slug || "table"}.tsv`;
+}
+
+/**
+ * Hands `text` to the browser as a file download, via a temporary object URL.
+ */
+function download_text_file(text: string, filename: string, mime_type: string): void {
+    const url = URL.createObjectURL(new Blob([text], { type: mime_type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
 // ── Sortable table renderer ───────────────────────────────────────────────────
 
 /**
@@ -313,14 +379,15 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
  * @param format_fn - Formatter applied to numeric cell values.  Defaults to
  *        `format_bytes` (decimal SI suffixes).
  * @param data_url - Optional URL to the source data file; when provided a
- *        "Data ▾" menu (GitHub file view / raw download / containing folder)
- *        is rendered top-right in the table header.  Falls back to a plain
- *        "Data" hyperlink when the URL is not a raw.githubusercontent.com URL.
+ *        "Data ▾" menu (GitHub file view / download of the table as shown /
+ *        containing folder) is rendered top-right in the table header.  Falls
+ *        back to a plain "Data" hyperlink when the URL is not a
+ *        raw.githubusercontent.com URL.
  */
 export function render_sortable_table(
     container_id: string,
     title: string,
-    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string; link_fn?: (row: Record<string, unknown>) => string | null; default_sort?: boolean}>,
+    columns: TableColumn[],
     rows: Array<Record<string, unknown>>,
     format_fn: (bytes: number) => string = format_bytes_default,
     data_url?: string
@@ -364,13 +431,13 @@ export function render_sortable_table(
 
         let data_link = "";
         if (data_url) {
-            const { raw, file, folder } = derive_data_source_urls(data_url);
+            const { file, folder } = derive_data_source_urls(data_url);
             data_link = file && folder
                 ? `<div class="table-data-menu">` +
                   `<button type="button" class="table-data-menu-btn" aria-haspopup="true" aria-expanded="false">Data <span class="table-data-caret">▾</span></button>` +
                   `<div class="table-data-menu-panel" role="menu">` +
                   `<a href="${escape_html(file)}" target="_blank" rel="noopener" role="menuitem">View file on GitHub</a>` +
-                  `<a href="${escape_html(raw)}" target="_blank" rel="noopener" role="menuitem">Download raw file</a>` +
+                  `<button type="button" class="table-data-menu-download" role="menuitem">Download table</button>` +
                   `<a href="${escape_html(folder)}" target="_blank" rel="noopener" role="menuitem">Browse data folder</a>` +
                   `</div></div>`
                 : `<a class="table-data-link" href="${escape_html(data_url)}" target="_blank" rel="noopener">Data</a>`;
@@ -433,6 +500,17 @@ export function render_sortable_table(
                     close_menu();
                     (menu_btn as HTMLElement).focus();
                 }
+            });
+
+            // Downloads the table as it currently stands — including the sort
+            // order in effect — rather than the source file behind it.
+            menu.querySelector(".table-data-menu-download")?.addEventListener("click", () => {
+                download_text_file(
+                    build_table_tsv(columns, sorted, format_fn),
+                    table_download_filename(title),
+                    "text/tab-separated-values"
+                );
+                close_menu();
             });
         }
 

@@ -332,11 +332,13 @@ input[type="number"]:focus {
 }
 
 /* The per-Dandiset table carries both the scaled metrics and the raw totals
-   they derive from, so it gets a wider window than the other tables to keep
-   all of its columns visible at once.  It still shrinks to the available
-   width on narrower screens, where the container scrolls horizontally. */
+   they derive from, so it is allowed the full width of the page rather than
+   the 1100px the other tables are capped at, keeping all of its columns
+   visible at once.  The table itself is `width: fit-content`, so this is a
+   ceiling and not a stretch: on narrower screens it fills the available width
+   and the container scrolls horizontally. */
 #histogram_table.plot-table {
-    max-width: min(1600px, 100%);
+    max-width: 100%;
 }
 
 .plot-table h3 {
@@ -408,17 +410,28 @@ input[type="number"]:focus {
     display: flex;
 }
 
-.table-data-menu-panel a {
+.table-data-menu-panel a,
+.table-data-menu-panel button {
     display: block;
+    width: 100%;
     padding: 6px 9px;
+    border: none;
     border-radius: 4px;
+    background: none;
     color: var(--color-text);
-    text-decoration: none;
+    font: inherit;
     font-size: 0.85em;
+    text-align: left;
+    text-decoration: none;
     white-space: nowrap;
 }
 
-.table-data-menu-panel a:hover {
+.table-data-menu-panel button {
+    cursor: pointer;
+}
+
+.table-data-menu-panel a:hover,
+.table-data-menu-panel button:hover {
     background: rgba(var(--color-accent-rgb), 0.12);
 }
 
