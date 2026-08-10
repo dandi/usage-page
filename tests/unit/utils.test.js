@@ -6,6 +6,7 @@ import {
     parse_by_asset_type_per_week_tsv,
     aggregate_by_timebin,
     format_bytes,
+    bytes_unit,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -251,5 +252,41 @@ describe("format_bytes", () => {
 
     it("formats small byte counts without a prefix", () => {
         expect(format_bytes(500)).toBe("500 Bytes");
+    });
+});
+
+// ── bytes_unit ───────────────────────────────────────────────────────────────
+
+describe("bytes_unit", () => {
+    it("returns the decimal (SI) unit by default", () => {
+        expect(bytes_unit(1000)).toBe("KB");
+        expect(bytes_unit(1_000_000)).toBe("MB");
+        expect(bytes_unit(2_500_000_000_000)).toBe("TB");
+    });
+
+    it("returns the binary (IEC) unit when use_binary is true", () => {
+        expect(bytes_unit(1024, true)).toBe("KiB");
+        expect(bytes_unit(1024 ** 4, true)).toBe("TiB");
+    });
+
+    it("matches the unit that format_bytes chooses", () => {
+        for (const value of [999, 1000, 1_500_000, 3_200_000_000, 7e15]) {
+            expect(format_bytes(value).split(" ")[1]).toBe(bytes_unit(value));
+        }
+    });
+
+    it("returns 'Bytes' for values below one kilobyte", () => {
+        expect(bytes_unit(500)).toBe("Bytes");
+    });
+
+    it("falls back to 'Bytes' for zero, negative, and non-finite input", () => {
+        expect(bytes_unit(0)).toBe("Bytes");
+        expect(bytes_unit(-5)).toBe("Bytes");
+        expect(bytes_unit(NaN)).toBe("Bytes");
+        expect(bytes_unit(Infinity)).toBe("Bytes");
+    });
+
+    it("clamps to the largest known unit for absurdly large values", () => {
+        expect(bytes_unit(1e40)).toBe("YB");
     });
 });

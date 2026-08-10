@@ -99,3 +99,19 @@ export function format_bytes(bytes: number, decimals = 2, use_binary = false): s
 
     return `${reduced} ${sizes[i]}`;
 }
+
+/**
+ * Returns just the unit `format_bytes` would use for `bytes` (e.g. "TB", or
+ * "TiB" in binary mode), without the numeric part.  Used to name the unit a
+ * plot's y-axis is effectively in.  Non-positive and non-finite inputs fall
+ * back to "Bytes"; very large inputs clamp to the largest known unit.
+ */
+export function bytes_unit(bytes: number, use_binary = false): string {
+    const k = use_binary ? 1024 : 1000;
+    const sizes = use_binary
+        ? ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
+        : ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    if (!isFinite(bytes) || bytes <= 0) return sizes[0];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+    return sizes[i];
+}

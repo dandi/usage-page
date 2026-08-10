@@ -6,6 +6,7 @@ import {
     parse_by_asset_type_per_week_tsv,
     aggregate_by_timebin,
     format_bytes as format_bytes_pure,
+    bytes_unit,
 } from "./utils.js";
 import {
     escape_html,
@@ -1060,27 +1061,55 @@ function attach_legend_tooltips(plot_element_id: string, label_to_tooltip: Recor
 }
 
 /**
- * Builds the shared layout options used by both single-series and grouped
- * over-time plots.
+ * Returns the largest value the y-axis has to accommodate, which sets the unit
+ * the plot is effectively drawn in: the per-x stacked total when traces are
+ * stacked on top of one another, otherwise the largest single trace value.
  */
-function build_over_time_layout(dates: string[]): Partial<Plotly.Layout> {
+function peak_plotted_value(traces: Array<{ x: unknown; y: unknown }>, stacked: boolean): number {
+    const series = traces.map((t) => ({ x: t.x as string[], y: t.y as number[] }));
+    if (series.length === 0) return 0;
+    if (!stacked) {
+        return series.reduce((max, s) => s.y.reduce((m, v) => (v > m ? v : m), max), 0);
+    }
+    const totals = new Map<string, number>();
+    series.forEach((s) => s.x.forEach((x, i) => totals.set(x, (totals.get(x) ?? 0) + (s.y[i] || 0))));
+    return Array.from(totals.values()).reduce((m, v) => (v > m ? v : m), 0);
+}
+
+/**
+ * Builds the over-time plot's title, naming the byte unit the y-axis is
+ * effectively in (e.g. "TB per day") rather than the generic "Usage".
+ * `peak_bytes` is the largest plotted value, which determines that unit.
+ */
+function build_over_time_title(aggregation: string, peak_bytes: number): string {
+    const bin_suffixes: Record<string, string> = {
+        daily:   "per day",
+        weekly:  "per week",
+        monthly: "per month",
+        yearly:  "per year",
+    };
+    return `${bytes_unit(peak_bytes, USE_BINARY)} ${bin_suffixes[aggregation]}`;
+}
+
+/**
+ * Builds the shared layout options used by both single-series and grouped
+ * over-time plots.  `peak_bytes` is the largest plotted value; it names the
+ * unit in the title (see build_over_time_title).
+ */
+function build_over_time_layout(dates: string[], peak_bytes: number): Partial<Plotly.Layout> {
     const tick_formats: Record<string, string> = {
         daily:   "%Y-%m-%d",
         weekly:  "%Y-%m-%d",
         monthly: "%Y-%m",
         yearly:  "%Y",
     };
-    const per_bin_titles: Record<string, string> = {
-        daily:   "Usage per day",
-        weekly:  "Usage per week",
-        monthly: "Usage per month",
-        yearly:  "Usage per year",
-    };
 
     const layout = applyTheme({
         bargap: 0,
         title: {
-            text: USE_CUMULATIVE ? "Total usage to date" : per_bin_titles[TIME_AGGREGATION],
+            text: USE_CUMULATIVE
+                ? `Total ${bytes_unit(peak_bytes, USE_BINARY)} to date`
+                : build_over_time_title(TIME_AGGREGATION, peak_bytes),
             font: { size: 24 }
         },
         xaxis: {
@@ -1246,7 +1275,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 }
 
                 const unique_dates = [...new Set(all_dates_for_layout)].sort();
-                const layout = build_over_time_layout(unique_dates);
+                const peak_bytes = peak_plotted_value(plot_info, USE_STACKED);
+                const layout = build_over_time_layout(unique_dates, peak_bytes);
                 if (!USE_OT_LINE_PLOT) layout.barmode = USE_STACKED ? "stack" : "overlay";
                 layout.showlegend = true;
                 layout.legend = { title: { text: "Asset type" } };
@@ -1254,7 +1284,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 // Override title for "daily" since we show weekly granularity
                 if (!USE_OT_LINE_PLOT && TIME_AGGREGATION === "daily") {
                     if (layout.title && typeof layout.title === 'object') {
-                        (layout.title as Partial<Plotly.DataTitle>).text = "Usage per week";
+                        (layout.title as Partial<Plotly.DataTitle>).text = build_over_time_title("weekly", peak_bytes);
                     }
                 }
 
@@ -1292,9 +1322,9 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     render_sortable_table("over_time_table", per_bin_titles[effective_aggregation], [
                         { label: date_col_labels[effective_aggregation], key: "date", numeric: false },
                         { label: "Usage", key: "bytes", numeric: true },
-                        { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-                        { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                         { label: "Views", key: "views", numeric: true, format_fn: count_format },
+                        { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                        { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                     ], combined, format_bytes, tsv_url);
                 } else {
                     const combined = agg_total.dates.map((date, i) => ({ date, bytes: agg_total.bytes_sent[i] }));
@@ -1508,7 +1538,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     });
                 }
 
-                const layout = build_over_time_layout(global_bins);
+                const layout = build_over_time_layout(global_bins, peak_plotted_value(plot_info, USE_STACKED));
                 if (!USE_OT_LINE_PLOT) layout.barmode = USE_STACKED ? "stack" : "overlay";
                 layout.legend = { title: { text: "Dandiset" } };
 
@@ -1535,9 +1565,9 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     render_sortable_table("over_time_table", per_bin_titles[TIME_AGGREGATION], [
                         { label: date_col_labels[TIME_AGGREGATION], key: "date",  numeric: false },
                         { label: "Usage", key: "bytes", numeric: true },
-                        { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-                        { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                         { label: "Views", key: "views", numeric: true, format_fn: count_format },
+                        { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                        { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                     ], combined_days, format_bytes, archive_tsv_url);
                 }
 
@@ -1616,6 +1646,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 }
             ];
 
+            // Table view keeps the generic "Usage" wording: its rows are each
+            // formatted to their own unit, so no single unit describes them.
             const per_bin_titles: Record<string, string> = {
                 daily:   "Usage per day",
                 weekly:  "Usage per week",
@@ -1623,7 +1655,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 yearly:  "Usage per year",
             };
 
-            const layout = build_over_time_layout(dates);
+            const layout = build_over_time_layout(dates, peak_plotted_value(plot_info, USE_STACKED));
 
             Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
             set_plot_source_url(plot_element_id, by_day_summary_tsv_url);
@@ -1640,9 +1672,9 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
             render_sortable_table("over_time_table", per_bin_titles[TIME_AGGREGATION], [
                 { label: date_col_labels[TIME_AGGREGATION], key: "date",  numeric: false },
                 { label: "Usage", key: "bytes", numeric: true },
-                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
+                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
             ], combined_days, format_bytes, by_day_summary_tsv_url);
 
             apply_view_mode(plot_element_id, "over_time_table", USE_OVER_TIME_TABLE);
@@ -1779,9 +1811,9 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Dandiset ID", key: "raw_id", numeric: false },
             { label: "Name", key: "title", numeric: false },
             { label: "Usage", key: "bytes", numeric: true },
-            { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-            { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
             { label: "Views", key: "views", numeric: true, format_fn: count_format },
+            { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+            { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
         ], combined, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
@@ -1883,9 +1915,9 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             render_sortable_table("histogram_table", "Usage per asset", [
                 { label: "Asset", key: "name", numeric: false },
                 { label: "Usage", key: "bytes", numeric: true },
-                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
+                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
             ], combined, format_bytes, by_asset_summary_tsv_url);
 
             apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
@@ -1949,9 +1981,9 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
             render_sortable_table("aws_histogram", `${format_bytes(total_bytes)} sent to AWS data centers`, [
                 { label: "AWS Region", key: "name", numeric: false },
                 { label: "Usage", key: "bytes", numeric: true },
-                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
+                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
             ], subregion_data, format_bytes, by_region_summary_tsv_url);
         })
         .catch((error) => {
@@ -2144,9 +2176,9 @@ function load_top_regions_table(by_region_summary_tsv_url: string): Promise<void
             render_sortable_table("top_regions_table", "Usage per region", [
                 { label: "Region", key: "region", numeric: false },
                 { label: "Usage", key: "bytes", numeric: true },
-                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
+                { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
             ], regions, format_bytes, by_region_summary_tsv_url);
         })
         .catch(() => {
