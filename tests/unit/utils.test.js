@@ -371,7 +371,9 @@ describe("format_ratio", () => {
 describe("exclude_testing_dandisets", () => {
     const rows = [
         { raw_id: "000003" },
+        { raw_id: "000025" },
         { raw_id: "000027" },
+        { raw_id: "000064" },
         { raw_id: "000126" },
         { raw_id: "000717" },
         { raw_id: "000719" },
@@ -389,11 +391,11 @@ describe("exclude_testing_dandisets", () => {
 
     it("does not mutate the input", () => {
         exclude_testing_dandisets(rows, true);
-        expect(rows).toHaveLength(7);
+        expect(rows).toHaveLength(9);
     });
 
     it("targets exactly the documented testing Dandisets", () => {
-        expect(TESTING_DANDISET_IDS).toEqual(["000027", "000126", "000717", "000719", "001083"]);
+        expect(TESTING_DANDISET_IDS).toEqual(["000025", "000027", "000064", "000126", "000717", "000719", "001083"]);
     });
 
     it("keeps rows whose ID merely resembles a testing ID", () => {
