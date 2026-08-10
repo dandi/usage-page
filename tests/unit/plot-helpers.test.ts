@@ -318,11 +318,44 @@ describe("render_sortable_table", () => {
         expect(document.querySelector("#my_table h3")!.textContent).toBe("My Title");
     });
 
-    it("sorts rows by the last column descending by default", () => {
+    it("sorts rows by the first numeric column descending by default", () => {
         render_sortable_table("my_table", "Title", columns, rows, fmt);
         const firstCell = document.querySelector("#my_table tbody tr:first-child td:last-child")!;
         // bytes 300 is the highest → should appear first
         expect(firstCell.textContent).toBe("300B");
+    });
+
+    it("keeps the default sort on the first numeric column when trailing metric columns are present", () => {
+        const metric_columns = [
+            { label: "Name", key: "name", numeric: false },
+            { label: "Usage", key: "bytes", numeric: true },
+            { label: "Views", key: "views", numeric: true },
+        ];
+        const metric_rows = [
+            { name: "alpha", bytes: 300, views: 1 },
+            { name: "beta", bytes: 100, views: 9 },
+            { name: "gamma", bytes: 200, views: 5 },
+        ];
+        render_sortable_table("my_table", "Title", metric_columns, metric_rows, fmt);
+        const sortedHeader = document.querySelector("#my_table th.th-sorted") as HTMLElement | null;
+        expect(sortedHeader!.dataset.key).toBe("bytes");
+        // Highest bytes (not highest views) must lead
+        const firstCell = document.querySelector("#my_table tbody tr:first-child td:first-child")!;
+        expect(firstCell.textContent).toBe("alpha");
+    });
+
+    it("falls back to the last column when no column is numeric", () => {
+        const text_columns = [
+            { label: "Name", key: "name", numeric: false },
+            { label: "Region", key: "region", numeric: false },
+        ];
+        const text_rows = [
+            { name: "alpha", region: "AA" },
+            { name: "beta", region: "ZZ" },
+        ];
+        render_sortable_table("my_table", "Title", text_columns, text_rows, fmt);
+        const sortedHeader = document.querySelector("#my_table th.th-sorted") as HTMLElement | null;
+        expect(sortedHeader!.dataset.key).toBe("region");
     });
 
     it("renders exactly as many data rows as provided", () => {
@@ -376,7 +409,7 @@ describe("render_sortable_table", () => {
 
     it("re-sorts ascending when the sorted column header is clicked", () => {
         render_sortable_table("my_table", "Title", columns, rows, fmt);
-        // The last-column header (Size) is sorted descending by default; clicking toggles to ascending
+        // The Size header (first numeric column) is sorted descending by default; clicking toggles to ascending
         const sizeHeader = document.querySelector('#my_table th[data-key="bytes"]') as HTMLElement | null;
         sizeHeader!.click();
         const firstCell = document.querySelector("#my_table tbody tr:first-child td:last-child")!;

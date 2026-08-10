@@ -92,34 +92,47 @@ describe("parse_by_day_tsv", () => {
         expect(() => parse_by_day_tsv("")).toThrow("TSV file does not contain enough data.");
     });
 
-    it("parses requests and downloads as integers", () => {
+    it("parses requests, downloads, and views as integers", () => {
+        const tsv = [
+            "date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views",
+            "2024-01-01\t1000\t20\t4\t11",
+            "2024-01-02\t2000\t30\t8\t12",
+        ].join("\n");
+        const { requests, downloads, views } = parse_by_day_tsv(tsv);
+        expect(requests).toEqual([20, 30]);
+        expect(downloads).toEqual([4, 8]);
+        expect(views).toEqual([11, 12]);
+    });
+
+    it("defaults requests, downloads, and views to 0 when columns are absent", () => {
+        const { requests, downloads, views } = parse_by_day_tsv(sample);
+        expect(requests).toEqual([0, 0, 0]);
+        expect(downloads).toEqual([0, 0, 0]);
+        expect(views).toEqual([0, 0, 0]);
+    });
+
+    it("defaults views to 0 when only the views column is absent", () => {
         const tsv = [
             "date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads",
             "2024-01-01\t1000\t20\t4",
             "2024-01-02\t2000\t30\t8",
         ].join("\n");
-        const { requests, downloads } = parse_by_day_tsv(tsv);
-        expect(requests).toEqual([20, 30]);
-        expect(downloads).toEqual([4, 8]);
-    });
-
-    it("defaults requests and downloads to 0 when columns are absent", () => {
-        const { requests, downloads } = parse_by_day_tsv(sample);
-        expect(requests).toEqual([0, 0, 0]);
-        expect(downloads).toEqual([0, 0, 0]);
+        const { views } = parse_by_day_tsv(tsv);
+        expect(views).toEqual([0, 0]);
     });
 
     it("parses bytes correctly when additional columns are present", () => {
         const extended = [
-            "date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads",
-            "2024-01-01\t1000\t20\t4",
-            "2024-01-02\t2000\t30\t8",
+            "date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views",
+            "2024-01-01\t1000\t20\t4\t11",
+            "2024-01-02\t2000\t30\t8\t12",
         ].join("\n");
-        const { dates, bytes, requests, downloads } = parse_by_day_tsv(extended);
+        const { dates, bytes, requests, downloads, views } = parse_by_day_tsv(extended);
         expect(dates).toEqual(["2024-01-01", "2024-01-02"]);
         expect(bytes).toEqual([1000, 2000]);
         expect(requests).toEqual([20, 30]);
         expect(downloads).toEqual([4, 8]);
+        expect(views).toEqual([11, 12]);
     });
 });
 

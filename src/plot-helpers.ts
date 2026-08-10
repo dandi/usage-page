@@ -245,9 +245,13 @@ export function render_sortable_table(
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    // Default: sort by the last column (bytes) descending
+    // Default: sort by the first numeric column (the primary "Usage" metric in
+    // every table here) descending, falling back to the last column when no
+    // column is numeric.  Anchoring to the first numeric column rather than the
+    // last keeps the default ordering stable as further metric columns are
+    // appended.
     // sort_asc: true = ascending (A→Z / low→high), false = descending (Z→A / high→low)
-    let sort_key = columns[columns.length - 1].key;
+    let sort_key = (columns.find((col) => col.numeric) ?? columns[columns.length - 1]).key;
     let sort_asc  = false; // start descending so highest values appear first
 
     function render_table() {

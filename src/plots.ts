@@ -344,6 +344,7 @@ interface DandisetTotals {
     total_bytes_sent: number;
     total_number_of_downloads: number;
     total_number_of_requests: number;
+    total_number_of_views: number;
     number_of_requesters: number | string;
     number_of_unique_regions: number | string;
     number_of_unique_countries: number | string;
@@ -962,12 +963,13 @@ function update_totals(dandiset_id: string) {
         const human_readable_bytes_sent = format_bytes(totals.total_bytes_sent);
         const web_requests = format_metric(totals.total_number_of_requests);
         const downloads = format_metric(totals.total_number_of_downloads);
+        const views = format_metric(totals.total_number_of_views);
         const visitors = format_metric(totals.number_of_requesters);
         const regions = format_metric(totals.number_of_unique_regions);
         const countries = format_metric(totals.number_of_unique_countries);
         const header =
             `A total of ${human_readable_bytes_sent} was transferred in ` +
-            `${web_requests} web requests and ${downloads} full downloads ` +
+            `${web_requests} web requests, ${downloads} full downloads, and ${views} views<sup>&Dagger;</sup> ` +
             `by ${visitors} unique visitors<sup>&dagger;</sup> across ${regions} regions in ` +
             `${countries} countries. <sup>*</sup>`;
         totals_element!.innerHTML = dandiset_id === "undetermined"
@@ -979,6 +981,7 @@ function update_totals(dandiset_id: string) {
         footnote.style.fontSize = "0.5em";
         footnote.style.marginTop = "7px";
         footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may change over time.<br><sup>&dagger;</sup> Unique visitors are counted by unique IP address and may be skewed by undetermined VPN usage patterns." +
+            "<br><sup>&Dagger;</sup> Views are streaming (partial) accesses of an asset, counted separately from full downloads." +
             "<br>Activity that cannot be confidently attributed to a Dandiset or any other field is reported as 'undetermined'.";
         totals_element!.appendChild(footnote);
     } catch (error) {
@@ -1275,19 +1278,23 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 if (archive_data) {
                     const agg_req = aggregate_by_timebin(archive_data.dates, archive_data.requests, effective_aggregation);
                     const agg_dl = aggregate_by_timebin(archive_data.dates, archive_data.downloads, effective_aggregation);
+                    const agg_views = aggregate_by_timebin(archive_data.dates, archive_data.views, effective_aggregation);
                     const req_by_date = new Map(agg_req.dates.map((d, i) => [d, agg_req.bytes_sent[i]]));
                     const dl_by_date = new Map(agg_dl.dates.map((d, i) => [d, agg_dl.bytes_sent[i]]));
+                    const views_by_date = new Map(agg_views.dates.map((d, i) => [d, agg_views.bytes_sent[i]]));
                     const combined = agg_total.dates.map((date, i) => ({
                         date,
                         bytes: agg_total.bytes_sent[i],
                         requests: req_by_date.get(date) ?? 0,
                         downloads: dl_by_date.get(date) ?? 0,
+                        views: views_by_date.get(date) ?? 0,
                     }));
                     render_sortable_table("over_time_table", per_bin_titles[effective_aggregation], [
                         { label: date_col_labels[effective_aggregation], key: "date", numeric: false },
                         { label: "Usage", key: "bytes", numeric: true },
                         { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                         { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                        { label: "Views", key: "views", numeric: true, format_fn: count_format },
                     ], combined, format_bytes, tsv_url);
                 } else {
                     const combined = agg_total.dates.map((date, i) => ({ date, bytes: agg_total.bytes_sent[i] }));
@@ -1327,11 +1334,12 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     return r.text();
                 })
                 .then((text) => {
-                    const { dates: raw_dates, bytes: raw_bytes, requests: raw_requests, downloads: raw_downloads } = parse_by_day_tsv(text);
+                    const { dates: raw_dates, bytes: raw_bytes, requests: raw_requests, downloads: raw_downloads, views: raw_views } = parse_by_day_tsv(text);
                     const agg = aggregate_by_timebin(raw_dates, raw_bytes, TIME_AGGREGATION);
                     const agg_req = aggregate_by_timebin(raw_dates, raw_requests, TIME_AGGREGATION);
                     const agg_dl = aggregate_by_timebin(raw_dates, raw_downloads, TIME_AGGREGATION);
-                    return { id, dates: agg.dates, bytes_sent: agg.bytes_sent, requests: agg_req.bytes_sent, downloads: agg_dl.bytes_sent };
+                    const agg_views = aggregate_by_timebin(raw_dates, raw_views, TIME_AGGREGATION);
+                    return { id, dates: agg.dates, bytes_sent: agg.bytes_sent, requests: agg_req.bytes_sent, downloads: agg_dl.bytes_sent, views: agg_views.bytes_sent };
                 })
                 .catch((err) => {
                     console.warn(`Skipping dandiset ${id} in grouped view:`, err);
@@ -1348,7 +1356,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
 
         return Promise.all([Promise.all(per_series_promises), archive_promise])
             .then(([series_results, archive_data]) => {
-                const valid_series = series_results.filter((s): s is { id: string; dates: string[]; bytes_sent: number[]; requests: number[]; downloads: number[] } => s !== null);
+                const valid_series = series_results.filter((s): s is { id: string; dates: string[]; bytes_sent: number[]; requests: number[]; downloads: number[]; views: number[] } => s !== null);
 
                 // Compute global bin edges: union of all dandiset bins and archive bins.
                 // Aligning every series to the same x-axis eliminates gaps between bars
@@ -1357,10 +1365,12 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 let archive_agg: { dates: string[]; bytes_sent: number[] } | null = null;
                 let archive_agg_req: { bytes_sent: number[] } | null = null;
                 let archive_agg_dl: { bytes_sent: number[] } | null = null;
+                let archive_agg_views: { bytes_sent: number[] } | null = null;
                 if (archive_data) {
                     archive_agg = aggregate_by_timebin(archive_data.dates, archive_data.bytes, TIME_AGGREGATION);
                     archive_agg_req = aggregate_by_timebin(archive_data.dates, archive_data.requests, TIME_AGGREGATION);
                     archive_agg_dl = aggregate_by_timebin(archive_data.dates, archive_data.downloads, TIME_AGGREGATION);
+                    archive_agg_views = aggregate_by_timebin(archive_data.dates, archive_data.views, TIME_AGGREGATION);
                     archive_agg.dates.forEach((d) => global_bin_set.add(d));
                 }
                 const global_bins = [...global_bin_set].sort();
@@ -1370,12 +1380,15 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     const date_to_bytes = new Map(series.dates.map((d, idx) => [d, series.bytes_sent[idx]]));
                     const date_to_req = new Map(series.dates.map((d, idx) => [d, series.requests[idx]]));
                     const date_to_dl = new Map(series.dates.map((d, idx) => [d, series.downloads[idx]]));
+                    const date_to_views = new Map(series.dates.map((d, idx) => [d, series.views[idx]]));
                     const aligned_bytes = global_bins.map((k) => date_to_bytes.get(k) || 0);
                     const aligned_req = global_bins.map((k) => date_to_req.get(k) || 0);
                     const aligned_dl = global_bins.map((k) => date_to_dl.get(k) || 0);
+                    const aligned_views = global_bins.map((k) => date_to_views.get(k) || 0);
                     const plot_data = USE_CUMULATIVE ? make_cumulative(aligned_bytes) : aligned_bytes;
                     const display_req = USE_CUMULATIVE ? make_cumulative(aligned_req) : aligned_req;
                     const display_dl = USE_CUMULATIVE ? make_cumulative(aligned_dl) : aligned_dl;
+                    const display_views = USE_CUMULATIVE ? make_cumulative(aligned_views) : aligned_views;
                     const human_readable = plot_data.map((b) => format_bytes(b));
                     return {
                         ...(USE_OT_LINE_PLOT
@@ -1392,7 +1405,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         text: global_bins.map((date, idx) =>
                             `DANDI:${format_dandiset_label(series.id, DANDISET_TITLES)}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable[idx]}` +
                             hover_metric("Requests", display_req[idx]) +
-                            hover_metric("Downloads", display_dl[idx])
+                            hover_metric("Downloads", display_dl[idx]) +
+                            hover_metric("Views", display_views[idx])
                         ),
                         textposition: "none",
                         hoverinfo: "text",
@@ -1410,6 +1424,9 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     const date_to_archive_dl = new Map(
                         archive_agg.dates.map((d, i) => [d, archive_agg_dl!.bytes_sent[i]])
                     );
+                    const date_to_archive_views = new Map(
+                        archive_agg.dates.map((d, i) => [d, archive_agg_views!.bytes_sent[i]])
+                    );
                     const aligned_archive_bytes = global_bins.map((k) => date_to_archive_bytes.get(k) || 0);
                     const archive_plot_data = USE_CUMULATIVE
                         ? make_cumulative(aligned_archive_bytes)
@@ -1424,12 +1441,15 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     // Build per-date sums for top-N requests and downloads (non-cumulative)
                     const topn_req_by_date = new Map<string, number>();
                     const topn_dl_by_date = new Map<string, number>();
+                    const topn_views_by_date = new Map<string, number>();
                     for (const series of valid_series) {
                         const d2r = new Map(series.dates.map((d, idx) => [d, series.requests[idx]]));
                         const d2dl = new Map(series.dates.map((d, idx) => [d, series.downloads[idx]]));
+                        const d2v = new Map(series.dates.map((d, idx) => [d, series.views[idx]]));
                         global_bins.forEach((k) => {
                             topn_req_by_date.set(k, (topn_req_by_date.get(k) || 0) + (d2r.get(k) || 0));
                             topn_dl_by_date.set(k, (topn_dl_by_date.get(k) || 0) + (d2dl.get(k) || 0));
+                            topn_views_by_date.set(k, (topn_views_by_date.get(k) || 0) + (d2v.get(k) || 0));
                         });
                     }
                     const other_y = global_bins.map((date, i) => {
@@ -1442,19 +1462,27 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     const other_dl = global_bins.map((date) =>
                         Math.max(0, (date_to_archive_dl.get(date) || 0) - (topn_dl_by_date.get(date) || 0))
                     );
+                    const other_views = global_bins.map((date) =>
+                        Math.max(0, (date_to_archive_views.get(date) || 0) - (topn_views_by_date.get(date) || 0))
+                    );
                     // Build display (cumulative if applicable) versions for hover text
                     let display_other_req: number[];
                     let display_other_dl: number[];
+                    let display_other_views: number[];
                     if (USE_CUMULATIVE) {
                         const cum_archive_req = make_cumulative(global_bins.map((k) => date_to_archive_req.get(k) || 0));
                         const cum_archive_dl = make_cumulative(global_bins.map((k) => date_to_archive_dl.get(k) || 0));
+                        const cum_archive_views = make_cumulative(global_bins.map((k) => date_to_archive_views.get(k) || 0));
                         const cum_topn_req = make_cumulative(global_bins.map((k) => topn_req_by_date.get(k) || 0));
                         const cum_topn_dl = make_cumulative(global_bins.map((k) => topn_dl_by_date.get(k) || 0));
+                        const cum_topn_views = make_cumulative(global_bins.map((k) => topn_views_by_date.get(k) || 0));
                         display_other_req = global_bins.map((_, i) => Math.max(0, cum_archive_req[i] - cum_topn_req[i]));
                         display_other_dl = global_bins.map((_, i) => Math.max(0, cum_archive_dl[i] - cum_topn_dl[i]));
+                        display_other_views = global_bins.map((_, i) => Math.max(0, cum_archive_views[i] - cum_topn_views[i]));
                     } else {
                         display_other_req = other_req;
                         display_other_dl = other_dl;
+                        display_other_views = other_views;
                     }
                     const other_human_readable = other_y.map((b) => format_bytes(b));
                     plot_info.push({
@@ -1472,7 +1500,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         text: global_bins.map((date, idx) =>
                             `Other<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${other_human_readable[idx]}` +
                             hover_metric("Requests", display_other_req[idx]) +
-                            hover_metric("Downloads", display_other_dl[idx])
+                            hover_metric("Downloads", display_other_dl[idx]) +
+                            hover_metric("Views", display_other_views[idx])
                         ),
                         textposition: "none",
                         hoverinfo: "text",
@@ -1501,12 +1530,14 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         bytes: archive_agg!.bytes_sent[i],
                         requests: archive_agg_req!.bytes_sent[i],
                         downloads: archive_agg_dl!.bytes_sent[i],
+                        views: archive_agg_views!.bytes_sent[i],
                     }));
                     render_sortable_table("over_time_table", per_bin_titles[TIME_AGGREGATION], [
                         { label: date_col_labels[TIME_AGGREGATION], key: "date",  numeric: false },
                         { label: "Usage", key: "bytes", numeric: true },
                         { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                         { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                        { label: "Views", key: "views", numeric: true, format_fn: count_format },
                     ], combined_days, format_bytes, archive_tsv_url);
                 }
 
@@ -1532,25 +1563,29 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
             return response.text();
         })
         .then((text) => {
-            const { dates: raw_dates, bytes: raw_bytes, requests: raw_requests, downloads: raw_downloads } = parse_by_day_tsv(text);
+            const { dates: raw_dates, bytes: raw_bytes, requests: raw_requests, downloads: raw_downloads, views: raw_views } = parse_by_day_tsv(text);
 
             // Aggregate raw daily data into the selected time bin
             const aggregated = aggregate_by_timebin(raw_dates, raw_bytes, TIME_AGGREGATION);
             const agg_req = aggregate_by_timebin(raw_dates, raw_requests, TIME_AGGREGATION);
             const agg_dl = aggregate_by_timebin(raw_dates, raw_downloads, TIME_AGGREGATION);
+            const agg_views = aggregate_by_timebin(raw_dates, raw_views, TIME_AGGREGATION);
             const dates = aggregated.dates;
             const bytes_sent = aggregated.bytes_sent;
             const requests = agg_req.bytes_sent;
             const downloads = agg_dl.bytes_sent;
+            const views = agg_views.bytes_sent;
 
             // Convert to cumulative if the checkbox is checked
             let plot_data = bytes_sent;
             let plot_requests = requests;
             let plot_downloads = downloads;
+            let plot_views = views;
             if (USE_CUMULATIVE) {
                 plot_data = make_cumulative(bytes_sent);
                 plot_requests = make_cumulative(requests);
                 plot_downloads = make_cumulative(downloads);
+                plot_views = make_cumulative(views);
             }
 
             const human_readable_bytes_sent = plot_data.map((bytes) => format_bytes(bytes));
@@ -1573,7 +1608,8 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     text: dates.map((date, index) =>
                         `${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable_bytes_sent[index]}` +
                         hover_metric("Requests", plot_requests[index]) +
-                        hover_metric("Downloads", plot_downloads[index])
+                        hover_metric("Downloads", plot_downloads[index]) +
+                        hover_metric("Views", plot_views[index])
                     ),
                     textposition: "none",
                     hoverinfo: "text",
@@ -1600,12 +1636,13 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 yearly:  "Year",
             };
             const count_format = (n: number) => n.toLocaleString();
-            const combined_days = dates.map((date, i) => ({ date, bytes: bytes_sent[i], requests: requests[i], downloads: downloads[i] }));
+            const combined_days = dates.map((date, i) => ({ date, bytes: bytes_sent[i], requests: requests[i], downloads: downloads[i], views: views[i] }));
             render_sortable_table("over_time_table", per_bin_titles[TIME_AGGREGATION], [
                 { label: date_col_labels[TIME_AGGREGATION], key: "date",  numeric: false },
                 { label: "Usage", key: "bytes", numeric: true },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Views", key: "views", numeric: true, format_fn: count_format },
             ], combined_days, format_bytes, by_day_summary_tsv_url);
 
             apply_view_mode(plot_element_id, "over_time_table", USE_OVER_TIME_TABLE);
@@ -1678,6 +1715,7 @@ function load_dandiset_histogram(): Promise<void> {
                     bytes: data[dandiset_id].total_bytes_sent,
                     requests: data[dandiset_id].total_number_of_requests as number,
                     downloads: data[dandiset_id].total_number_of_downloads as number,
+                    views: data[dandiset_id].total_number_of_views as number,
                 };
             })
             .sort((a, b) => b.bytes - a.bytes);
@@ -1689,6 +1727,7 @@ function load_dandiset_histogram(): Promise<void> {
         const sorted_bytes_sent = plot_combined.map(item => item.bytes);
         const sorted_requests = plot_combined.map(item => item.requests);
         const sorted_downloads = plot_combined.map(item => item.downloads);
+        const sorted_views = plot_combined.map(item => item.views);
         const human_readable_bytes_sent = sorted_bytes_sent.map(bytes => format_bytes(bytes));
 
         const plot_data = [
@@ -1701,7 +1740,8 @@ function load_dandiset_histogram(): Promise<void> {
                 text: sorted_dandiset_ids.map((dandiset_id, index) =>
                     `${dandiset_id}<br>${human_readable_bytes_sent[index]}` +
                     hover_metric("Requests", sorted_requests[index]) +
-                    hover_metric("Downloads", sorted_downloads[index])
+                    hover_metric("Downloads", sorted_downloads[index]) +
+                    hover_metric("Views", sorted_views[index])
                 ),
                 textposition: "none",
                 hoverinfo: "text",
@@ -1741,6 +1781,7 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Usage", key: "bytes", numeric: true },
             { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
             { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+            { label: "Views", key: "views", numeric: true, format_fn: count_format },
         ], combined, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
@@ -1784,15 +1825,17 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             const bytes_sent = data.map((row) => parseInt(row[1], 10));
             const requests = data.map((row) => parseInt(row[2] || "0", 10));
             const downloads = data.map((row) => parseInt(row[3] || "0", 10));
+            const views = data.map((row) => parseInt(row[4] || "0", 10));
 
             // Sort asset_names and bytes_sent in descending order by bytes_sent
-            const combined = asset_names.map((name, idx) => ({ name, bytes: bytes_sent[idx], requests: requests[idx], downloads: downloads[idx] }));
+            const combined = asset_names.map((name, idx) => ({ name, bytes: bytes_sent[idx], requests: requests[idx], downloads: downloads[idx], views: views[idx] }));
             combined.sort((a, b) => b.bytes - a.bytes);
 
             const sorted_asset_names = combined.map(item => item.name);
             const sorted_bytes_sent = combined.map(item => item.bytes);
             const sorted_requests = combined.map(item => item.requests);
             const sorted_downloads = combined.map(item => item.downloads);
+            const sorted_views = combined.map(item => item.views);
             const human_readable_bytes_sent = sorted_bytes_sent.map((bytes) => format_bytes(bytes));
 
             // Use sorted arrays in the plot
@@ -1806,7 +1849,8 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
                     text: sorted_asset_names.map((name, index) =>
                         `${name}<br>${human_readable_bytes_sent[index]}` +
                         hover_metric("Requests", sorted_requests[index]) +
-                        hover_metric("Downloads", sorted_downloads[index])
+                        hover_metric("Downloads", sorted_downloads[index]) +
+                        hover_metric("Views", sorted_views[index])
                     ),
                     textposition: "none",
                     hoverinfo: "text",
@@ -1841,6 +1885,7 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
                 { label: "Usage", key: "bytes", numeric: true },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Views", key: "views", numeric: true, format_fn: count_format },
             ], combined, format_bytes, by_asset_summary_tsv_url);
 
             apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
@@ -1878,7 +1923,7 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
             }
 
             const data = rows.slice(1).map((row) => row.split("\t"));
-            const subregion_data: Array<{ name: string; bytes: number; requests: number; downloads: number }> = [];
+            const subregion_data: Array<{ name: string; bytes: number; requests: number; downloads: number; views: number }> = [];
 
             data.forEach((row) => {
                 const region = row[0];
@@ -1887,7 +1932,8 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
                 const bytes = parseInt(row[1], 10);
                 const requests = parseInt(row[2] || "0", 10);
                 const downloads = parseInt(row[3] || "0", 10);
-                subregion_data.push({ name: region_clipped, bytes, requests, downloads });
+                const views = parseInt(row[4] || "0", 10);
+                subregion_data.push({ name: region_clipped, bytes, requests, downloads, views });
             });
 
             subregion_data.sort((a, b) => b.bytes - a.bytes);
@@ -1905,6 +1951,7 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
                 { label: "Usage", key: "bytes", numeric: true },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Views", key: "views", numeric: true, format_fn: count_format },
             ], subregion_data, format_bytes, by_region_summary_tsv_url);
         })
         .catch((error) => {
@@ -2084,6 +2131,7 @@ function load_top_regions_table(by_region_summary_tsv_url: string): Promise<void
                     bytes: parseInt(row[1], 10),
                     requests: parseInt(row[2] || "0", 10),
                     downloads: parseInt(row[3] || "0", 10),
+                    views: parseInt(row[4] || "0", 10),
                 }));
 
             if (regions.length === 0) {
@@ -2098,6 +2146,7 @@ function load_top_regions_table(by_region_summary_tsv_url: string): Promise<void
                 { label: "Usage", key: "bytes", numeric: true },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
+                { label: "Views", key: "views", numeric: true, format_fn: count_format },
             ], regions, format_bytes, by_region_summary_tsv_url);
         })
         .catch(() => {
@@ -2168,6 +2217,7 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                 const bytes = parseInt(row[1], 10);
                 const requests = parseInt(row[2] || "0", 10);
                 const downloads = parseInt(row[3] || "0", 10);
+                const views = parseInt(row[4] || "0", 10);
                 const coordinates = REGION_CODES_TO_LATITUDE_LONGITUDE[region];
                 const human_readable_bytes_sent = format_bytes(bytes);
 
@@ -2178,7 +2228,8 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                     hover_texts.push(
                         `${region}<br>${human_readable_bytes_sent}` +
                         hover_metric("Requests", requests) +
-                        hover_metric("Downloads", downloads)
+                        hover_metric("Downloads", downloads) +
+                        hover_metric("Views", views)
                     );
                 }
             });
@@ -2263,16 +2314,19 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         const feature_bytes = new Array(GEOJSON_DATA.features.length).fill(0);
         const feature_requests = new Array(GEOJSON_DATA.features.length).fill(0);
         const feature_downloads = new Array(GEOJSON_DATA.features.length).fill(0);
+        const feature_views = new Array(GEOJSON_DATA.features.length).fill(0);
         data.forEach((row) => {
             const region = row[0];
             const bytes = parseInt(row[1], 10);
             const requests = parseInt(row[2] || "0", 10);
             const downloads = parseInt(row[3] || "0", 10);
+            const views = parseInt(row[4] || "0", 10);
             const idx = match_region_to_feature(region, lookup, country_lookup);
             if (idx >= 0) {
                 feature_bytes[idx] += bytes;
                 feature_requests[idx] += requests;
                 feature_downloads[idx] += downloads;
+                feature_views[idx] += views;
             }
         });
 
@@ -2310,7 +2364,8 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 hover_texts.push(
                     `${iso2}/${name}<br>${format_bytes(bytes)}` +
                     hover_metric("Requests", feature_requests[idx]) +
-                    hover_metric("Downloads", feature_downloads[idx])
+                    hover_metric("Downloads", feature_downloads[idx]) +
+                    hover_metric("Views", feature_views[idx])
                 );
             }
         });
