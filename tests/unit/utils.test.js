@@ -374,6 +374,7 @@ describe("exclude_testing_dandisets", () => {
         { raw_id: "000027" },
         { raw_id: "000126" },
         { raw_id: "000717" },
+        { raw_id: "000719" },
         { raw_id: "001083" },
         { raw_id: "undetermined" },
     ];
@@ -388,11 +389,11 @@ describe("exclude_testing_dandisets", () => {
 
     it("does not mutate the input", () => {
         exclude_testing_dandisets(rows, true);
-        expect(rows).toHaveLength(6);
+        expect(rows).toHaveLength(7);
     });
 
     it("targets exactly the documented testing Dandisets", () => {
-        expect(TESTING_DANDISET_IDS).toEqual(["000027", "000126", "000717", "001083"]);
+        expect(TESTING_DANDISET_IDS).toEqual(["000027", "000126", "000717", "000719", "001083"]);
     });
 
     it("keeps rows whose ID merely resembles a testing ID", () => {
