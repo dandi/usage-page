@@ -104,7 +104,7 @@ const count_format = (n) => n.toLocaleString();
 
 const MOCK_COLUMNS = [
     { label: "Region", key: "region", numeric: false },
-    { label: "Usage", key: "bytes", numeric: true },
+    { label: "Bytes", key: "bytes", numeric: true },
     { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
     { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
     { label: "Views", key: "views", numeric: true, format_fn: count_format },

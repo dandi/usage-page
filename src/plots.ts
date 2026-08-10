@@ -1335,7 +1335,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     }));
                     render_sortable_table("over_time_table", per_bin_titles[effective_aggregation], [
                         { label: date_col_labels[effective_aggregation], key: "date", numeric: false },
-                        { label: "Usage", key: "bytes", numeric: true },
+                        { label: "Bytes", key: "bytes", numeric: true },
                         { label: "Views", key: "views", numeric: true, format_fn: count_format },
                         { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                         { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
@@ -1344,7 +1344,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     const combined = agg_total.dates.map((date, i) => ({ date, bytes: agg_total.bytes_sent[i] }));
                     render_sortable_table("over_time_table", per_bin_titles[effective_aggregation], [
                         { label: date_col_labels[effective_aggregation], key: "date", numeric: false },
-                        { label: "Usage", key: "bytes", numeric: true },
+                        { label: "Bytes", key: "bytes", numeric: true },
                     ], combined, format_bytes, tsv_url);
                 }
 
@@ -1578,7 +1578,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     }));
                     render_sortable_table("over_time_table", per_bin_titles[TIME_AGGREGATION], [
                         { label: date_col_labels[TIME_AGGREGATION], key: "date",  numeric: false },
-                        { label: "Usage", key: "bytes", numeric: true },
+                        { label: "Bytes", key: "bytes", numeric: true },
                         { label: "Views", key: "views", numeric: true, format_fn: count_format },
                         { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                         { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
@@ -1685,7 +1685,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
             const combined_days = dates.map((date, i) => ({ date, bytes: bytes_sent[i], requests: requests[i], downloads: downloads[i], views: views[i] }));
             render_sortable_table("over_time_table", per_bin_titles[TIME_AGGREGATION], [
                 { label: date_col_labels[TIME_AGGREGATION], key: "date",  numeric: false },
-                { label: "Usage", key: "bytes", numeric: true },
+                { label: "Bytes", key: "bytes", numeric: true },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
@@ -1824,7 +1824,7 @@ function load_dandiset_histogram(): Promise<void> {
         render_sortable_table("histogram_table", "Usage per Dandiset", [
             { label: "Dandiset ID", key: "raw_id", numeric: false },
             { label: "Name", key: "title", numeric: false, link_fn: (row) => dandiset_archive_url(row.raw_id) },
-            { label: "Usage", key: "bytes", numeric: true },
+            { label: "Bytes", key: "bytes", numeric: true },
             { label: "Views", key: "views", numeric: true, format_fn: count_format },
             { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
             { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
@@ -1928,7 +1928,7 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             const count_format = (n: number) => n.toLocaleString();
             render_sortable_table("histogram_table", "Usage per asset", [
                 { label: "Asset", key: "name", numeric: false },
-                { label: "Usage", key: "bytes", numeric: true },
+                { label: "Bytes", key: "bytes", numeric: true },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
@@ -1994,7 +1994,7 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
 
             render_sortable_table("aws_histogram", `${format_bytes(total_bytes)} sent to AWS data centers`, [
                 { label: "AWS Region", key: "name", numeric: false },
-                { label: "Usage", key: "bytes", numeric: true },
+                { label: "Bytes", key: "bytes", numeric: true },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
@@ -2189,7 +2189,7 @@ function load_top_regions_table(by_region_summary_tsv_url: string): Promise<void
             const count_format = (n: number) => n.toLocaleString();
             render_sortable_table("top_regions_table", "Usage per region", [
                 { label: "Region", key: "region", numeric: false },
-                { label: "Usage", key: "bytes", numeric: true },
+                { label: "Bytes", key: "bytes", numeric: true },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
                 { label: "Requests", key: "requests", numeric: true, format_fn: count_format },

@@ -247,7 +247,7 @@ export function render_sortable_table(
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    // Default: sort by the first numeric column (the primary "Usage" metric in
+    // Default: sort by the first numeric column (the primary "Bytes" metric in
     // every table here) descending, falling back to the last column when no
     // column is numeric.  Anchoring to the first numeric column rather than the
     // last keeps the default ordering stable as further metric columns are
