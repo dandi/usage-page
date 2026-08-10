@@ -25,7 +25,7 @@
 
 #### 🏠 Internal
 
-- Recorded the American-English spelling convention in `AGENTS.md`, and added `CLAUDE.md` as a symlink to it so both filenames resolve to the same instructions. ([#241](https://github.com/dandi/usage-page/pull/241))
+- Renamed `AGENTS.md` to `CLAUDE.md` and recorded the American-English spelling convention in it. ([#241](https://github.com/dandi/usage-page/pull/241))
 
 - Updated the version-check CI workflow to not trigger on `package-lock.json` changes; updated `AGENTS.md` to match. ([#174](https://github.com/dandi/usage-page/pull/174))
 - Updated the version-check workflow to allow dependency-only `package.json` changes (for example Dependabot dependency bumps) without requiring a package version bump. ([#189](https://github.com/dandi/usage-page/pull/189))
