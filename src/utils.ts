@@ -109,6 +109,7 @@ export function format_bytes(bytes: number, decimals = 2, use_binary = false): s
 export const TESTING_DANDISET_IDS = [
     "000025",
     "000027",
+    "000029",
     "000064",
     "000068",
     "000126",
@@ -119,6 +120,7 @@ export const TESTING_DANDISET_IDS = [
     "000544",
     "000717",
     "000719",
+    "000937",
     "001083",
 ];
 
