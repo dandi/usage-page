@@ -225,7 +225,9 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
  * @param container_id - ID of the container element.
  * @param title - Heading text rendered above the table.
  * @param columns - Column definitions.  `numeric: true` formats the cell value with
- *        `format_fn()`; otherwise the raw value is displayed as-is.
+ *        `format_fn()`; otherwise the raw value is displayed as-is.  An optional
+ *        `link_fn(row)` turns a non-numeric cell into a hyperlink: it returns the
+ *        target URL, or `null` for rows that should stay plain text.
  * @param rows - Data rows (plain objects keyed by column.key).
  * @param format_fn - Formatter applied to numeric cell values.  Defaults to
  *        `format_bytes` (decimal SI suffixes).
@@ -237,7 +239,7 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
 export function render_sortable_table(
     container_id: string,
     title: string,
-    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string}>,
+    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string; link_fn?: (row: Record<string, unknown>) => string | null}>,
     rows: Array<Record<string, unknown>>,
     format_fn: (bytes: number) => string = format_bytes_default,
     data_url?: string
@@ -245,9 +247,13 @@ export function render_sortable_table(
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    // Default: sort by the last column (bytes) descending
+    // Default: sort by the first numeric column (the primary "Bytes" metric in
+    // every table here) descending, falling back to the last column when no
+    // column is numeric.  Anchoring to the first numeric column rather than the
+    // last keeps the default ordering stable as further metric columns are
+    // appended.
     // sort_asc: true = ascending (A→Z / low→high), false = descending (Z→A / high→low)
-    let sort_key = columns[columns.length - 1].key;
+    let sort_key = (columns.find((col) => col.numeric) ?? columns[columns.length - 1]).key;
     let sort_asc  = false; // start descending so highest values appear first
 
     function render_table() {
@@ -287,7 +293,19 @@ export function render_sortable_table(
         sorted.forEach((row) => {
             html += "<tr>";
             columns.forEach((col) => {
-                const val = col.numeric ? (col.format_fn ?? format_fn)(row[col.key] as number) : escape_html(String(row[col.key] ?? ""));
+                let val;
+                if (col.numeric) {
+                    val = (col.format_fn ?? format_fn)(row[col.key] as number);
+                } else {
+                    val = escape_html(String(row[col.key] ?? ""));
+                    // Only link cells that have text to click and a well-formed
+                    // http(s) target, so an empty cell never becomes an
+                    // invisible link and no other URL scheme can be injected.
+                    const href = val === "" ? null : col.link_fn?.(row);
+                    if (href && /^https?:\/\//.test(href)) {
+                        val = `<a class="table-cell-link" href="${escape_html(href)}" target="_blank" rel="noopener">${val}</a>`;
+                    }
+                }
                 html += `<td>${val}</td>`;
             });
             html += "</tr>";

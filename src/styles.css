@@ -468,6 +468,17 @@ input[type="number"]:focus {
     overflow-wrap: break-word;
 }
 
+/* Hyperlinked table cells (e.g. Dandiset names linking to the archive) */
+.table-cell-link {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+.table-cell-link:hover,
+.table-cell-link:focus-visible {
+    text-decoration: underline;
+}
+
 .plot-table td:last-child,
 .plot-table th:last-child {
     text-align: center;

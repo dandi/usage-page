@@ -27,7 +27,7 @@ export function color_with_alpha(color: string, alpha: number): string {
     return color;
 }
 
-export function parse_by_day_tsv(text: string): { dates: string[]; bytes: number[]; requests: number[]; downloads: number[] } {
+export function parse_by_day_tsv(text: string): { dates: string[]; bytes: number[]; requests: number[]; downloads: number[]; views: number[] } {
     const rows = text.split("\n").filter((row) => row.trim() !== "");
     if (rows.length < 2) throw new Error("TSV file does not contain enough data.");
     const raw_data = rows.slice(1).map((row) => row.split("\t"));
@@ -36,6 +36,7 @@ export function parse_by_day_tsv(text: string): { dates: string[]; bytes: number
         bytes: raw_data.map((row) => parseInt(row[1], 10)),
         requests: raw_data.map((row) => parseInt(row[2] || "0", 10)),
         downloads: raw_data.map((row) => parseInt(row[3] || "0", 10)),
+        views: raw_data.map((row) => parseInt(row[4] || "0", 10)),
     };
 }
 
@@ -97,4 +98,20 @@ export function format_bytes(bytes: number, decimals = 2, use_binary = false): s
     const reduced = parseFloat((bytes / Math.pow(k, i)).toFixed(decimals));
 
     return `${reduced} ${sizes[i]}`;
+}
+
+/**
+ * Returns just the unit `format_bytes` would use for `bytes` (e.g. "TB", or
+ * "TiB" in binary mode), without the numeric part.  Used to name the unit a
+ * plot's y-axis is effectively in.  Non-positive and non-finite inputs fall
+ * back to "Bytes"; very large inputs clamp to the largest known unit.
+ */
+export function bytes_unit(bytes: number, use_binary = false): string {
+    const k = use_binary ? 1024 : 1000;
+    const sizes = use_binary
+        ? ["Bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
+        : ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    if (!isFinite(bytes) || bytes <= 0) return sizes[0];
+    const i = Math.min(Math.floor(Math.log(bytes) / Math.log(k)), sizes.length - 1);
+    return sizes[i];
 }
