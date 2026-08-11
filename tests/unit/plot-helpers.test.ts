@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { gzipSync } from "node:zlib";
 import {
     escape_html,
     make_cumulative,
@@ -8,6 +9,11 @@ import {
     derive_data_source_urls,
     render_sortable_table,
     parse_dandiset_titles_jsonl,
+    parse_dandiset_numbers_jsonl,
+    build_table_tsv,
+    table_download_filename,
+    decode_maybe_gzipped_response,
+    fetch_maybe_gzipped_text,
     format_dandiset_label,
 } from "../../src/plot-helpers.js";
 
@@ -576,6 +582,101 @@ describe("parse_dandiset_titles_jsonl", () => {
     });
 });
 
+// ── parse_dandiset_numbers_jsonl ──────────────────────────────────────────────
+
+describe("parse_dandiset_numbers_jsonl", () => {
+    it("parses one number per line into a single lookup map", () => {
+        const text = '{"000003": 101}\n{"000004": 87}';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101, "000004": 87 });
+    });
+
+    it("keeps zero values", () => {
+        expect(parse_dandiset_numbers_jsonl('{"000003": 0}')).toEqual({ "000003": 0 });
+    });
+
+    it("preserves large byte counts exactly", () => {
+        expect(parse_dandiset_numbers_jsonl('{"001412": 1067232272269263}')).toEqual({
+            "001412": 1067232272269263,
+        });
+    });
+
+    it("skips blank lines and trailing newlines", () => {
+        const text = '{"000003": 101}\n\n\n{"000004": 87}\n';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101, "000004": 87 });
+    });
+
+    it("skips malformed lines without throwing", () => {
+        const text = '{"000003": 101}\nnot json\n{"000004": 87}';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101, "000004": 87 });
+    });
+
+    it("drops entries whose value is not a finite number", () => {
+        const text = '{"000003": 101}\n{"000004": null}\n{"000005": "87"}';
+        expect(parse_dandiset_numbers_jsonl(text)).toEqual({ "000003": 101 });
+    });
+
+    it("returns an empty object for empty input", () => {
+        expect(parse_dandiset_numbers_jsonl("")).toEqual({});
+    });
+});
+
+// ── decode_maybe_gzipped_response ─────────────────────────────────────────────
+
+describe("decode_maybe_gzipped_response", () => {
+    const jsonl = '{"000003": 101}\n{"000004": 87}\n';
+
+    it("inflates a gzipped body", async () => {
+        const response = new Response(new Uint8Array(gzipSync(Buffer.from(jsonl))));
+        expect(await decode_maybe_gzipped_response(response)).toBe(jsonl);
+    });
+
+    it("inflates a body large enough to arrive in multiple chunks", async () => {
+        const big = Array.from({ length: 20000 }, (_, i) => `{"${String(i).padStart(6, "0")}": ${i}}`).join("\n");
+        const response = new Response(new Uint8Array(gzipSync(Buffer.from(big))));
+        expect(await decode_maybe_gzipped_response(response)).toBe(big);
+    });
+
+    it("passes through a body that was already decompressed upstream", async () => {
+        const response = new Response(jsonl);
+        expect(await decode_maybe_gzipped_response(response)).toBe(jsonl);
+    });
+
+    it("returns an empty string for an empty body", async () => {
+        const response = new Response("");
+        expect(await decode_maybe_gzipped_response(response)).toBe("");
+    });
+
+    it("rejects when the gzipped body is corrupt", async () => {
+        // Valid gzip magic number followed by garbage
+        const corrupt = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04]);
+        await expect(decode_maybe_gzipped_response(new Response(corrupt))).rejects.toThrow();
+    });
+});
+
+// ── fetch_maybe_gzipped_text ──────────────────────────────────────────────────
+
+describe("fetch_maybe_gzipped_text", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it("fetches and inflates a gzipped file", async () => {
+        const jsonl = '{"000003": 101}\n';
+        vi.stubGlobal(
+            "fetch",
+            vi.fn().mockResolvedValue(new Response(new Uint8Array(gzipSync(Buffer.from(jsonl))), { status: 200 }))
+        );
+        expect(await fetch_maybe_gzipped_text("https://example.com/data.jsonl.gz")).toBe(jsonl);
+    });
+
+    it("propagates a permanent fetch failure", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, status: 404, statusText: "Not Found" }));
+        await expect(fetch_maybe_gzipped_text("https://example.com/missing.jsonl.gz")).rejects.toThrow(
+            "HTTP error 404: Not Found"
+        );
+    });
+});
+
 // ── format_dandiset_label ──────────────────────────────────────────────────────
 
 describe("format_dandiset_label", () => {
@@ -665,16 +766,23 @@ describe("render_sortable_table data menu", () => {
         expect(document.querySelector("#my_table a.table-data-link")).toBeNull();
     });
 
-    it("renders file, raw, and folder menu items with derived hrefs", () => {
+    it("renders file and folder menu items with derived hrefs", () => {
         render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
         const hrefs = Array.from(
             document.querySelectorAll("#my_table .table-data-menu-panel a")
         ).map((a) => (a as HTMLAnchorElement).href);
         expect(hrefs).toEqual([
             "https://github.com/dandi/access-summaries/blob/main/content/summaries/000003/by_day.tsv",
-            raw_url,
             "https://github.com/dandi/access-summaries/tree/main/content/summaries/000003",
         ]);
+    });
+
+    it("offers a table download in place of a link to the raw source file", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const items = Array.from(
+            document.querySelectorAll("#my_table .table-data-menu-panel a, #my_table .table-data-menu-panel button")
+        ).map((el) => el.textContent);
+        expect(items).toEqual(["View file on GitHub", "Download table", "Browse data folder"]);
     });
 
     it("is closed by default and opens on button click", () => {
@@ -714,5 +822,318 @@ describe("render_sortable_table data menu", () => {
         const link = document.querySelector("#my_table a.table-data-link") as HTMLAnchorElement | null;
         expect(link).not.toBeNull();
         expect(link!.href).toBe("https://example.com/data.tsv");
+    });
+});
+
+// ── render_sortable_table missing numeric values ──────────────────────────────
+
+describe("render_sortable_table with missing numeric values", () => {
+    // NaN is how a scaled metric reports "no ratio available" (unknown or zero
+    // denominator); such rows must never displace rows that do have a value.
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Ratio", key: "ratio", numeric: true, format_fn: (n: number) => (isFinite(n) ? String(n) : "--") },
+    ];
+    const rows = [
+        { name: "alpha", ratio: 3 },
+        { name: "beta", ratio: NaN },
+        { name: "gamma", ratio: 1 },
+        { name: "delta", ratio: 2 },
+    ];
+
+    const rendered_names = () =>
+        Array.from(document.querySelectorAll("#my_table tbody tr td:first-child")).map((td) => td.textContent);
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, (n) => String(n));
+    });
+
+    it("sorts rows without a value last when sorting descending", () => {
+        expect(rendered_names()).toEqual(["alpha", "delta", "gamma", "beta"]);
+    });
+
+    it("keeps rows without a value last when sorting ascending", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+        expect(rendered_names()).toEqual(["gamma", "delta", "alpha", "beta"]);
+    });
+
+    it("renders the missing value through the column formatter", () => {
+        const last_cell = document.querySelector("#my_table tbody tr:last-child td:last-child")!;
+        expect(last_cell.textContent).toBe("--");
+    });
+});
+
+// ── render_sortable_table default_sort column flag ────────────────────────────
+
+describe("render_sortable_table default_sort flag", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Ratio", key: "ratio", numeric: true },
+        { label: "Total", key: "total", numeric: true, default_sort: true },
+    ];
+    const rows = [
+        { name: "alpha", ratio: 9, total: 100 },
+        { name: "beta", ratio: 5, total: 300 },
+        { name: "gamma", ratio: 7, total: 200 },
+    ];
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, (n) => String(n));
+    });
+
+    it("sorts by the flagged column instead of the first numeric one", () => {
+        const sorted_header = document.querySelector("#my_table th.th-sorted");
+        expect((sorted_header as HTMLElement).dataset.key).toBe("total");
+        const first_name = document.querySelector("#my_table tbody tr:first-child td:first-child")!;
+        expect(first_name.textContent).toBe("beta");
+    });
+
+    it("still starts descending on the flagged column", () => {
+        const totals = Array.from(document.querySelectorAll("#my_table tbody tr td:last-child")).map(
+            (td) => td.textContent
+        );
+        expect(totals).toEqual(["300", "200", "100"]);
+    });
+
+    it("lets a click move the sort to another column", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+        const first_name = document.querySelector("#my_table tbody tr:first-child td:first-child")!;
+        expect(first_name.textContent).toBe("alpha");
+    });
+});
+
+// ── build_table_tsv ───────────────────────────────────────────────────────────
+
+describe("build_table_tsv", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Total Bytes", key: "bytes", numeric: true },
+        { label: "Views / Asset", key: "ratio", numeric: true, format_fn: (n: number) => (isFinite(n) ? n.toFixed(2) : "--") },
+    ];
+    const rows = [
+        { name: "alpha", bytes: 300, ratio: 1.5 },
+        { name: "beta", bytes: 100, ratio: NaN },
+    ];
+    const fmt = (n: number) => `${n}B`;
+
+    it("writes the column labels as the header row", () => {
+        expect(build_table_tsv(columns, rows, fmt).split("\n")[0]).toBe("Name\tTotal Bytes\tViews / Asset");
+    });
+
+    it("formats cells exactly as the table displays them", () => {
+        const lines = build_table_tsv(columns, rows, fmt).split("\n");
+        expect(lines[1]).toBe("alpha\t300B\t1.50");
+        expect(lines[2]).toBe("beta\t100B\t--");
+    });
+
+    it("preserves the order of the rows it is given", () => {
+        const reversed = build_table_tsv(columns, [...rows].reverse(), fmt).split("\n");
+        expect(reversed[1].startsWith("beta")).toBe(true);
+        expect(reversed[2].startsWith("alpha")).toBe(true);
+    });
+
+    it("ends with a trailing newline", () => {
+        expect(build_table_tsv(columns, rows, fmt).endsWith("\n")).toBe(true);
+    });
+
+    it("renders a missing non-numeric cell as an empty field", () => {
+        const tsv = build_table_tsv(columns, [{ bytes: 1, ratio: 1 }], fmt);
+        expect(tsv.split("\n")[1]).toBe("\t1B\t1.00");
+    });
+
+    it("collapses tabs and newlines inside a cell so the columns stay aligned", () => {
+        const tsv = build_table_tsv(columns, [{ name: "a\tb\nc", bytes: 1, ratio: 1 }], fmt);
+        expect(tsv.split("\n")[1]).toBe("a b c\t1B\t1.00");
+    });
+
+    it("writes only a header row when there are no rows", () => {
+        expect(build_table_tsv(columns, [], fmt)).toBe("Name\tTotal Bytes\tViews / Asset\n");
+    });
+});
+
+// ── table_download_filename ───────────────────────────────────────────────────
+
+describe("table_download_filename", () => {
+    it("slugifies the table heading", () => {
+        expect(table_download_filename("Usage per Dandiset")).toBe("usage_per_dandiset.tsv");
+    });
+
+    it("collapses punctuation runs into single underscores", () => {
+        expect(table_download_filename("Usage per region (top 10)")).toBe("usage_per_region_top_10.tsv");
+    });
+
+    it("trims leading and trailing separators", () => {
+        expect(table_download_filename("  Usage per asset  ")).toBe("usage_per_asset.tsv");
+    });
+
+    it("falls back to a generic name when the title has no usable characters", () => {
+        expect(table_download_filename("—")).toBe("table.tsv");
+    });
+});
+
+// ── render_sortable_table download menu item ──────────────────────────────────
+
+describe("render_sortable_table table download", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Total Bytes", key: "bytes", numeric: true },
+    ];
+    const rows = [
+        { name: "alpha", bytes: 100 },
+        { name: "beta", bytes: 300 },
+    ];
+    const fmt = (n: number) => `${n}B`;
+    const raw_url = "https://raw.githubusercontent.com/dandi/access-summaries/main/content/totals.json";
+
+    let created_blobs: Blob[];
+    let revoked: string[];
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        created_blobs = [];
+        revoked = [];
+        vi.stubGlobal("URL", {
+            ...URL,
+            createObjectURL: vi.fn((blob: Blob) => {
+                created_blobs.push(blob);
+                return "blob:mock-url";
+            }),
+            revokeObjectURL: vi.fn((url: string) => {
+                revoked.push(url);
+            }),
+        });
+        render_sortable_table("my_table", "Usage per Dandiset", columns, rows, fmt, raw_url);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
+
+    const click_download = () =>
+        (document.querySelector("#my_table .table-data-menu-download") as HTMLElement).click();
+
+    it("builds a TSV of the table in its current sort order", async () => {
+        click_download();
+        expect(created_blobs).toHaveLength(1);
+        // Default sort is the first numeric column descending, so beta leads
+        expect(await created_blobs[0].text()).toBe("Name\tTotal Bytes\nbeta\t300B\nalpha\t100B\n");
+    });
+
+    it("follows the sort order chosen by the user", async () => {
+        (document.querySelector('#my_table th[data-key="bytes"]') as HTMLElement).click();
+        click_download();
+        expect(await created_blobs[0].text()).toBe("Name\tTotal Bytes\nalpha\t100B\nbeta\t300B\n");
+    });
+
+    it("names the file after the table heading", () => {
+        // The temporary anchor is removed again after the click, so capture it
+        // as it is created.
+        const anchors: HTMLAnchorElement[] = [];
+        const create_element = document.createElement.bind(document);
+        vi.spyOn(document, "createElement").mockImplementation((tag: string, options?: ElementCreationOptions) => {
+            const element = create_element(tag, options);
+            if (tag === "a") anchors.push(element as HTMLAnchorElement);
+            return element;
+        });
+
+        click_download();
+
+        expect(anchors.at(-1)!.download).toBe("usage_per_dandiset.tsv");
+    });
+
+    it("revokes the object URL once the download has started", () => {
+        click_download();
+        expect(revoked).toEqual(["blob:mock-url"]);
+    });
+
+    it("closes the menu after downloading", () => {
+        (document.querySelector("#my_table .table-data-menu-btn") as HTMLElement).click();
+        expect(document.querySelector("#my_table .table-data-menu")!.classList.contains("open")).toBe(true);
+        click_download();
+        expect(document.querySelector("#my_table .table-data-menu")!.classList.contains("open")).toBe(false);
+    });
+});
+
+// ── render_sortable_table sort persistence across re-renders ──────────────────
+
+describe("render_sortable_table sort persistence", () => {
+    const columns = [
+        { label: "Name", key: "name", numeric: false },
+        { label: "Ratio", key: "ratio", numeric: true },
+        { label: "Total", key: "total", numeric: true, default_sort: true },
+    ];
+    const rows = [
+        { name: "alpha", ratio: 9, total: 100 },
+        { name: "beta", ratio: 5, total: 300 },
+        { name: "gamma", ratio: 7, total: 200 },
+    ];
+    const fmt = (n: number) => String(n);
+
+    const sorted_key = () => (document.querySelector("#my_table th.th-sorted") as HTMLElement).dataset.key;
+    const indicator = () => document.querySelector("#my_table th.th-sorted .sort-indicator")!.textContent;
+    const first_name = () => document.querySelector("#my_table tbody tr:first-child td:first-child")!.textContent;
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+    });
+
+    it("keeps the user's sort column when the same table is re-rendered", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+        expect(sorted_key()).toBe("ratio");
+
+        // Same table, fewer rows — as when a filter setting is toggled
+        render_sortable_table("my_table", "Title", columns, rows.slice(0, 2), fmt);
+
+        expect(sorted_key()).toBe("ratio");
+        expect(first_name()).toBe("alpha");
+    });
+
+    it("keeps the sort direction as well as the column", () => {
+        const th = document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement;
+        th.click();
+        th.click(); // second click flips to ascending
+        expect(indicator()).toBe("▲");
+
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+
+        expect(sorted_key()).toBe("ratio");
+        expect(indicator()).toBe("▲");
+        expect(first_name()).toBe("beta");
+    });
+
+    it("starts from the default sort when the columns change", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+
+        const other_columns = [
+            { label: "Name", key: "name", numeric: false },
+            { label: "Bytes", key: "bytes", numeric: true },
+        ];
+        render_sortable_table("my_table", "Other table", other_columns, [{ name: "alpha", bytes: 1 }], fmt);
+
+        expect(sorted_key()).toBe("bytes");
+    });
+
+    it("does not leak one table's sort into another table", () => {
+        document.body.innerHTML = '<div id="my_table"></div><div id="other_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+
+        render_sortable_table("other_table", "Title", columns, rows, fmt);
+
+        expect((document.querySelector("#other_table th.th-sorted") as HTMLElement).dataset.key).toBe("total");
+    });
+
+    it("uses the default sort for a freshly created container", () => {
+        (document.querySelector('#my_table th[data-key="ratio"]') as HTMLElement).click();
+
+        // Replacing the container element discards the state tied to it
+        document.body.innerHTML = '<div id="my_table"></div>';
+        render_sortable_table("my_table", "Title", columns, rows, fmt);
+
+        expect(sorted_key()).toBe("total");
     });
 });

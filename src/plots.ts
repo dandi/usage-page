@@ -7,6 +7,9 @@ import {
     aggregate_by_timebin,
     format_bytes as format_bytes_pure,
     bytes_unit,
+    scaled_metric,
+    format_ratio,
+    exclude_testing_dandisets,
 } from "./utils.js";
 import {
     escape_html,
@@ -17,6 +20,8 @@ import {
     derive_data_source_urls,
     render_sortable_table,
     parse_dandiset_titles_jsonl,
+    parse_dandiset_numbers_jsonl,
+    fetch_maybe_gzipped_text,
     format_dandiset_label,
 } from "./plot-helpers.js";
 import { load as loadYaml } from "js-yaml";
@@ -340,6 +345,13 @@ const ALL_DANDISET_TOTALS_URL = `${BASE_URL}/content/totals.json`;
 const REGION_CODES_TO_LATITUDE_LONGITUDE_URL = `${BASE_URL}/content/region_codes_to_coordinates.yaml`;
 const DANDISET_ID_TO_TITLE_URL =
     "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-title/derivatives/derivatives/dandiset_id_to_title.jsonl";
+// Content of each Dandiset (asset count and stored size), used to scale the raw
+// usage metrics into per-asset and per-stored-byte rates.  Both are gzipped
+// JSONL and are decompressed client-side.
+const DANDISET_ID_TO_NUMBER_OF_ASSETS_URL =
+    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-number-of-assets/dist/derivatives/dandiset_id_to_number_of_assets.jsonl.gz";
+const DANDISET_ID_TO_TOTAL_SIZE_URL =
+    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-total-size/dist/derivatives/dandiset_id_to_total_size.jsonl.gz";
 
 // Landing page for a Dandiset on the DANDI archive.
 const DANDI_ARCHIVE_DANDISET_URL = "https://dandiarchive.org/dandiset";
@@ -369,6 +381,11 @@ let REGION_CODES_TO_LATITUDE_LONGITUDE: Record<string, { latitude: number; longi
 let ALL_DANDISET_TOTALS: Record<string, DandisetTotals> = {};
 // Maps a Dandiset ID to its current title, used to annotate ID displays with a human-readable name.
 let DANDISET_TITLES: Record<string, string> = {};
+// Maps a Dandiset ID to the number of assets it contains and to its total
+// stored size in bytes; both are the denominators of the scaled metrics shown
+// in the per-Dandiset table.
+let DANDISET_ASSET_COUNTS: Record<string, number> = {};
+let DANDISET_TOTAL_SIZES: Record<string, number> = {};
 let USE_LOG_SCALE = false;
 let USE_CUMULATIVE = false;
 let USE_OT_LINE_PLOT = false;
@@ -381,6 +398,9 @@ let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 let TOP_N_DANDISETS = 8;
 let USE_OVER_TIME_TABLE = false;
 let USE_HISTOGRAM_TABLE = false;
+// Defaults on: a first visit should show research usage, not the testing
+// traffic that otherwise leads most of the per-Dandiset metrics.
+let IGNORE_TESTING_DANDISETS = true;
 let GEOJSON_DATA: { features: any[] } | null = null;
 let NAME_ALIASES: Record<string, Record<string, string>> | null = null;
 
@@ -475,24 +495,27 @@ function syncFromUrl() {
     const histogramRadio = document.querySelector(`input[name="histogram_view"][value="${histogramValue}"]`) as HTMLInputElement | null;
     if (histogramRadio) histogramRadio.checked = true;
     apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
-    setSettingsBtnDisabled("hist_settings_btn", "hist_settings_panel", USE_HISTOGRAM_TABLE);
+
+    // Ignore testing Dandisets
+    const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets") as HTMLInputElement | null;
+    if (ignoreTestingCheckbox) {
+        IGNORE_TESTING_DANDISETS = params.get("ignore_testing") !== "false";
+        ignoreTestingCheckbox.checked = IGNORE_TESTING_DANDISETS;
+    }
+    apply_ignore_testing_visibility();
 }
 
 /**
- * Disables or re-enables a settings button.  When disabling, also closes the
- * panel if it is currently open.
+ * Shows the "Ignore testing datasets" setting only where it applies: the
+ * per-Dandiset table, which is the archive-wide selection.  Any other selection
+ * lists assets rather than Dandisets, so there is nothing to filter.
  */
-function setSettingsBtnDisabled(btnId: string, panelId: string, disabled: boolean): void {
-    const btn = document.getElementById(btnId) as HTMLButtonElement | null;
-    const panel = document.getElementById(panelId);
-    if (btn) {
-        btn.disabled = disabled;
-        if (disabled && panel) {
-            panel.classList.remove("open");
-            btn.setAttribute("aria-expanded", "false");
-            panel.setAttribute("aria-hidden", "true");
-        }
-    }
+function apply_ignore_testing_visibility() {
+    const container = document.getElementById("hist_ignore_testing_container");
+    if (!container) return;
+    const selector = document.getElementById("dandiset_selector") as HTMLSelectElement | null;
+    const is_archive = !selector || selector.value === "archive";
+    container.style.display = is_archive ? "" : "none";
 }
 
 /**
@@ -695,9 +718,24 @@ window.addEventListener("load", () => {
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
             apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
-            setSettingsBtnDisabled("hist_settings_btn", "hist_settings_panel", USE_HISTOGRAM_TABLE);
         });
     });
+
+    // Add event listener for the "Ignore testing datasets" checkbox
+    const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets");
+    if (ignoreTestingCheckbox) {
+        ignoreTestingCheckbox.addEventListener("change", () => {
+            IGNORE_TESTING_DANDISETS = (ignoreTestingCheckbox as HTMLInputElement).checked;
+
+            const params = new URLSearchParams(window.location.search);
+            setUrlParam(params, "ignore_testing", String(IGNORE_TESTING_DANDISETS), "true");
+            const query = params.toString();
+            window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
+
+            const selected_dandiset = (document.getElementById("dandiset_selector") as HTMLSelectElement | null)?.value ?? "";
+            load_histogram(selected_dandiset);
+        });
+    }
 
     // Add event listener for time aggregation radio toggle (Daily / Weekly / Monthly / Yearly)
     const timeAggregationRadios = document.querySelectorAll('input[name="time_aggregation"]');
@@ -850,8 +888,33 @@ const dandisetTitlesPromise = fetchWithRetry(DANDISET_ID_TO_TITLE_URL)
         console.error("Error loading dandiset titles:", error);
     });
 
+// Asset counts and stored sizes are only the denominators of the scaled metrics
+// in the per-Dandiset table, which fall back to "--" when unavailable, so a
+// failure here is logged but does not block the rest of the page.
+const dandisetAssetCountsPromise = fetch_maybe_gzipped_text(DANDISET_ID_TO_NUMBER_OF_ASSETS_URL)
+    .then((asset_counts_text) => {
+        Object.assign(DANDISET_ASSET_COUNTS, parse_dandiset_numbers_jsonl(asset_counts_text));
+    })
+    .catch((error) => {
+        console.error("Error loading dandiset asset counts:", error);
+    });
+
+const dandisetTotalSizesPromise = fetch_maybe_gzipped_text(DANDISET_ID_TO_TOTAL_SIZE_URL)
+    .then((total_sizes_text) => {
+        Object.assign(DANDISET_TOTAL_SIZES, parse_dandiset_numbers_jsonl(total_sizes_text));
+    })
+    .catch((error) => {
+        console.error("Error loading dandiset total sizes:", error);
+    });
+
 // Populate the dropdown with IDs and render initial plots only after both fetches complete
-Promise.all([archiveTotalsPromise, allDandisetTotalsPromise, dandisetTitlesPromise])
+Promise.all([
+    archiveTotalsPromise,
+    allDandisetTotalsPromise,
+    dandisetTitlesPromise,
+    dandisetAssetCountsPromise,
+    dandisetTotalSizesPromise,
+])
     .then(() => {
         // Re-sync from URL here as a safety net: if DOMContentLoaded fired
         // before the data was ready, the global state is already correct, but
@@ -895,6 +958,7 @@ Promise.all([archiveTotalsPromise, allDandisetTotalsPromise, dandisetTitlesPromi
             const id = validateDandisetId(rawId);
             selector.value = id;
             apply_over_time_group_by_visibility();
+            apply_ignore_testing_visibility();
             update_dandiset_data_link(id);
             update_totals(id);
             return [
@@ -1754,20 +1818,38 @@ function load_dandiset_histogram(): Promise<void> {
         const combined = Object.keys(data)
             .map(dandiset_id => {
                 const raw_id = String(dandiset_id);
+                const bytes = data[dandiset_id].total_bytes_sent as number;
+                const requests = data[dandiset_id].total_number_of_requests as number;
+                const downloads = data[dandiset_id].total_number_of_downloads as number;
+                const views = data[dandiset_id].total_number_of_views as number;
+                // Denominators of the scaled metrics; missing for Dandisets
+                // absent from the content derivatives (such as 'undetermined'),
+                // in which case the ratios come out as NaN and render as "--".
+                const number_of_assets = DANDISET_ASSET_COUNTS[raw_id] ?? NaN;
+                const total_size = DANDISET_TOTAL_SIZES[raw_id] ?? NaN;
                 return {
                     raw_id,
                     dandiset_id: format_dandiset_label(raw_id, DANDISET_TITLES),
                     title: DANDISET_TITLES[raw_id] ?? "",
-                    bytes: data[dandiset_id].total_bytes_sent,
-                    requests: data[dandiset_id].total_number_of_requests as number,
-                    downloads: data[dandiset_id].total_number_of_downloads as number,
-                    views: data[dandiset_id].total_number_of_views as number,
+                    bytes,
+                    requests,
+                    downloads,
+                    views,
+                    bytes_per_size: scaled_metric(bytes, total_size),
+                    views_per_asset: scaled_metric(views, number_of_assets),
+                    downloads_per_asset: scaled_metric(downloads, number_of_assets),
+                    total_size,
+                    number_of_assets,
                 };
             })
             .sort((a, b) => b.bytes - a.bytes);
 
         // Exclude 'undetermined' from the plot only (table retains all entries)
         const plot_combined = combined.filter(item => item.raw_id !== "undetermined");
+
+        // The table can additionally be told to leave out the Dandisets whose
+        // usage is dominated by automated testing of the archive.
+        const table_rows = exclude_testing_dandisets(combined, IGNORE_TESTING_DANDISETS);
 
         const sorted_dandiset_ids = plot_combined.map(item => item.dandiset_id);
         const sorted_bytes_sent = plot_combined.map(item => item.bytes);
@@ -1821,14 +1903,31 @@ function load_dandiset_histogram(): Promise<void> {
 
         // Render table view (sortable by column header click; default: bytes descending)
         const count_format = (n: number) => n.toLocaleString();
+        // The content columns are unknown for Dandisets missing from the
+        // content derivatives, and show "--" there rather than "NaN".
+        const optional_count_format = (n: number) => (isFinite(n) ? count_format(n) : "--");
+        const optional_bytes_format = (n: number) => (isFinite(n) ? format_bytes(n) : "--");
         render_sortable_table("histogram_table", "Usage per Dandiset", [
             { label: "Dandiset ID", key: "raw_id", numeric: false },
             { label: "Name", key: "title", numeric: false, link_fn: (row) => dandiset_archive_url(row.raw_id) },
-            { label: "Bytes", key: "bytes", numeric: true },
-            { label: "Views", key: "views", numeric: true, format_fn: count_format },
-            { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
-            { label: "Requests", key: "requests", numeric: true, format_fn: count_format },
-        ], combined, format_bytes, ALL_DANDISET_TOTALS_URL);
+            // The scaled metrics lead, since they are what makes Dandisets of
+            // very different sizes comparable; the raw totals they are derived
+            // from follow.  Each scaled group sits beside its own denominator:
+            // the three per-asset rates with "Total Assets", and "Bytes / Size"
+            // with the "Total Bytes" and "Total Size" pair that ends the table.
+            // "Total Bytes" stays the default sort so the table's initial
+            // ordering still matches the plot beside it.
+            { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Total Assets", key: "number_of_assets", numeric: true, format_fn: optional_count_format },
+            { label: "Total Views", key: "views", numeric: true, format_fn: count_format },
+            { label: "Total Downloads", key: "downloads", numeric: true, format_fn: count_format },
+            // Bytes sent sits next to bytes stored, the two being directly
+            // comparable, with "Bytes / Size" — their ratio — leading them.
+            { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
+            { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
+            { label: "Total Size", key: "total_size", numeric: true, format_fn: optional_bytes_format },
+        ], table_rows, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
     })

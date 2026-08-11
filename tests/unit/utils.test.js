@@ -7,6 +7,10 @@ import {
     aggregate_by_timebin,
     format_bytes,
     bytes_unit,
+    scaled_metric,
+    format_ratio,
+    exclude_testing_dandisets,
+    TESTING_DANDISET_IDS,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -288,5 +292,120 @@ describe("bytes_unit", () => {
 
     it("clamps to the largest known unit for absurdly large values", () => {
         expect(bytes_unit(1e40)).toBe("YB");
+    });
+});
+
+// ── scaled_metric ────────────────────────────────────────────────────────────
+
+describe("scaled_metric", () => {
+    it("divides the numerator by the denominator", () => {
+        expect(scaled_metric(600, 4)).toBe(150);
+    });
+
+    it("returns a fractional ratio when the numerator is smaller", () => {
+        expect(scaled_metric(1, 8)).toBe(0.125);
+    });
+
+    it("returns zero when the numerator is zero", () => {
+        expect(scaled_metric(0, 101)).toBe(0);
+    });
+
+    it("returns NaN for a zero denominator instead of Infinity", () => {
+        expect(scaled_metric(500, 0)).toBeNaN();
+    });
+
+    it("returns NaN for a negative denominator", () => {
+        expect(scaled_metric(500, -1)).toBeNaN();
+    });
+
+    it("returns NaN when either operand is missing", () => {
+        expect(scaled_metric(undefined, 4)).toBeNaN();
+        expect(scaled_metric(600, undefined)).toBeNaN();
+    });
+
+    it("returns NaN when either operand is not finite", () => {
+        expect(scaled_metric(NaN, 4)).toBeNaN();
+        expect(scaled_metric(600, Infinity)).toBeNaN();
+    });
+
+    it("computes bytes sent per stored byte for realistic magnitudes", () => {
+        expect(scaled_metric(164445122622529, 2559248010229)).toBeCloseTo(64.255, 3);
+    });
+});
+
+// ── format_ratio ─────────────────────────────────────────────────────────────
+
+describe("format_ratio", () => {
+    it("renders values of 100 or more as whole numbers with thousands separators", () => {
+        expect(format_ratio(94966.4)).toBe("94,966");
+        expect(format_ratio(100)).toBe("100");
+    });
+
+    it("keeps two decimals for values between 1 and 100", () => {
+        expect(format_ratio(20.1333)).toBe("20.13");
+        expect(format_ratio(1)).toBe("1");
+    });
+
+    it("keeps two significant digits for values below 1", () => {
+        expect(format_ratio(0.171914)).toBe("0.17");
+        expect(format_ratio(0.00456)).toBe("0.0046");
+    });
+
+    it("renders zero as '0'", () => {
+        expect(format_ratio(0)).toBe("0");
+    });
+
+    it("renders non-finite values as '--'", () => {
+        expect(format_ratio(NaN)).toBe("--");
+        expect(format_ratio(Infinity)).toBe("--");
+        expect(format_ratio(-Infinity)).toBe("--");
+    });
+
+    it("renders a missing value as '--'", () => {
+        expect(format_ratio(undefined)).toBe("--");
+    });
+});
+
+// ── exclude_testing_dandisets ────────────────────────────────────────────────
+
+describe("exclude_testing_dandisets", () => {
+    // Derived from the list itself rather than restated, so that adding a
+    // testing Dandiset is a one-line change in src/utils.ts.
+    const rows = [
+        { raw_id: "000003" },
+        ...TESTING_DANDISET_IDS.map((raw_id) => ({ raw_id })),
+        { raw_id: "undetermined" },
+    ];
+
+    it("drops every testing Dandiset when asked to", () => {
+        expect(exclude_testing_dandisets(rows, true)).toEqual([{ raw_id: "000003" }, { raw_id: "undetermined" }]);
+    });
+
+    it("returns the rows unchanged when not asked to", () => {
+        expect(exclude_testing_dandisets(rows, false)).toBe(rows);
+    });
+
+    it("does not mutate the input", () => {
+        const row_count = rows.length;
+        exclude_testing_dandisets(rows, true);
+        expect(rows).toHaveLength(row_count);
+    });
+
+    it("lists well-formed six-digit Dandiset IDs", () => {
+        expect(TESTING_DANDISET_IDS.filter((id) => !/^\d{6}$/.test(id))).toEqual([]);
+    });
+
+    it("lists each testing Dandiset once, in ID order", () => {
+        expect(new Set(TESTING_DANDISET_IDS).size).toBe(TESTING_DANDISET_IDS.length);
+        expect([...TESTING_DANDISET_IDS].sort()).toEqual(TESTING_DANDISET_IDS);
+    });
+
+    it("keeps rows whose ID merely resembles a testing ID", () => {
+        const near_misses = [{ raw_id: "0000027" }, { raw_id: "00027" }, { raw_id: "000027x" }];
+        expect(exclude_testing_dandisets(near_misses, true)).toEqual(near_misses);
+    });
+
+    it("returns an empty array for empty input", () => {
+        expect(exclude_testing_dandisets([], true)).toEqual([]);
     });
 });

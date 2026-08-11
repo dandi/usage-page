@@ -84,26 +84,105 @@ export async function fetchWithRetry(url: string, options: RequestInit = {}, max
     throw new Error("fetchWithRetry: exhausted retries");
 }
 
-// ── Dandiset ID → title mapping ────────────────────────────────────────────
+// ── Gzip decoding ─────────────────────────────────────────────────────────────
 
 /**
- * Parses a newline-delimited JSON (JSONL) file where each line is a single
- * `{ "<dandiset_id>": "<title>" }` object, merging them into one lookup map.
- * Blank lines and lines that fail to parse are skipped so a single malformed
- * entry doesn't prevent the rest of the file from loading.
+ * Decodes a fetched response body that may be gzip-compressed into text.
+ *
+ * The gzipped derivative files are served as raw `application/octet-stream`
+ * bytes (no `Content-Encoding: gzip` header), so the browser hands them over
+ * still compressed and they have to be inflated here.  A caching layer that
+ * *does* advertise the encoding will have transparently decompressed the body
+ * already, so the gzip magic number is checked first and an already-plain body
+ * is simply decoded as text.
  */
-export function parse_dandiset_titles_jsonl(text: string): Record<string, string> {
-    const titles: Record<string, string> = {};
+export async function decode_maybe_gzipped_response(response: Response): Promise<string> {
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const is_gzipped = bytes.length > 2 && bytes[0] === 0x1f && bytes[1] === 0x8b;
+    if (!is_gzipped) return new TextDecoder().decode(bytes);
+    if (typeof DecompressionStream === "undefined") {
+        throw new Error("Gzipped data cannot be decoded: DecompressionStream is unavailable.");
+    }
+
+    const stream = new DecompressionStream("gzip");
+    const writer = stream.writable.getWriter();
+    // Feeding the stream is deliberately not awaited here: the writes only
+    // settle once the reader below drains the decompressed output, so awaiting
+    // them first would deadlock.  A corrupt body rejects on both ends of the
+    // stream, and it is the reader's rejection that is propagated, so the
+    // writer's duplicate is swallowed rather than left unhandled.
+    writer
+        .write(bytes)
+        .then(() => writer.close())
+        .catch(() => {});
+
+    const reader = stream.readable.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+    }
+    return text + decoder.decode();
+}
+
+/**
+ * Fetches a (possibly gzipped) file and returns its decoded text, retrying
+ * transient failures via `fetchWithRetry`.
+ */
+export async function fetch_maybe_gzipped_text(url: string): Promise<string> {
+    return decode_maybe_gzipped_response(await fetchWithRetry(url));
+}
+
+// ── Dandiset ID → value mappings ───────────────────────────────────────────
+
+/**
+ * Walks a newline-delimited JSON (JSONL) file where each line is a single
+ * `{ "<dandiset_id>": <value> }` object, invoking `visit` for every key/value
+ * pair.  Blank lines and lines that fail to parse are skipped so a single
+ * malformed entry doesn't prevent the rest of the file from loading.
+ */
+function for_each_jsonl_entry(text: string, visit: (key: string, value: unknown) => void): void {
     text.split("\n").forEach((line) => {
         const trimmed = line.trim();
         if (!trimmed) return;
+        let parsed: unknown;
         try {
-            Object.assign(titles, JSON.parse(trimmed));
+            parsed = JSON.parse(trimmed);
         } catch {
             // Skip malformed lines rather than failing the whole page.
+            return;
         }
+        if (parsed === null || typeof parsed !== "object") return;
+        Object.entries(parsed as Record<string, unknown>).forEach(([key, value]) => visit(key, value));
+    });
+}
+
+/**
+ * Parses a JSONL file of `{ "<dandiset_id>": "<title>" }` lines into one
+ * lookup map of Dandiset ID → title.
+ */
+export function parse_dandiset_titles_jsonl(text: string): Record<string, string> {
+    const titles: Record<string, string> = {};
+    for_each_jsonl_entry(text, (key, value) => {
+        titles[key] = value as string;
     });
     return titles;
+}
+
+/**
+ * Parses a JSONL file of `{ "<dandiset_id>": <number> }` lines (the asset-count
+ * and total-size derivatives) into one lookup map of Dandiset ID → number.
+ * Entries whose value is not a finite number are dropped, so a malformed value
+ * shows up as missing data rather than as a bogus metric.
+ */
+export function parse_dandiset_numbers_jsonl(text: string): Record<string, number> {
+    const numbers: Record<string, number> = {};
+    for_each_jsonl_entry(text, (key, value) => {
+        if (typeof value === "number" && isFinite(value)) numbers[key] = value;
+    });
+    return numbers;
 }
 
 /**
@@ -215,7 +294,80 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
     };
 }
 
+// ── Table download ────────────────────────────────────────────────────────────
+
+interface TableColumn {
+    label: string;
+    key: string;
+    numeric: boolean;
+    format_fn?: (val: number) => string;
+    link_fn?: (row: Record<string, unknown>) => string | null;
+    default_sort?: boolean;
+}
+
+/**
+ * Returns the text a table cell displays for one column of one row: numeric
+ * columns go through the column's formatter (or the table's default one),
+ * everything else is stringified as-is.
+ */
+function table_cell_text(col: TableColumn, row: Record<string, unknown>, format_fn: (val: number) => string): string {
+    return col.numeric ? (col.format_fn ?? format_fn)(row[col.key] as number) : String(row[col.key] ?? "");
+}
+
+/**
+ * Serializes a table to tab-separated values exactly as it is displayed: the
+ * same columns in the same order, the same formatted cell text, and `rows` in
+ * whatever order they are passed (the caller passes the current sort order).
+ * This is what the "Download table" menu item hands back, since the on-page
+ * table carries derived columns that no single source file contains.
+ *
+ * Tabs and newlines inside a cell are collapsed to spaces so one stray value
+ * cannot break the column alignment of the whole file.
+ */
+export function build_table_tsv(
+    columns: TableColumn[],
+    rows: Array<Record<string, unknown>>,
+    format_fn: (bytes: number) => string = format_bytes_default
+): string {
+    const sanitize = (text: string) => text.replace(/[\t\r\n]+/g, " ");
+    const lines = [columns.map((col) => sanitize(col.label)).join("\t")];
+    rows.forEach((row) => {
+        lines.push(columns.map((col) => sanitize(table_cell_text(col, row, format_fn))).join("\t"));
+    });
+    return lines.join("\n") + "\n";
+}
+
+/**
+ * Derives a download filename from a table's heading, e.g. "Usage per
+ * Dandiset" → "usage_per_dandiset.tsv".
+ */
+export function table_download_filename(title: string): string {
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    return `${slug || "table"}.tsv`;
+}
+
+/**
+ * Hands `text` to the browser as a file download, via a temporary object URL.
+ */
+function download_text_file(text: string, filename: string, mime_type: string): void {
+    const url = URL.createObjectURL(new Blob([text], { type: mime_type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
 // ── Sortable table renderer ───────────────────────────────────────────────────
+
+/**
+ * The sort each table is currently under, so that re-rendering it with new
+ * rows can restore it.  Keyed by the container element (rather than its ID) so
+ * the state disappears with the element it belongs to.
+ */
+const TABLE_SORT_STATE = new WeakMap<HTMLElement, { key: string; asc: boolean; signature: string }>();
 
 /**
  * Renders a sortable HTML table inside a container element.
@@ -227,19 +379,22 @@ export function derive_data_source_urls(raw_url: string): { raw: string; file: s
  * @param columns - Column definitions.  `numeric: true` formats the cell value with
  *        `format_fn()`; otherwise the raw value is displayed as-is.  An optional
  *        `link_fn(row)` turns a non-numeric cell into a hyperlink: it returns the
- *        target URL, or `null` for rows that should stay plain text.
+ *        target URL, or `null` for rows that should stay plain text.  An optional
+ *        `default_sort: true` marks the column the table is sorted by on first
+ *        render, for tables whose primary metric is not their leftmost one.
  * @param rows - Data rows (plain objects keyed by column.key).
  * @param format_fn - Formatter applied to numeric cell values.  Defaults to
  *        `format_bytes` (decimal SI suffixes).
  * @param data_url - Optional URL to the source data file; when provided a
- *        "Data ▾" menu (GitHub file view / raw download / containing folder)
- *        is rendered top-right in the table header.  Falls back to a plain
- *        "Data" hyperlink when the URL is not a raw.githubusercontent.com URL.
+ *        "Data ▾" menu (GitHub file view / download of the table as shown /
+ *        containing folder) is rendered top-right in the table header.  Falls
+ *        back to a plain "Data" hyperlink when the URL is not a
+ *        raw.githubusercontent.com URL.
  */
 export function render_sortable_table(
     container_id: string,
     title: string,
-    columns: Array<{label: string; key: string; numeric: boolean; format_fn?: (val: number) => string; link_fn?: (row: Record<string, unknown>) => string | null}>,
+    columns: TableColumn[],
     rows: Array<Record<string, unknown>>,
     format_fn: (bytes: number) => string = format_bytes_default,
     data_url?: string
@@ -247,14 +402,29 @@ export function render_sortable_table(
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    // Default: sort by the first numeric column (the primary "Bytes" metric in
-    // every table here) descending, falling back to the last column when no
-    // column is numeric.  Anchoring to the first numeric column rather than the
-    // last keeps the default ordering stable as further metric columns are
-    // appended.
+    // Default: sort by the column flagged `default_sort`, else by the first
+    // numeric column (the primary "Bytes" metric in most tables here),
+    // falling back to the last column when no column is numeric.  Anchoring to
+    // a named or leading column rather than the last keeps the default ordering
+    // stable as further metric columns are added.
     // sort_asc: true = ascending (A→Z / low→high), false = descending (Z→A / high→low)
-    let sort_key = (columns.find((col) => col.numeric) ?? columns[columns.length - 1]).key;
-    let sort_asc  = false; // start descending so highest values appear first
+    const default_sort_key = (
+        columns.find((col) => col.default_sort) ??
+        columns.find((col) => col.numeric) ??
+        columns[columns.length - 1]
+    ).key;
+
+    // Re-rendering a table with fresh rows (a settings toggle, a reload of the
+    // same view) keeps whatever sort the user last chose for it, instead of
+    // snapping back to the default.  The remembered state only applies to a
+    // table with the same columns, so a container that later shows a different
+    // table (the per-asset table replacing the per-Dandiset one, say) starts
+    // from that table's own default.
+    const signature = columns.map((col) => col.key).join(" ");
+    const remembered = TABLE_SORT_STATE.get(container);
+    const restored = remembered?.signature === signature ? remembered : null;
+    let sort_key = restored?.key ?? default_sort_key;
+    let sort_asc  = restored?.asc ?? false; // start descending so highest values appear first
 
     function render_table() {
         const sorted = [...rows].sort((a, b) => {
@@ -262,7 +432,16 @@ export function render_sortable_table(
             const vb = b[sort_key];
             const factor = sort_asc ? 1 : -1;
             if (typeof va === "number" && typeof vb === "number") {
-                return factor * ((va as number) - (vb as number));
+                // Rows without a value for this column (NaN, e.g. a scaled
+                // metric whose denominator is unknown) always sink to the
+                // bottom, in both sort directions.
+                const va_missing = !isFinite(va);
+                const vb_missing = !isFinite(vb);
+                if (va_missing || vb_missing) {
+                    if (va_missing && vb_missing) return 0;
+                    return va_missing ? 1 : -1;
+                }
+                return factor * (va - vb);
             }
             // Numeric-aware locale comparison handles Dandiset IDs like "000123"
             return factor * String(va).localeCompare(String(vb), undefined, { numeric: true });
@@ -270,13 +449,13 @@ export function render_sortable_table(
 
         let data_link = "";
         if (data_url) {
-            const { raw, file, folder } = derive_data_source_urls(data_url);
+            const { file, folder } = derive_data_source_urls(data_url);
             data_link = file && folder
                 ? `<div class="table-data-menu">` +
                   `<button type="button" class="table-data-menu-btn" aria-haspopup="true" aria-expanded="false">Data <span class="table-data-caret">▾</span></button>` +
                   `<div class="table-data-menu-panel" role="menu">` +
                   `<a href="${escape_html(file)}" target="_blank" rel="noopener" role="menuitem">View file on GitHub</a>` +
-                  `<a href="${escape_html(raw)}" target="_blank" rel="noopener" role="menuitem">Download raw file</a>` +
+                  `<button type="button" class="table-data-menu-download" role="menuitem">Download table</button>` +
                   `<a href="${escape_html(folder)}" target="_blank" rel="noopener" role="menuitem">Browse data folder</a>` +
                   `</div></div>`
                 : `<a class="table-data-link" href="${escape_html(data_url)}" target="_blank" rel="noopener">Data</a>`;
@@ -340,6 +519,17 @@ export function render_sortable_table(
                     (menu_btn as HTMLElement).focus();
                 }
             });
+
+            // Downloads the table as it currently stands — including the sort
+            // order in effect — rather than the source file behind it.
+            menu.querySelector(".table-data-menu-download")?.addEventListener("click", () => {
+                download_text_file(
+                    build_table_tsv(columns, sorted, format_fn),
+                    table_download_filename(title),
+                    "text/tab-separated-values"
+                );
+                close_menu();
+            });
         }
 
         // Attach sort click handlers after innerHTML is set
@@ -352,6 +542,7 @@ export function render_sortable_table(
                     sort_key = key;
                     sort_asc  = false; // first click on a new column → descending (high→low)
                 }
+                TABLE_SORT_STATE.set(container!, { key: sort_key, asc: sort_asc, signature });
                 render_table();
             });
         });

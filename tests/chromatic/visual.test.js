@@ -1,4 +1,5 @@
 import { test, takeSnapshot } from "@chromatic-com/playwright";
+import { gzipSync } from "node:zlib";
 
 // ── Static fixture data ──────────────────────────────────────────────────────
 // All external data fetches are intercepted with these fixed values so that
@@ -30,6 +31,19 @@ const ALL_DANDISET_TOTALS = JSON.stringify({
 const DANDISET_TITLES_JSONL = `\
 {"000001": "Mock electrophysiology recordings"}
 {"000002": "Mock calcium imaging dataset"}
+`;
+
+// Asset counts and stored sizes behind the scaled metrics of the per-Dandiset
+// table.  "000003" is deliberately left out of both so the snapshot also covers
+// rows whose scaled metrics are unavailable and render as "--".
+const NUMBER_OF_ASSETS_JSONL = `\
+{"000001": 40}
+{"000002": 12}
+`;
+
+const TOTAL_SIZE_JSONL = `\
+{"000001": 250000000}
+{"000002": 1500000000}
 `;
 
 const REGION_COORDS_YAML = `\
@@ -85,6 +99,22 @@ date\tNeurophysiology\tMicroscopy\tVideo\tMiscellaneous
 async function setupDataMocks(page) {
     await page.route("**/dandiset_id_to_title.jsonl", (route) =>
         route.fulfill({ status: 200, contentType: "text/plain", body: DANDISET_TITLES_JSONL }),
+    );
+    // Served gzipped, exactly as the real derivatives are, so the page's
+    // client-side decompression is exercised by the snapshot run too.
+    await page.route("**/dandiset_id_to_number_of_assets.jsonl.gz", (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "application/octet-stream",
+            body: gzipSync(Buffer.from(NUMBER_OF_ASSETS_JSONL)),
+        }),
+    );
+    await page.route("**/dandiset_id_to_total_size.jsonl.gz", (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "application/octet-stream",
+            body: gzipSync(Buffer.from(TOTAL_SIZE_JSONL)),
+        }),
     );
     await page.route(`${BASE_URL}/content/archive_totals.json`, (route) =>
         route.fulfill({ status: 200, contentType: "application/json", body: ARCHIVE_TOTALS }),

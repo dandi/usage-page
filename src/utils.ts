@@ -101,6 +101,67 @@ export function format_bytes(bytes: number, decimals = 2, use_binary = false): s
 }
 
 /**
+ * Dandisets whose recorded usage comes overwhelmingly from automated testing
+ * of the archive rather than from research use, and which therefore dominate
+ * (and distort) the per-Dandiset metrics.  The per-Dandiset table can be told
+ * to leave them out.
+ */
+export const TESTING_DANDISET_IDS = [
+    "000025",
+    "000027",
+    "000029",
+    "000064",
+    "000068",
+    "000126",
+    "000144",
+    "000299",
+    "000411",
+    "000470",
+    "000544",
+    "000717",
+    "000719",
+    "000937",
+    "001083",
+];
+
+/**
+ * Returns `rows` without the testing Dandisets when `exclude` is true, and
+ * unchanged (the same array) when it is false.
+ */
+export function exclude_testing_dandisets<T extends { raw_id: string }>(rows: T[], exclude: boolean): T[] {
+    return exclude ? rows.filter((row) => !TESTING_DANDISET_IDS.includes(row.raw_id)) : rows;
+}
+
+/**
+ * Divides one metric by another to produce a "scaled" (per-unit) metric, for
+ * example bytes sent per byte stored or views per asset.  Returns NaN whenever
+ * the ratio would be meaningless — a missing or non-finite operand, or a
+ * denominator of zero — so callers can render it as "no data" rather than as
+ * Infinity or a misleading zero.
+ */
+export function scaled_metric(numerator: number | undefined, denominator: number | undefined): number {
+    if (typeof numerator !== "number" || typeof denominator !== "number") return NaN;
+    if (!isFinite(numerator) || !isFinite(denominator) || denominator <= 0) return NaN;
+    return numerator / denominator;
+}
+
+/**
+ * Formats a scaled (per-unit) metric for display in a table cell.  Precision
+ * follows magnitude, since these ratios span many orders of magnitude in
+ * practice: values of 100 or more are rounded to whole numbers with thousands
+ * separators, values of at least 1 keep two decimals, and values below 1 keep
+ * two significant digits.  Non-finite values (produced by `scaled_metric` when
+ * the ratio is undefined) render as "--".
+ */
+export function format_ratio(value: number): string {
+    if (typeof value !== "number" || !isFinite(value)) return "--";
+    const magnitude = Math.abs(value);
+    if (magnitude >= 100) return value.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    if (magnitude >= 1) return value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+    return value.toLocaleString(undefined, { maximumSignificantDigits: 2 });
+}
+
+/**
  * Returns just the unit `format_bytes` would use for `bytes` (e.g. "TB", or
  * "TiB" in binary mode), without the numeric part.  Used to name the unit a
  * plot's y-axis is effectively in.  Non-positive and non-finite inputs fall

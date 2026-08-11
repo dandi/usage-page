@@ -248,13 +248,19 @@
                 </svg>
             </button>
             <div class="settings-panel" id="hist_settings_panel" aria-hidden="true">
-                <div class="settings-panel-title">Plot Settings</div>
+                <div class="settings-panel-title">Settings</div>
                 <div class="SubControllerContainer">
                     <label for="hist_plot_type">Plot Type</label>
+                    <span class="info-icon" data-tooltip="Only applies to the plot view" tabindex="0" role="img" aria-label="Plot Type: Only applies to the plot view">i</span>
                     <select id="hist_plot_type">
                         <option value="bar">Bar</option>
                         <option value="line">Line</option>
                     </select>
+                </div>
+                <div class="SubControllerContainer" id="hist_ignore_testing_container">
+                    <label for="ignore_testing_dandisets">Ignore testing datasets</label>
+                    <span class="info-icon" data-tooltip="Hide datasets used for testing purposes" tabindex="0" role="img" aria-label="Ignore testing datasets: Hide datasets used for testing purposes">i</span>
+                    <input type="checkbox" id="ignore_testing_dandisets" checked />
                 </div>
             </div>
         </div>
