@@ -1913,22 +1913,23 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Name", key: "title", numeric: false, link_fn: (row) => dandiset_archive_url(row.raw_id) },
             // The scaled metrics lead, since they are what makes Dandisets of
             // very different sizes comparable; the raw totals they are derived
-            // from follow.  The three per-asset rates group together, with the
-            // per-stored-byte one after them.  "Total Bytes" stays the default
-            // sort so the table's initial ordering still matches the plot
-            // beside it.
+            // from follow.  Each scaled group sits beside its own denominator:
+            // the three per-asset rates with "Total Assets", and "Bytes / Size"
+            // with the "Total Bytes" and "Total Size" pair that ends the table.
+            // "Total Bytes" stays the default sort so the table's initial
+            // ordering still matches the plot beside it.
             { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Requests / Asset", key: "requests_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Total Assets", key: "number_of_assets", numeric: true, format_fn: optional_count_format },
             { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
-            { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
             { label: "Total Views", key: "views", numeric: true, format_fn: count_format },
             { label: "Total Downloads", key: "downloads", numeric: true, format_fn: count_format },
             { label: "Total Requests", key: "requests", numeric: true, format_fn: count_format },
-            // The denominators of the scaled metrics, last: they describe what
-            // a Dandiset holds rather than how it was used.
+            // Bytes sent sits next to bytes stored, the two being directly
+            // comparable and "Bytes / Size" their ratio.
+            { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
             { label: "Total Size", key: "total_size", numeric: true, format_fn: optional_bytes_format },
-            { label: "Total Assets", key: "number_of_assets", numeric: true, format_fn: optional_count_format },
         ], table_rows, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
