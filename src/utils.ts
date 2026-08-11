@@ -161,6 +161,63 @@ export function format_ratio(value: number): string {
     return value.toLocaleString(undefined, { maximumSignificantDigits: 2 });
 }
 
+// ── Plot metrics ─────────────────────────────────────────────────────────────
+
+/**
+ * Display labels for every metric that can appear in a plot, whether as the
+ * plotted quantity or as a line of hover text.
+ */
+export const METRIC_LABELS: Record<string, string> = {
+    bytes: "Bytes",
+    views: "Views",
+    downloads: "Downloads",
+    requests: "Requests",
+    views_per_asset: "Views / Asset",
+    downloads_per_asset: "Downloads / Asset",
+    bytes_per_size: "Bytes / Size",
+};
+
+/**
+ * The raw usage metrics a plot can be drawn in.  Every selection and every
+ * section carries all three.
+ */
+export const RAW_PLOT_METRICS = ["bytes", "views", "downloads"];
+
+/**
+ * The metrics normalized by how much content a Dandiset holds.  They can only
+ * be plotted per Dandiset (the archive-wide selection), the only case whose
+ * bars have a known asset count and stored size to divide by.
+ */
+export const SCALED_PLOT_METRICS = ["views_per_asset", "downloads_per_asset", "bytes_per_size"];
+
+/**
+ * Normalizes a metric name (typically read from a URL parameter) to one of
+ * `allowed`, falling back to "bytes" for anything unrecognized.
+ */
+export function validate_plot_metric(metric: string | null, allowed: string[]): string {
+    return metric !== null && allowed.includes(metric) ? metric : "bytes";
+}
+
+/**
+ * Formats one value of `metric` in that metric's own units: bytes with a byte
+ * suffix, the scaled metrics as ratios, and the raw counts with thousands
+ * separators (or "--" when the count is missing).
+ */
+export function format_metric_value(metric: string, value: number, use_binary = false): string {
+    if (metric === "bytes") return format_bytes(value, 2, use_binary);
+    if (SCALED_PLOT_METRICS.includes(metric)) return format_ratio(value);
+    return isFinite(value) ? value.toLocaleString() : "--";
+}
+
+/**
+ * Names the unit a plot drawn in `metric` is effectively in, for use in its
+ * title: for bytes, the byte unit the largest plotted value calls for (e.g.
+ * "TB"); for every other metric, the metric's own label (e.g. "Views").
+ */
+export function metric_unit_label(metric: string, peak_value: number, use_binary = false): string {
+    return metric === "bytes" ? bytes_unit(peak_value, use_binary) : (METRIC_LABELS[metric] ?? metric);
+}
+
 /**
  * Returns just the unit `format_bytes` would use for `bytes` (e.g. "TB", or
  * "TiB" in binary mode), without the numeric part.  Used to name the unit a

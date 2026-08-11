@@ -11,6 +11,12 @@ import {
     format_ratio,
     exclude_testing_dandisets,
     TESTING_DANDISET_IDS,
+    METRIC_LABELS,
+    RAW_PLOT_METRICS,
+    SCALED_PLOT_METRICS,
+    validate_plot_metric,
+    format_metric_value,
+    metric_unit_label,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -407,5 +413,78 @@ describe("exclude_testing_dandisets", () => {
 
     it("returns an empty array for empty input", () => {
         expect(exclude_testing_dandisets([], true)).toEqual([]);
+    });
+});
+
+// ── plot metrics ─────────────────────────────────────────────────────────────
+
+describe("plot metric definitions", () => {
+    it("labels every selectable metric", () => {
+        for (const metric of [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS]) {
+            expect(METRIC_LABELS[metric]).toBeTruthy();
+        }
+    });
+
+    it("keeps the raw and scaled metric sets disjoint", () => {
+        expect(RAW_PLOT_METRICS.filter((metric) => SCALED_PLOT_METRICS.includes(metric))).toEqual([]);
+    });
+
+    it("offers bytes as a raw metric, since it is the fallback everywhere", () => {
+        expect(RAW_PLOT_METRICS).toContain("bytes");
+    });
+});
+
+describe("validate_plot_metric", () => {
+    it("keeps a metric that is allowed", () => {
+        expect(validate_plot_metric("views", RAW_PLOT_METRICS)).toBe("views");
+        expect(validate_plot_metric("bytes_per_size", SCALED_PLOT_METRICS)).toBe("bytes_per_size");
+    });
+
+    it("falls back to bytes for a metric that is not allowed here", () => {
+        expect(validate_plot_metric("bytes_per_size", RAW_PLOT_METRICS)).toBe("bytes");
+    });
+
+    it("falls back to bytes for unknown and missing values", () => {
+        expect(validate_plot_metric("nonsense", RAW_PLOT_METRICS)).toBe("bytes");
+        expect(validate_plot_metric(null, RAW_PLOT_METRICS)).toBe("bytes");
+        expect(validate_plot_metric("", RAW_PLOT_METRICS)).toBe("bytes");
+    });
+});
+
+describe("format_metric_value", () => {
+    it("formats bytes with a byte unit, honoring the binary prefix", () => {
+        expect(format_metric_value("bytes", 1000)).toBe("1 KB");
+        expect(format_metric_value("bytes", 1024, true)).toBe("1 KiB");
+    });
+
+    it("formats counts with thousands separators", () => {
+        expect(format_metric_value("views", 12345)).toBe((12345).toLocaleString());
+        expect(format_metric_value("downloads", 0)).toBe("0");
+    });
+
+    it("formats scaled metrics as ratios", () => {
+        expect(format_metric_value("views_per_asset", 12.345)).toBe(format_ratio(12.345));
+        expect(format_metric_value("bytes_per_size", NaN)).toBe("--");
+    });
+
+    it("renders a missing count as '--' rather than NaN", () => {
+        expect(format_metric_value("views", NaN)).toBe("--");
+        expect(format_metric_value("requests", Infinity)).toBe("--");
+    });
+});
+
+describe("metric_unit_label", () => {
+    it("names the byte unit of the largest plotted value for bytes", () => {
+        expect(metric_unit_label("bytes", 2_500_000_000_000)).toBe("TB");
+        expect(metric_unit_label("bytes", 1024 ** 4, true)).toBe("TiB");
+    });
+
+    it("uses the metric's own label for every other metric", () => {
+        expect(metric_unit_label("views", 1e12)).toBe("Views");
+        expect(metric_unit_label("downloads_per_asset", 1e12)).toBe("Downloads / Asset");
+    });
+
+    it("falls back to the metric name when it has no label", () => {
+        expect(metric_unit_label("unlabeled", 1)).toBe("unlabeled");
     });
 });
