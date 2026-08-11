@@ -398,7 +398,9 @@ let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 let TOP_N_DANDISETS = 8;
 let USE_OVER_TIME_TABLE = false;
 let USE_HISTOGRAM_TABLE = false;
-let IGNORE_TESTING_DANDISETS = false;
+// Defaults on: a first visit should show research usage, not the testing
+// traffic that otherwise leads most of the per-Dandiset metrics.
+let IGNORE_TESTING_DANDISETS = true;
 let GEOJSON_DATA: { features: any[] } | null = null;
 let NAME_ALIASES: Record<string, Record<string, string>> | null = null;
 
@@ -497,7 +499,7 @@ function syncFromUrl() {
     // Ignore testing Dandisets
     const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets") as HTMLInputElement | null;
     if (ignoreTestingCheckbox) {
-        IGNORE_TESTING_DANDISETS = params.get("ignore_testing") === "true";
+        IGNORE_TESTING_DANDISETS = params.get("ignore_testing") !== "false";
         ignoreTestingCheckbox.checked = IGNORE_TESTING_DANDISETS;
     }
     apply_ignore_testing_visibility();
@@ -726,7 +728,7 @@ window.addEventListener("load", () => {
             IGNORE_TESTING_DANDISETS = (ignoreTestingCheckbox as HTMLInputElement).checked;
 
             const params = new URLSearchParams(window.location.search);
-            setUrlParam(params, "ignore_testing", String(IGNORE_TESTING_DANDISETS), "false");
+            setUrlParam(params, "ignore_testing", String(IGNORE_TESTING_DANDISETS), "true");
             const query = params.toString();
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
@@ -1911,12 +1913,14 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Name", key: "title", numeric: false, link_fn: (row) => dandiset_archive_url(row.raw_id) },
             // The scaled metrics lead, since they are what makes Dandisets of
             // very different sizes comparable; the raw totals they are derived
-            // from follow.  "Total Bytes" stays the default sort so the table's
-            // initial ordering still matches the plot beside it.
-            { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
+            // from follow.  The three per-asset rates group together, with the
+            // per-stored-byte one after them.  "Total Bytes" stays the default
+            // sort so the table's initial ordering still matches the plot
+            // beside it.
             { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Requests / Asset", key: "requests_per_asset", numeric: true, format_fn: format_ratio },
+            { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
             { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
             { label: "Total Views", key: "views", numeric: true, format_fn: count_format },
             { label: "Total Downloads", key: "downloads", numeric: true, format_fn: count_format },
