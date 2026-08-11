@@ -1838,7 +1838,6 @@ function load_dandiset_histogram(): Promise<void> {
                     bytes_per_size: scaled_metric(bytes, total_size),
                     views_per_asset: scaled_metric(views, number_of_assets),
                     downloads_per_asset: scaled_metric(downloads, number_of_assets),
-                    requests_per_asset: scaled_metric(requests, number_of_assets),
                     total_size,
                     number_of_assets,
                 };
@@ -1920,14 +1919,12 @@ function load_dandiset_histogram(): Promise<void> {
             // ordering still matches the plot beside it.
             { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
-            { label: "Requests / Asset", key: "requests_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Total Assets", key: "number_of_assets", numeric: true, format_fn: optional_count_format },
-            { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
             { label: "Total Views", key: "views", numeric: true, format_fn: count_format },
             { label: "Total Downloads", key: "downloads", numeric: true, format_fn: count_format },
-            { label: "Total Requests", key: "requests", numeric: true, format_fn: count_format },
             // Bytes sent sits next to bytes stored, the two being directly
-            // comparable and "Bytes / Size" their ratio.
+            // comparable, with "Bytes / Size" — their ratio — leading them.
+            { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
             { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
             { label: "Total Size", key: "total_size", numeric: true, format_fn: optional_bytes_format },
         ], table_rows, format_bytes, ALL_DANDISET_TOTALS_URL);
