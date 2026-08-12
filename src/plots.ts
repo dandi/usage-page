@@ -1946,20 +1946,22 @@ function load_dandiset_histogram(): Promise<void> {
             })
             .sort((a, b) => b.bytes - a.bytes);
 
-        // Exclude 'undetermined' from the plot only (table retains all entries),
+        // "Ignore testing datasets" applies to both views: the Dandisets whose
+        // usage is dominated by automated testing of the archive lead most of
+        // the metrics, the scaled ones especially, and would otherwise be the
+        // tallest bars of a plot the setting claims to have filtered.
+        const rows = exclude_testing_dandisets(combined, IGNORE_TESTING_DANDISETS);
+
+        // Exclude 'undetermined' from the plot only (the table retains it),
         // along with any Dandiset that has no value for the plotted metric — a
         // scaled metric whose denominator is unknown has no bar to draw.  Bars
         // are ranked by the metric being plotted, so the tallest always leads.
-        const plot_combined = combined
+        const plot_combined = rows
             .filter(item => item.raw_id !== "undetermined")
             .filter(item => isFinite(item[HISTOGRAM_METRIC as keyof typeof item] as number))
             .sort((a, b) =>
                 (b[HISTOGRAM_METRIC as keyof typeof b] as number) - (a[HISTOGRAM_METRIC as keyof typeof a] as number)
             );
-
-        // The table can additionally be told to leave out the Dandisets whose
-        // usage is dominated by automated testing of the archive.
-        const table_rows = exclude_testing_dandisets(combined, IGNORE_TESTING_DANDISETS);
 
         const sorted_dandiset_ids = plot_combined.map(item => item.dandiset_id);
 
@@ -2030,7 +2032,7 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
             { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
             { label: "Total Size", key: "total_size", numeric: true, format_fn: optional_bytes_format },
-        ], table_rows, format_bytes, ALL_DANDISET_TOTALS_URL);
+        ], rows, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
     })
