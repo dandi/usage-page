@@ -14,6 +14,7 @@ import {
     METRIC_LABELS,
     RAW_PLOT_METRICS,
     SCALED_PLOT_METRICS,
+    PER_DANDISET_METRIC_ORDER,
     validate_plot_metric,
     format_metric_value,
     metric_unit_label,
@@ -431,6 +432,24 @@ describe("plot metric definitions", () => {
 
     it("offers bytes as a raw metric, since it is the fallback everywhere", () => {
         expect(RAW_PLOT_METRICS).toContain("bytes");
+    });
+
+    it("orders every metric exactly once for the per-Dandiset selector", () => {
+        expect([...PER_DANDISET_METRIC_ORDER].sort()).toEqual(
+            [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS].sort()
+        );
+    });
+
+    it("follows the per-Dandiset table's columns, each scaled rate ahead of its totals", () => {
+        // Mirrors the column order of the table rendered in load_dandiset_histogram.
+        expect(PER_DANDISET_METRIC_ORDER).toEqual([
+            "views_per_asset",
+            "downloads_per_asset",
+            "views",
+            "downloads",
+            "bytes_per_size",
+            "bytes",
+        ]);
     });
 });
 

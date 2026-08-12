@@ -12,6 +12,7 @@ import {
     METRIC_LABELS,
     RAW_PLOT_METRICS,
     SCALED_PLOT_METRICS,
+    PER_DANDISET_METRIC_ORDER,
     validate_plot_metric,
     format_metric_value,
     metric_unit_label,
@@ -335,6 +336,15 @@ function apply_histogram_metric_visibility() {
     SCALED_PLOT_METRICS.forEach((metric) => {
         const option = selector.querySelector(`option[value="${metric}"]`) as HTMLOptionElement | null;
         if (option) option.hidden = !is_archive;
+    });
+    // Each selection lists its metrics in the column order of the table beside
+    // it, so the dropdown and the table read the same way round.  Re-appending
+    // an option moves it to the end, so walking the order sorts the list; the
+    // hidden scaled metrics trail the per-asset ones, out of sight.
+    const metric_order = is_archive ? PER_DANDISET_METRIC_ORDER : [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS];
+    metric_order.forEach((metric) => {
+        const option = selector.querySelector(`option[value="${metric}"]`);
+        if (option) selector.appendChild(option);
     });
     selector.value = HISTOGRAM_METRIC;
 }
@@ -2021,7 +2031,9 @@ function load_dandiset_histogram(): Promise<void> {
             // the three per-asset rates with "Total Assets", and "Bytes / Size"
             // with the "Total Bytes" and "Total Size" pair that ends the table.
             // "Total Bytes" stays the default sort so the table's initial
-            // ordering still matches the plot beside it.
+            // ordering still matches the plot beside it.  The metric selector
+            // lists the plottable ones in this same order; keep
+            // PER_DANDISET_METRIC_ORDER in step when these columns change.
             { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Total Assets", key: "number_of_assets", numeric: true, format_fn: optional_count_format },

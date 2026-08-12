@@ -179,7 +179,8 @@ export const METRIC_LABELS: Record<string, string> = {
 
 /**
  * The raw usage metrics a plot can be drawn in.  Every selection and every
- * section carries all three.
+ * section carries all three, and this is the order the per-asset table lists
+ * them in, so it doubles as the metric order offered for a single Dandiset.
  */
 export const RAW_PLOT_METRICS = ["bytes", "views", "downloads"];
 
@@ -189,6 +190,21 @@ export const RAW_PLOT_METRICS = ["bytes", "views", "downloads"];
  * bars have a known asset count and stored size to divide by.
  */
 export const SCALED_PLOT_METRICS = ["views_per_asset", "downloads_per_asset", "bytes_per_size"];
+
+/**
+ * The order the archive-wide (per-Dandiset) metric selector lists its metrics
+ * in, mirroring the column order of the per-Dandiset table beside it: each
+ * scaled rate ahead of the totals it is derived from, closing on bytes.  Keep
+ * this in step with that table's columns (see load_dandiset_histogram).
+ */
+export const PER_DANDISET_METRIC_ORDER = [
+    "views_per_asset",
+    "downloads_per_asset",
+    "views",
+    "downloads",
+    "bytes_per_size",
+    "bytes",
+];
 
 /**
  * Normalizes a metric name (typically read from a URL parameter) to one of
