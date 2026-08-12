@@ -4,6 +4,7 @@
 
 #### 🚀 Enhancement
 
+- Restyled the scroll bars of every table view as a slim, rounded, accent-tinted thumb on a transparent track, replacing the platform default that read as a light gray slab against the table, most jarringly in dark mode. ([#245](https://github.com/dandi/usage-page/pull/245))
 - Added a "Metric" dropdown to the over-time and per-Dandiset histogram plots, so the plot is drawn in the chosen metric rather than always in bytes; the histogram additionally offers the scaled metrics for the archive-wide selection. Each choice is remembered in the URL (`ot_metric`, `hist_metric`), is shown only in plot view, and drives the plot's title and y-axis. ([#243](https://github.com/dandi/usage-page/pull/243))
 - Disabled the over-time metric dropdown while grouping by asset type, the one grouping whose source data carries no metric other than bytes. ([#243](https://github.com/dandi/usage-page/pull/243))
 - Ranked the bars of both histograms by the metric being plotted instead of always by bytes, and left out Dandisets with no value for the selected scaled metric. ([#243](https://github.com/dandi/usage-page/pull/243))
