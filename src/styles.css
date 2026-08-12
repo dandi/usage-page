@@ -10,6 +10,8 @@
     --color-accent-rgb: 83, 168, 182;
     --color-accent-hover: #79c7d4;
     --color-accent-subtle: rgba(var(--color-accent-rgb), 0.08);
+    --color-scrollbar-thumb: rgba(var(--color-accent-rgb), 0.35);
+    --color-scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.65);
     /* ─────────────────────────────────────────────────────────────────────── */
     --font-main: 'Source Sans 3', -apple-system, sans-serif;
     --radius: 6px;
@@ -27,6 +29,8 @@
     --color-accent-rgb: 83, 168, 182;
     --color-accent-hover: #3d8a97;
     --color-accent-subtle: rgba(var(--color-accent-rgb), 0.1);
+    --color-scrollbar-thumb: rgba(var(--color-accent-rgb), 0.45);
+    --color-scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.75);
 }
 
 *, *::before, *::after {
@@ -439,6 +443,53 @@ input[type="number"]:focus {
     max-height: 480px;
     overflow-y: auto;
     overflow-x: auto;
+}
+
+/* ── Table scroll bars ──
+   The platform default is a wide light-gray slab with stepper arrows at both
+   ends, which reads as a foreign element pasted onto a themed table — most
+   glaringly in dark mode.  It is replaced with a slim, rounded, accent-tinted
+   thumb on a transparent track, so the table's own background runs all the way
+   to its edge and the thumb reads as part of the table.
+
+   The ::-webkit-scrollbar rules are used wherever they are understood (Chrome,
+   Safari), since they can also drop the stepper arrows; browsers without them
+   (Firefox) get the standard `scrollbar-*` properties instead.  Both paths are
+   needed because Chrome ignores the pseudo-elements as soon as the standard
+   properties are set, and Firefox supports only the standard ones. */
+@supports not selector(::-webkit-scrollbar) {
+    .plot-table-container {
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-scrollbar-thumb) transparent;
+    }
+}
+
+.plot-table-container::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.plot-table-container::-webkit-scrollbar-track,
+.plot-table-container::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* The transparent border, together with the padding-box clip, insets the thumb
+   from the edges of its track without a second element to color. */
+.plot-table-container::-webkit-scrollbar-thumb {
+    background-color: var(--color-scrollbar-thumb);
+    background-clip: padding-box;
+    border: 2px solid transparent;
+    border-radius: 999px;
+}
+
+.plot-table-container::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-scrollbar-thumb-hover);
+}
+
+/* Drops the stepper arrows at the ends of the track. */
+.plot-table-container::-webkit-scrollbar-button {
+    display: none;
 }
 
 .plot-table table {
