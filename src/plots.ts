@@ -6,10 +6,19 @@ import {
     parse_by_asset_type_per_week_tsv,
     aggregate_by_timebin,
     format_bytes as format_bytes_pure,
-    bytes_unit,
     scaled_metric,
     format_ratio,
     exclude_testing_dandisets,
+    METRIC_LABELS,
+    RAW_PLOT_METRICS,
+    SCALED_PLOT_METRICS,
+    PER_DANDISET_METRIC_ORDER,
+    histogram_metrics_for,
+    default_histogram_metric,
+    validate_plot_metric,
+    format_metric_value,
+    metric_unit_label,
+    histogram_plot_title,
 } from "./utils.js";
 import {
     escape_html,
@@ -288,6 +297,74 @@ function apply_daily_aggregation_restriction() {
     }
 }
 
+/**
+ * Shows the over-time metric selector only in plot view, since the table view
+ * lists every metric as its own column already, and restricts it to "Bytes"
+ * while grouping by asset type — the one grouping whose source data carries no
+ * other metric.  A selection that is unavailable falls back to "Bytes".
+ */
+function apply_over_time_metric_visibility() {
+    const container = document.getElementById("over_time_metric_container");
+    if (container) container.style.display = USE_OVER_TIME_TABLE ? "none" : "";
+
+    const bytes_only = OVER_TIME_GROUP_BY === "asset_type";
+    if (bytes_only) OVER_TIME_METRIC = "bytes";
+
+    const selector = document.getElementById("over_time_metric") as HTMLSelectElement | null;
+    if (!selector) return;
+    selector.disabled = bytes_only;
+    selector.title = bytes_only ? "Only bytes are available when grouping by asset type" : "";
+    selector.value = OVER_TIME_METRIC;
+}
+
+/**
+ * Whether the histogram is showing Dandisets (the archive-wide selection)
+ * rather than the assets of one Dandiset.  An empty selector means its options
+ * have not been fetched yet, which is still the archive-wide default; the
+ * selection is re-applied once they arrive, so a deep-linked scaled metric is
+ * not dropped in the meantime.
+ */
+function histogram_shows_dandisets(): boolean {
+    const selector = document.getElementById("dandiset_selector") as HTMLSelectElement | null;
+    return (selector?.value || "archive") === "archive";
+}
+
+/**
+ * Shows the histogram metric selector only in plot view (its table lists every
+ * metric already), and offers the scaled metrics only for the archive-wide
+ * selection, whose bars are Dandisets with a known asset count and stored size.
+ * Any other selection falls back to its own first metric ("Bytes") when a
+ * scaled metric was active.
+ */
+function apply_histogram_metric_visibility() {
+    const container = document.getElementById("histogram_metric_container");
+    if (container) container.style.display = USE_HISTOGRAM_TABLE ? "none" : "";
+
+    const is_archive = histogram_shows_dandisets();
+    if (!is_archive && SCALED_PLOT_METRICS.includes(HISTOGRAM_METRIC)) {
+        HISTOGRAM_METRIC = default_histogram_metric(false);
+    }
+
+    const selector = document.getElementById("histogram_metric") as HTMLSelectElement | null;
+    if (!selector) return;
+    SCALED_PLOT_METRICS.forEach((metric) => {
+        const option = selector.querySelector(`option[value="${metric}"]`) as HTMLOptionElement | null;
+        if (option) option.hidden = !is_archive;
+    });
+    // Each selection lists its metrics in the column order of the table beside
+    // it, so the dropdown and the table read the same way round.  Re-appending
+    // an option moves it to the end, so walking the order sorts the list; the
+    // hidden scaled metrics trail the per-asset ones, out of sight.
+    const metric_order = is_archive
+        ? histogram_metrics_for(true)
+        : [...histogram_metrics_for(false), ...SCALED_PLOT_METRICS];
+    metric_order.forEach((metric) => {
+        const option = selector.querySelector(`option[value="${metric}"]`);
+        if (option) selector.appendChild(option);
+    });
+    selector.value = HISTOGRAM_METRIC;
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 
 // Initialise the theme and URL-driven state as early as possible (before plots
@@ -395,6 +472,14 @@ let USE_STACKED = true;
 let GEO_VIEW = "regions";  // "regions" | "points" | "table" | "aws"
 let TIME_AGGREGATION = "daily";  // "daily" | "weekly" | "monthly" | "yearly"
 let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
+// The metric each of the first two plots is drawn in.  The over-time plot has
+// the raw metrics only; the per-Dandiset histogram additionally offers the
+// scaled ones (see SCALED_PLOT_METRICS), which exist only for that selection.
+let OVER_TIME_METRIC = "bytes";  // "bytes" | "views" | "downloads"
+// Defaults to the first metric its dropdown offers for the archive-wide
+// selection the page opens on, and falls back to the first metric of whichever
+// selection is active thereafter (see default_histogram_metric).
+let HISTOGRAM_METRIC = default_histogram_metric(true);
 let TOP_N_DANDISETS = 8;
 let USE_OVER_TIME_TABLE = false;
 let USE_HISTOGRAM_TABLE = false;
@@ -407,6 +492,42 @@ let NAME_ALIASES: Record<string, Record<string, string>> | null = null;
 /** Returns a Plotly hover-text fragment for one metric; empty string if value is NaN. */
 const hover_metric = (label: string, value: number): string =>
     isNaN(value) ? "" : `<br>${label}: ${value.toLocaleString()}`;
+
+/** The metrics a hover label lists, in the order they follow the plotted one. */
+const HOVER_METRIC_ORDER = ["bytes", "views", "downloads", "requests"];
+
+/**
+ * Builds the value lines of a hover label: the plotted metric first, so the
+ * first value read is always the one the bar's height shows, followed by the
+ * remaining metrics for context.  Metrics with no value are left out, and each
+ * is formatted in its own units.
+ */
+function hover_metric_lines(plotted_metric: string, values: Record<string, number | undefined>): string {
+    const order = [plotted_metric, ...HOVER_METRIC_ORDER.filter((metric) => metric !== plotted_metric)];
+    return order
+        .map((metric) => {
+            const value = values[metric];
+            if (value === undefined || isNaN(value)) return "";
+            return `<br>${METRIC_LABELS[metric] ?? metric}: ${format_metric_value(metric, value, USE_BINARY)}`;
+        })
+        .join("");
+}
+
+/**
+ * Builds the y-axis options for a plot drawn in `metric`: byte plots get a "B"
+ * tick suffix and named decade ticks on a log scale, every other metric is a
+ * plain count or ratio.
+ */
+function build_metric_yaxis(metric: string, tickformat = "~s"): Partial<Plotly.LayoutAxis> {
+    const is_bytes = metric === "bytes";
+    return {
+        type: USE_LOG_SCALE ? "log" : "linear",
+        tickformat: USE_LOG_SCALE ? "" : tickformat,
+        ticksuffix: USE_LOG_SCALE || !is_bytes ? "" : "B",
+        tickvals: USE_LOG_SCALE && is_bytes ? [1000, 1000000, 1000000000, 1000000000000, 1000000000000000] : undefined,
+        ticktext: USE_LOG_SCALE && is_bytes ? ["KB", "MB", "GB", "TB", "PB"] : undefined,
+    } as Partial<Plotly.LayoutAxis>;
+}
 
 /**
  * Reads all URL parameters and synchronises them to the global state variables
@@ -481,6 +602,10 @@ function syncFromUrl() {
     }
     apply_daily_aggregation_restriction();
 
+    // Plotted metric, independent for the over-time and histogram sections
+    OVER_TIME_METRIC = validate_plot_metric(params.get("ot_metric"), RAW_PLOT_METRICS);
+    apply_over_time_metric_visibility();
+
     // Top N dandisets
     const topNInput = document.getElementById("top_n_dandisets") as HTMLInputElement | null;
     if (topNInput) {
@@ -495,6 +620,17 @@ function syncFromUrl() {
     const histogramRadio = document.querySelector(`input[name="histogram_view"][value="${histogramValue}"]`) as HTMLInputElement | null;
     if (histogramRadio) histogramRadio.checked = true;
     apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
+
+    // Which metrics are on offer, and which of them is the default, both follow
+    // the current selection; apply_histogram_metric_visibility() re-resolves
+    // this once the Dandiset list has arrived and a selection is made.
+    const histogram_is_archive = histogram_shows_dandisets();
+    HISTOGRAM_METRIC = validate_plot_metric(
+        params.get("hist_metric"),
+        histogram_metrics_for(histogram_is_archive),
+        default_histogram_metric(histogram_is_archive)
+    );
+    apply_histogram_metric_visibility();
 
     // Ignore testing Dandisets
     const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets") as HTMLInputElement | null;
@@ -703,8 +839,25 @@ window.addEventListener("load", () => {
 
             apply_view_mode("over_time_plot", "over_time_table", USE_OVER_TIME_TABLE);
             apply_over_time_group_by_visibility();
+            apply_over_time_metric_visibility();
         });
     });
+
+    // Add event listener for the over-time metric selector
+    const otMetricSelect = document.getElementById("over_time_metric");
+    if (otMetricSelect) {
+        otMetricSelect.addEventListener("change", () => {
+            OVER_TIME_METRIC = (otMetricSelect as HTMLSelectElement).value;
+
+            const params = new URLSearchParams(window.location.search);
+            setUrlParam(params, "ot_metric", OVER_TIME_METRIC, "bytes");
+            const query = params.toString();
+            window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
+
+            const selected_dandiset = (document.getElementById("dandiset_selector") as HTMLSelectElement | null)?.value ?? "";
+            load_over_time_plot(selected_dandiset);
+        });
+    }
 
     // Add event listener for histogram view radio toggle (Plot vs Table)
     const histogramViewRadios = document.querySelectorAll('input[name="histogram_view"]');
@@ -718,8 +871,25 @@ window.addEventListener("load", () => {
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
             apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
+            apply_histogram_metric_visibility();
         });
     });
+
+    // Add event listener for the histogram metric selector
+    const histMetricSelect = document.getElementById("histogram_metric");
+    if (histMetricSelect) {
+        histMetricSelect.addEventListener("change", () => {
+            HISTOGRAM_METRIC = (histMetricSelect as HTMLSelectElement).value;
+
+            const params = new URLSearchParams(window.location.search);
+            setUrlParam(params, "hist_metric", HISTOGRAM_METRIC, default_histogram_metric(histogram_shows_dandisets()));
+            const query = params.toString();
+            window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
+
+            const selected_dandiset = (document.getElementById("dandiset_selector") as HTMLSelectElement | null)?.value ?? "";
+            load_histogram(selected_dandiset);
+        });
+    }
 
     // Add event listener for the "Ignore testing datasets" checkbox
     const ignoreTestingCheckbox = document.getElementById("ignore_testing_dandisets");
@@ -780,10 +950,12 @@ window.addEventListener("load", () => {
         groupBySelector.addEventListener("change", () => {
             OVER_TIME_GROUP_BY = (groupBySelector as HTMLSelectElement).value;
             apply_daily_aggregation_restriction();
+            apply_over_time_metric_visibility();
 
             const params = new URLSearchParams(window.location.search);
             setUrlParam(params, "group_by", OVER_TIME_GROUP_BY, "none");
             setUrlParam(params, "aggregation", TIME_AGGREGATION, "daily");
+            setUrlParam(params, "ot_metric", OVER_TIME_METRIC, "bytes");
             const query = params.toString();
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
@@ -958,7 +1130,9 @@ Promise.all([
             const id = validateDandisetId(rawId);
             selector.value = id;
             apply_over_time_group_by_visibility();
+            apply_over_time_metric_visibility();
             apply_ignore_testing_visibility();
+            apply_histogram_metric_visibility();
             update_dandiset_data_link(id);
             update_totals(id);
             return [
@@ -988,16 +1162,21 @@ Promise.all([
         // Update the plots and URL when a new Dandiset ID is selected
         selector.addEventListener("change", (event) => {
             const id = (event.target as HTMLSelectElement).value;
+            // Applied before the URL is written, since the selection decides
+            // which metrics the histogram offers and which of them is its
+            // default — both of which the "hist_metric" parameter is relative to.
+            setSelectedDandiset(id);
+
             const params = new URLSearchParams(window.location.search);
             if (id === "archive") {
                 params.delete("dandiset");
             } else {
                 params.set("dandiset", id);
             }
+            setUrlParam(params, "hist_metric", HISTOGRAM_METRIC, default_histogram_metric(id === "archive"));
             const query = params.toString();
             const newUrl = window.location.pathname + (query ? "?" + query : "");
             window.history.pushState({}, "", newUrl);
-            setSelectedDandiset(id);
         });
 
         // Handle browser back/forward navigation
@@ -1155,26 +1334,27 @@ function peak_plotted_value(traces: Array<{ x: unknown; y: unknown }>, stacked: 
 }
 
 /**
- * Builds the over-time plot's title, naming the byte unit the y-axis is
- * effectively in (e.g. "TB per day") rather than the generic "Usage".
- * `peak_bytes` is the largest plotted value, which determines that unit.
+ * Builds the over-time plot's title, naming the unit the y-axis is effectively
+ * in (e.g. "TB per day", or "Views per day" when views are plotted) rather than
+ * the generic "Usage".  `peak_value` is the largest plotted value, which
+ * determines that unit for the byte metric.
  */
-function build_over_time_title(aggregation: string, peak_bytes: number): string {
+function build_over_time_title(aggregation: string, peak_value: number): string {
     const bin_suffixes: Record<string, string> = {
         daily:   "per day",
         weekly:  "per week",
         monthly: "per month",
         yearly:  "per year",
     };
-    return `${bytes_unit(peak_bytes, USE_BINARY)} ${bin_suffixes[aggregation]}`;
+    return `${metric_unit_label(OVER_TIME_METRIC, peak_value, USE_BINARY)} ${bin_suffixes[aggregation]}`;
 }
 
 /**
  * Builds the shared layout options used by both single-series and grouped
- * over-time plots.  `peak_bytes` is the largest plotted value; it names the
+ * over-time plots.  `peak_value` is the largest plotted value; it names the
  * unit in the title (see build_over_time_title).
  */
-function build_over_time_layout(dates: string[], peak_bytes: number): Partial<Plotly.Layout> {
+function build_over_time_layout(dates: string[], peak_value: number): Partial<Plotly.Layout> {
     const tick_formats: Record<string, string> = {
         daily:   "%Y-%m-%d",
         weekly:  "%Y-%m-%d",
@@ -1186,20 +1366,14 @@ function build_over_time_layout(dates: string[], peak_bytes: number): Partial<Pl
         bargap: 0,
         title: {
             text: USE_CUMULATIVE
-                ? `Total ${bytes_unit(peak_bytes, USE_BINARY)} to date`
-                : build_over_time_title(TIME_AGGREGATION, peak_bytes),
+                ? `Total ${metric_unit_label(OVER_TIME_METRIC, peak_value, USE_BINARY)} to date`
+                : build_over_time_title(TIME_AGGREGATION, peak_value),
             font: { size: 24 }
         },
         xaxis: {
             tickformat: tick_formats[TIME_AGGREGATION],
         },
-        yaxis: {
-            type: USE_LOG_SCALE ? "log" : "linear",
-            tickformat: USE_LOG_SCALE ? "" : "s",
-            ticksuffix: USE_LOG_SCALE ? "" : "B",
-            tickvals: USE_LOG_SCALE ? [1000, 1000000, 1000000000, 1000000000000, 1000000000000000] : undefined,
-            ticktext: USE_LOG_SCALE ? ["KB", "MB", "GB", "TB", "PB"] : undefined,
-        },
+        yaxis: build_metric_yaxis(OVER_TIME_METRIC, "s"),
     });
 
     // For cumulative views, remove range gaps so the display is continuous
@@ -1483,21 +1657,32 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 }
                 const global_bins = [...global_bin_set].sort();
 
-                const plot_info = valid_series.map((series, i) => {
+                // Align every metric of every series to the global bins, so any
+                // of them can be plotted and the rest shown in the hover text.
+                const align_to_bins = (dates: string[], values: number[]): number[] => {
+                    const by_date = new Map(dates.map((d, idx) => [d, values[idx]]));
+                    return global_bins.map((k) => by_date.get(k) || 0);
+                };
+                const display = (values: number[]) => (USE_CUMULATIVE ? make_cumulative(values) : values);
+                const aligned_series = valid_series.map((series) => ({
+                    id: series.id,
+                    metrics: {
+                        bytes: align_to_bins(series.dates, series.bytes_sent),
+                        views: align_to_bins(series.dates, series.views),
+                        downloads: align_to_bins(series.dates, series.downloads),
+                        requests: align_to_bins(series.dates, series.requests),
+                    } as Record<string, number[]>,
+                }));
+
+                const plot_info = aligned_series.map((series, i) => {
                     const color = DANDISET_BAR_COLORS[i % DANDISET_BAR_COLORS.length];
-                    const date_to_bytes = new Map(series.dates.map((d, idx) => [d, series.bytes_sent[idx]]));
-                    const date_to_req = new Map(series.dates.map((d, idx) => [d, series.requests[idx]]));
-                    const date_to_dl = new Map(series.dates.map((d, idx) => [d, series.downloads[idx]]));
-                    const date_to_views = new Map(series.dates.map((d, idx) => [d, series.views[idx]]));
-                    const aligned_bytes = global_bins.map((k) => date_to_bytes.get(k) || 0);
-                    const aligned_req = global_bins.map((k) => date_to_req.get(k) || 0);
-                    const aligned_dl = global_bins.map((k) => date_to_dl.get(k) || 0);
-                    const aligned_views = global_bins.map((k) => date_to_views.get(k) || 0);
-                    const plot_data = USE_CUMULATIVE ? make_cumulative(aligned_bytes) : aligned_bytes;
-                    const display_req = USE_CUMULATIVE ? make_cumulative(aligned_req) : aligned_req;
-                    const display_dl = USE_CUMULATIVE ? make_cumulative(aligned_dl) : aligned_dl;
-                    const display_views = USE_CUMULATIVE ? make_cumulative(aligned_views) : aligned_views;
-                    const human_readable = plot_data.map((b) => format_bytes(b));
+                    const display_metrics: Record<string, number[]> = {
+                        bytes: display(series.metrics.bytes),
+                        views: display(series.metrics.views),
+                        downloads: display(series.metrics.downloads),
+                        requests: display(series.metrics.requests),
+                    };
+                    const plot_data = display_metrics[OVER_TIME_METRIC] ?? display_metrics.bytes;
                     return {
                         ...(USE_OT_LINE_PLOT
                             ? {
@@ -1511,10 +1696,13 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         x: global_bins,
                         y: plot_data,
                         text: global_bins.map((date, idx) =>
-                            `DANDI:${format_dandiset_label(series.id, DANDISET_TITLES)}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable[idx]}` +
-                            hover_metric("Requests", display_req[idx]) +
-                            hover_metric("Downloads", display_dl[idx]) +
-                            hover_metric("Views", display_views[idx])
+                            `DANDI:${format_dandiset_label(series.id, DANDISET_TITLES)}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}` +
+                            hover_metric_lines(OVER_TIME_METRIC, {
+                                bytes: display_metrics.bytes[idx],
+                                views: display_metrics.views[idx],
+                                downloads: display_metrics.downloads[idx],
+                                requests: display_metrics.requests[idx],
+                            })
                         ),
                         textposition: "none",
                         hoverinfo: "text",
@@ -1523,76 +1711,28 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
 
                 // Build an "Other" series: archive total minus the sum of all top-N dandisets
                 if (archive_agg) {
-                    const date_to_archive_bytes = new Map(
-                        archive_agg.dates.map((d, i) => [d, archive_agg!.bytes_sent[i]])
-                    );
-                    const date_to_archive_req = new Map(
-                        archive_agg.dates.map((d, i) => [d, archive_agg_req!.bytes_sent[i]])
-                    );
-                    const date_to_archive_dl = new Map(
-                        archive_agg.dates.map((d, i) => [d, archive_agg_dl!.bytes_sent[i]])
-                    );
-                    const date_to_archive_views = new Map(
-                        archive_agg.dates.map((d, i) => [d, archive_agg_views!.bytes_sent[i]])
-                    );
-                    const aligned_archive_bytes = global_bins.map((k) => date_to_archive_bytes.get(k) || 0);
-                    const archive_plot_data = USE_CUMULATIVE
-                        ? make_cumulative(aligned_archive_bytes)
-                        : aligned_archive_bytes;
-                    // Build per-date lookup for the sum of top-N series (already cumulative if USE_CUMULATIVE)
-                    const series_by_date = new Map<string, number>();
-                    for (const trace of plot_info) {
-                        (trace.x as string[]).forEach((date, idx) => {
-                            series_by_date.set(date, (series_by_date.get(date) || 0) + (trace.y as number[])[idx]);
-                        });
-                    }
-                    // Build per-date sums for top-N requests and downloads (non-cumulative)
-                    const topn_req_by_date = new Map<string, number>();
-                    const topn_dl_by_date = new Map<string, number>();
-                    const topn_views_by_date = new Map<string, number>();
-                    for (const series of valid_series) {
-                        const d2r = new Map(series.dates.map((d, idx) => [d, series.requests[idx]]));
-                        const d2dl = new Map(series.dates.map((d, idx) => [d, series.downloads[idx]]));
-                        const d2v = new Map(series.dates.map((d, idx) => [d, series.views[idx]]));
-                        global_bins.forEach((k) => {
-                            topn_req_by_date.set(k, (topn_req_by_date.get(k) || 0) + (d2r.get(k) || 0));
-                            topn_dl_by_date.set(k, (topn_dl_by_date.get(k) || 0) + (d2dl.get(k) || 0));
-                            topn_views_by_date.set(k, (topn_views_by_date.get(k) || 0) + (d2v.get(k) || 0));
-                        });
-                    }
-                    const other_y = global_bins.map((date, i) => {
-                        const top_n_total = series_by_date.get(date) || 0;
-                        return Math.max(0, archive_plot_data[i] - top_n_total);
+                    const archive_metrics: Record<string, number[]> = {
+                        bytes: align_to_bins(archive_agg.dates, archive_agg.bytes_sent),
+                        views: align_to_bins(archive_agg.dates, archive_agg_views!.bytes_sent),
+                        downloads: align_to_bins(archive_agg.dates, archive_agg_dl!.bytes_sent),
+                        requests: align_to_bins(archive_agg.dates, archive_agg_req!.bytes_sent),
+                    };
+                    // Every metric of "Other" is the archive total less the sum
+                    // of the top-N series, differenced after cumulating when the
+                    // cumulative view is on, and never allowed below zero.
+                    const display_other_metrics: Record<string, number[]> = {};
+                    HOVER_METRIC_ORDER.forEach((metric) => {
+                        const archive_values = display(archive_metrics[metric]);
+                        const top_n_values = display(
+                            global_bins.map((_, i) =>
+                                aligned_series.reduce((sum, series) => sum + series.metrics[metric][i], 0)
+                            )
+                        );
+                        display_other_metrics[metric] = global_bins.map((_, i) =>
+                            Math.max(0, archive_values[i] - top_n_values[i])
+                        );
                     });
-                    const other_req = global_bins.map((date) =>
-                        Math.max(0, (date_to_archive_req.get(date) || 0) - (topn_req_by_date.get(date) || 0))
-                    );
-                    const other_dl = global_bins.map((date) =>
-                        Math.max(0, (date_to_archive_dl.get(date) || 0) - (topn_dl_by_date.get(date) || 0))
-                    );
-                    const other_views = global_bins.map((date) =>
-                        Math.max(0, (date_to_archive_views.get(date) || 0) - (topn_views_by_date.get(date) || 0))
-                    );
-                    // Build display (cumulative if applicable) versions for hover text
-                    let display_other_req: number[];
-                    let display_other_dl: number[];
-                    let display_other_views: number[];
-                    if (USE_CUMULATIVE) {
-                        const cum_archive_req = make_cumulative(global_bins.map((k) => date_to_archive_req.get(k) || 0));
-                        const cum_archive_dl = make_cumulative(global_bins.map((k) => date_to_archive_dl.get(k) || 0));
-                        const cum_archive_views = make_cumulative(global_bins.map((k) => date_to_archive_views.get(k) || 0));
-                        const cum_topn_req = make_cumulative(global_bins.map((k) => topn_req_by_date.get(k) || 0));
-                        const cum_topn_dl = make_cumulative(global_bins.map((k) => topn_dl_by_date.get(k) || 0));
-                        const cum_topn_views = make_cumulative(global_bins.map((k) => topn_views_by_date.get(k) || 0));
-                        display_other_req = global_bins.map((_, i) => Math.max(0, cum_archive_req[i] - cum_topn_req[i]));
-                        display_other_dl = global_bins.map((_, i) => Math.max(0, cum_archive_dl[i] - cum_topn_dl[i]));
-                        display_other_views = global_bins.map((_, i) => Math.max(0, cum_archive_views[i] - cum_topn_views[i]));
-                    } else {
-                        display_other_req = other_req;
-                        display_other_dl = other_dl;
-                        display_other_views = other_views;
-                    }
-                    const other_human_readable = other_y.map((b) => format_bytes(b));
+                    const other_y = display_other_metrics[OVER_TIME_METRIC] ?? display_other_metrics.bytes;
                     plot_info.push({
                         ...(USE_OT_LINE_PLOT
                             ? {
@@ -1606,10 +1746,13 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         x: global_bins,
                         y: other_y,
                         text: global_bins.map((date, idx) =>
-                            `Other<br>${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${other_human_readable[idx]}` +
-                            hover_metric("Requests", display_other_req[idx]) +
-                            hover_metric("Downloads", display_other_dl[idx]) +
-                            hover_metric("Views", display_other_views[idx])
+                            `Other<br>${bin_label_prefix[TIME_AGGREGATION]}${date}` +
+                            hover_metric_lines(OVER_TIME_METRIC, {
+                                bytes: display_other_metrics.bytes[idx],
+                                views: display_other_metrics.views[idx],
+                                downloads: display_other_metrics.downloads[idx],
+                                requests: display_other_metrics.requests[idx],
+                            })
                         ),
                         textposition: "none",
                         hoverinfo: "text",
@@ -1685,18 +1828,16 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
             const views = agg_views.bytes_sent;
 
             // Convert to cumulative if the checkbox is checked
-            let plot_data = bytes_sent;
-            let plot_requests = requests;
-            let plot_downloads = downloads;
-            let plot_views = views;
-            if (USE_CUMULATIVE) {
-                plot_data = make_cumulative(bytes_sent);
-                plot_requests = make_cumulative(requests);
-                plot_downloads = make_cumulative(downloads);
-                plot_views = make_cumulative(views);
-            }
-
-            const human_readable_bytes_sent = plot_data.map((bytes) => format_bytes(bytes));
+            const display = (values: number[]) => (USE_CUMULATIVE ? make_cumulative(values) : values);
+            const plot_metrics: Record<string, number[]> = {
+                bytes: display(bytes_sent),
+                views: display(views),
+                downloads: display(downloads),
+                requests: display(requests),
+            };
+            // The selected metric is what the bars/line show; the others stay in
+            // the hover text as context.
+            const plot_data = plot_metrics[OVER_TIME_METRIC] ?? plot_metrics.bytes;
 
             // Build hover label prefix based on the selected aggregation
             const bin_label_prefix: Record<string, string> = {
@@ -1714,10 +1855,13 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     x: dates,
                     y: plot_data,
                     text: dates.map((date, index) =>
-                        `${bin_label_prefix[TIME_AGGREGATION]}${date}<br>${human_readable_bytes_sent[index]}` +
-                        hover_metric("Requests", plot_requests[index]) +
-                        hover_metric("Downloads", plot_downloads[index]) +
-                        hover_metric("Views", plot_views[index])
+                        `${bin_label_prefix[TIME_AGGREGATION]}${date}` +
+                        hover_metric_lines(OVER_TIME_METRIC, {
+                            bytes: plot_metrics.bytes[index],
+                            views: plot_metrics.views[index],
+                            downloads: plot_metrics.downloads[index],
+                            requests: plot_metrics.requests[index],
+                        })
                     ),
                     textposition: "none",
                     hoverinfo: "text",
@@ -1844,19 +1988,24 @@ function load_dandiset_histogram(): Promise<void> {
             })
             .sort((a, b) => b.bytes - a.bytes);
 
-        // Exclude 'undetermined' from the plot only (table retains all entries)
-        const plot_combined = combined.filter(item => item.raw_id !== "undetermined");
+        // "Ignore testing datasets" applies to both views: the Dandisets whose
+        // usage is dominated by automated testing of the archive lead most of
+        // the metrics, the scaled ones especially, and would otherwise be the
+        // tallest bars of a plot the setting claims to have filtered.
+        const rows = exclude_testing_dandisets(combined, IGNORE_TESTING_DANDISETS);
 
-        // The table can additionally be told to leave out the Dandisets whose
-        // usage is dominated by automated testing of the archive.
-        const table_rows = exclude_testing_dandisets(combined, IGNORE_TESTING_DANDISETS);
+        // Exclude 'undetermined' from the plot only (the table retains it),
+        // along with any Dandiset that has no value for the plotted metric — a
+        // scaled metric whose denominator is unknown has no bar to draw.  Bars
+        // are ranked by the metric being plotted, so the tallest always leads.
+        const plot_combined = rows
+            .filter(item => item.raw_id !== "undetermined")
+            .filter(item => isFinite(item[HISTOGRAM_METRIC as keyof typeof item] as number))
+            .sort((a, b) =>
+                (b[HISTOGRAM_METRIC as keyof typeof b] as number) - (a[HISTOGRAM_METRIC as keyof typeof a] as number)
+            );
 
         const sorted_dandiset_ids = plot_combined.map(item => item.dandiset_id);
-        const sorted_bytes_sent = plot_combined.map(item => item.bytes);
-        const sorted_requests = plot_combined.map(item => item.requests);
-        const sorted_downloads = plot_combined.map(item => item.downloads);
-        const sorted_views = plot_combined.map(item => item.views);
-        const human_readable_bytes_sent = sorted_bytes_sent.map(bytes => format_bytes(bytes));
 
         const plot_data = [
             {
@@ -1864,12 +2013,16 @@ function load_dandiset_histogram(): Promise<void> {
                     ? { type: "scatter", mode: "lines", line: { color: getTheme().accent }, fill: "tozeroy", fillcolor: color_with_alpha(getTheme().accent, 0.2) }
                     : { type: "bar", marker: { color: getTheme().accent } }),
                 x: sorted_dandiset_ids,
-                y: sorted_bytes_sent,
-                text: sorted_dandiset_ids.map((dandiset_id, index) =>
-                    `${dandiset_id}<br>${human_readable_bytes_sent[index]}` +
-                    hover_metric("Requests", sorted_requests[index]) +
-                    hover_metric("Downloads", sorted_downloads[index]) +
-                    hover_metric("Views", sorted_views[index])
+                y: plot_combined.map(item => item[HISTOGRAM_METRIC as keyof typeof item] as number),
+                text: plot_combined.map((item) =>
+                    `${item.dandiset_id}` +
+                    hover_metric_lines(HISTOGRAM_METRIC, {
+                        bytes: item.bytes,
+                        views: item.views,
+                        downloads: item.downloads,
+                        requests: item.requests,
+                        [HISTOGRAM_METRIC]: item[HISTOGRAM_METRIC as keyof typeof item] as number,
+                    })
                 ),
                 textposition: "none",
                 hoverinfo: "text",
@@ -1879,7 +2032,7 @@ function load_dandiset_histogram(): Promise<void> {
         const layout = applyTheme({
             bargap: 0,
             title: {
-                text: `${bytes_unit(peak_plotted_value(plot_data, false), USE_BINARY)} per Dandiset`,
+                text: histogram_plot_title(HISTOGRAM_METRIC, peak_plotted_value(plot_data, false), "Dandiset", USE_BINARY),
                 font: { size: 24 }
             },
             xaxis: {
@@ -1889,13 +2042,7 @@ function load_dandiset_histogram(): Promise<void> {
                 },
                 showticklabels: false,
             },
-            yaxis: {
-                type: USE_LOG_SCALE ? "log" : "linear",
-                tickformat: USE_LOG_SCALE ? "" : "~s",
-                ticksuffix: USE_LOG_SCALE ? "" : "B",
-                tickvals: USE_LOG_SCALE ? [1000, 1000000, 1000000000, 1000000000000, 1000000000000000, 1000000000000000000] : undefined,
-                ticktext: USE_LOG_SCALE ? ["KB", "MB", "GB", "TB"] : undefined,
-            },
+            yaxis: build_metric_yaxis(HISTOGRAM_METRIC),
         });
 
         Plotly.newPlot(plot_element_id, plot_data as Plotly.Data[], layout, PLOTLY_CONFIG);
@@ -1916,7 +2063,9 @@ function load_dandiset_histogram(): Promise<void> {
             // the three per-asset rates with "Total Assets", and "Bytes / Size"
             // with the "Total Bytes" and "Total Size" pair that ends the table.
             // "Total Bytes" stays the default sort so the table's initial
-            // ordering still matches the plot beside it.
+            // ordering still matches the plot beside it.  The metric selector
+            // lists the plottable ones in this same order; keep
+            // PER_DANDISET_METRIC_ORDER in step when these columns change.
             { label: "Views / Asset", key: "views_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Downloads / Asset", key: "downloads_per_asset", numeric: true, format_fn: format_ratio },
             { label: "Total Assets", key: "number_of_assets", numeric: true, format_fn: optional_count_format },
@@ -1927,7 +2076,7 @@ function load_dandiset_histogram(): Promise<void> {
             { label: "Bytes / Size", key: "bytes_per_size", numeric: true, format_fn: format_ratio },
             { label: "Total Bytes", key: "bytes", numeric: true, default_sort: true },
             { label: "Total Size", key: "total_size", numeric: true, format_fn: optional_bytes_format },
-        ], table_rows, format_bytes, ALL_DANDISET_TOTALS_URL);
+        ], rows, format_bytes, ALL_DANDISET_TOTALS_URL);
 
         apply_view_mode(plot_element_id, "histogram_table", USE_HISTOGRAM_TABLE);
     })
@@ -1972,16 +2121,13 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             const downloads = data.map((row) => parseInt(row[3] || "0", 10));
             const views = data.map((row) => parseInt(row[4] || "0", 10));
 
-            // Sort asset_names and bytes_sent in descending order by bytes_sent
             const combined = asset_names.map((name, idx) => ({ name, bytes: bytes_sent[idx], requests: requests[idx], downloads: downloads[idx], views: views[idx] }));
-            combined.sort((a, b) => b.bytes - a.bytes);
 
-            const sorted_asset_names = combined.map(item => item.name);
-            const sorted_bytes_sent = combined.map(item => item.bytes);
-            const sorted_requests = combined.map(item => item.requests);
-            const sorted_downloads = combined.map(item => item.downloads);
-            const sorted_views = combined.map(item => item.views);
-            const human_readable_bytes_sent = sorted_bytes_sent.map((bytes) => format_bytes(bytes));
+            // Rank the bars by the metric being plotted, so the tallest leads.
+            const plot_combined = [...combined].sort(
+                (a, b) =>
+                    (b[HISTOGRAM_METRIC as keyof typeof b] as number) - (a[HISTOGRAM_METRIC as keyof typeof a] as number)
+            );
 
             // Use sorted arrays in the plot
             const plot_data = [
@@ -1989,13 +2135,16 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
                     ...(USE_HIST_LINE_PLOT
                         ? { type: "scatter", mode: "lines", line: { color: getTheme().accent }, fill: "tozeroy", fillcolor: color_with_alpha(getTheme().accent, 0.2) }
                         : { type: "bar", marker: { color: getTheme().accent } }),
-                    x: sorted_asset_names,
-                    y: sorted_bytes_sent,
-                    text: sorted_asset_names.map((name, index) =>
-                        `${name}<br>${human_readable_bytes_sent[index]}` +
-                        hover_metric("Requests", sorted_requests[index]) +
-                        hover_metric("Downloads", sorted_downloads[index]) +
-                        hover_metric("Views", sorted_views[index])
+                    x: plot_combined.map(item => item.name),
+                    y: plot_combined.map(item => item[HISTOGRAM_METRIC as keyof typeof item] as number),
+                    text: plot_combined.map((item) =>
+                        `${item.name}` +
+                        hover_metric_lines(HISTOGRAM_METRIC, {
+                            bytes: item.bytes,
+                            views: item.views,
+                            downloads: item.downloads,
+                            requests: item.requests,
+                        })
                     ),
                     textposition: "none",
                     hoverinfo: "text",
@@ -2005,19 +2154,13 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             const layout = applyTheme({
                 bargap: 0,
                 title: {
-                    text: `${bytes_unit(peak_plotted_value(plot_data, false), USE_BINARY)} per asset`,
+                    text: histogram_plot_title(HISTOGRAM_METRIC, peak_plotted_value(plot_data, false), "asset", USE_BINARY),
                     font: { size: 24 }
                 },
                 xaxis: {
                     showticklabels: false,
                 },
-                yaxis: {
-                    type: USE_LOG_SCALE ? "log" : "linear",
-                    tickformat: USE_LOG_SCALE ? "" : "~s",
-                    ticksuffix: USE_LOG_SCALE ? "" : "B",
-                    tickvals: USE_LOG_SCALE ? [1000, 1000000, 1000000000, 1000000000000, 1000000000000000, 1000000000000000000] : undefined,
-                    ticktext: USE_LOG_SCALE ? ["KB", "MB", "GB", "TB"] : undefined,
-                },
+                yaxis: build_metric_yaxis(HISTOGRAM_METRIC),
             });
 
             Plotly.newPlot(plot_element_id, plot_data as Plotly.Data[], layout, PLOTLY_CONFIG);

@@ -179,6 +179,14 @@
                 <label for="aggregation_yearly">Yearly</label>
             </div>
         </div>
+        <div class="SubControllerContainer" id="over_time_metric_container">
+            <label for="over_time_metric">Metric:</label>
+            <select id="over_time_metric">
+                <option value="bytes">Bytes</option>
+                <option value="views">Views</option>
+                <option value="downloads">Downloads</option>
+            </select>
+        </div>
         <div class="SubControllerContainer" id="over_time_group_by_container">
             <label for="over_time_group_by">Group by:</label>
             <select id="over_time_group_by">
@@ -239,6 +247,21 @@
                 <input type="radio" id="histogram_view_table" name="histogram_view" value="table" />
                 <label for="histogram_view_table">Table</label>
             </div>
+        </div>
+        <div class="SubControllerContainer" id="histogram_metric_container">
+            <label for="histogram_metric">Metric:</label>
+            <!-- Listed in the column order of the per-Dandiset table, the
+                 archive-wide default; the scaled metrics are hidden and the
+                 rest re-ordered for a single-Dandiset selection, whose bars
+                 are assets (see apply_histogram_metric_visibility). -->
+            <select id="histogram_metric">
+                <option value="views_per_asset">Views / Asset</option>
+                <option value="downloads_per_asset">Downloads / Asset</option>
+                <option value="views">Views</option>
+                <option value="downloads">Downloads</option>
+                <option value="bytes_per_size">Bytes / Size</option>
+                <option value="bytes">Bytes</option>
+            </select>
         </div>
         <div class="separator"></div>
         <div class="settings-wrapper">

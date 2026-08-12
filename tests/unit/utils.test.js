@@ -11,6 +11,16 @@ import {
     format_ratio,
     exclude_testing_dandisets,
     TESTING_DANDISET_IDS,
+    METRIC_LABELS,
+    RAW_PLOT_METRICS,
+    SCALED_PLOT_METRICS,
+    PER_DANDISET_METRIC_ORDER,
+    histogram_metrics_for,
+    default_histogram_metric,
+    validate_plot_metric,
+    format_metric_value,
+    metric_unit_label,
+    histogram_plot_title,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -407,5 +417,174 @@ describe("exclude_testing_dandisets", () => {
 
     it("returns an empty array for empty input", () => {
         expect(exclude_testing_dandisets([], true)).toEqual([]);
+    });
+});
+
+// ── plot metrics ─────────────────────────────────────────────────────────────
+
+describe("plot metric definitions", () => {
+    it("labels every selectable metric", () => {
+        for (const metric of [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS]) {
+            expect(METRIC_LABELS[metric]).toBeTruthy();
+        }
+    });
+
+    it("keeps the raw and scaled metric sets disjoint", () => {
+        expect(RAW_PLOT_METRICS.filter((metric) => SCALED_PLOT_METRICS.includes(metric))).toEqual([]);
+    });
+
+    it("offers bytes as a raw metric, since it is the fallback everywhere", () => {
+        expect(RAW_PLOT_METRICS).toContain("bytes");
+    });
+
+    it("orders every metric exactly once for the per-Dandiset selector", () => {
+        expect([...PER_DANDISET_METRIC_ORDER].sort()).toEqual(
+            [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS].sort()
+        );
+    });
+
+    it("follows the per-Dandiset table's columns, each scaled rate ahead of its totals", () => {
+        // Mirrors the column order of the table rendered in load_dandiset_histogram.
+        expect(PER_DANDISET_METRIC_ORDER).toEqual([
+            "views_per_asset",
+            "downloads_per_asset",
+            "views",
+            "downloads",
+            "bytes_per_size",
+            "bytes",
+        ]);
+    });
+});
+
+describe("validate_plot_metric", () => {
+    it("keeps a metric that is allowed", () => {
+        expect(validate_plot_metric("views", RAW_PLOT_METRICS)).toBe("views");
+        expect(validate_plot_metric("bytes_per_size", SCALED_PLOT_METRICS)).toBe("bytes_per_size");
+    });
+
+    it("falls back to bytes for a metric that is not allowed here", () => {
+        expect(validate_plot_metric("bytes_per_size", RAW_PLOT_METRICS)).toBe("bytes");
+    });
+
+    it("falls back to bytes for unknown and missing values", () => {
+        expect(validate_plot_metric("nonsense", RAW_PLOT_METRICS)).toBe("bytes");
+        expect(validate_plot_metric(null, RAW_PLOT_METRICS)).toBe("bytes");
+        expect(validate_plot_metric("", RAW_PLOT_METRICS)).toBe("bytes");
+    });
+
+    it("uses the given fallback instead of bytes when one is passed", () => {
+        expect(validate_plot_metric(null, PER_DANDISET_METRIC_ORDER, "views_per_asset")).toBe("views_per_asset");
+        expect(validate_plot_metric("nonsense", PER_DANDISET_METRIC_ORDER, "views_per_asset")).toBe("views_per_asset");
+    });
+});
+
+describe("histogram_metrics_for", () => {
+    it("offers the per-Dandiset order for the archive-wide selection", () => {
+        expect(histogram_metrics_for(true)).toEqual(PER_DANDISET_METRIC_ORDER);
+    });
+
+    it("offers the raw metrics alone for a single Dandiset, whose bars are assets", () => {
+        expect(histogram_metrics_for(false)).toEqual(RAW_PLOT_METRICS);
+        expect(histogram_metrics_for(false).some((metric) => SCALED_PLOT_METRICS.includes(metric))).toBe(false);
+    });
+});
+
+describe("default_histogram_metric", () => {
+    it("defaults to the first metric its dropdown offers, for either selection", () => {
+        expect(default_histogram_metric(true)).toBe(histogram_metrics_for(true)[0]);
+        expect(default_histogram_metric(false)).toBe(histogram_metrics_for(false)[0]);
+    });
+
+    it("leads with a scaled metric per Dandiset and with bytes per asset", () => {
+        expect(default_histogram_metric(true)).toBe("views_per_asset");
+        expect(default_histogram_metric(false)).toBe("bytes");
+    });
+
+    it("returns a metric that selection actually offers", () => {
+        for (const is_archive of [true, false]) {
+            expect(histogram_metrics_for(is_archive)).toContain(default_histogram_metric(is_archive));
+        }
+    });
+});
+
+describe("format_metric_value", () => {
+    it("formats bytes with a byte unit, honoring the binary prefix", () => {
+        expect(format_metric_value("bytes", 1000)).toBe("1 KB");
+        expect(format_metric_value("bytes", 1024, true)).toBe("1 KiB");
+    });
+
+    it("formats counts with thousands separators", () => {
+        expect(format_metric_value("views", 12345)).toBe((12345).toLocaleString());
+        expect(format_metric_value("downloads", 0)).toBe("0");
+    });
+
+    it("formats scaled metrics as ratios", () => {
+        expect(format_metric_value("views_per_asset", 12.345)).toBe(format_ratio(12.345));
+        expect(format_metric_value("bytes_per_size", NaN)).toBe("--");
+    });
+
+    it("renders a missing count as '--' rather than NaN", () => {
+        expect(format_metric_value("views", NaN)).toBe("--");
+        expect(format_metric_value("requests", Infinity)).toBe("--");
+    });
+});
+
+describe("metric_unit_label", () => {
+    it("names the byte unit of the largest plotted value for bytes", () => {
+        expect(metric_unit_label("bytes", 2_500_000_000_000)).toBe("TB");
+        expect(metric_unit_label("bytes", 1024 ** 4, true)).toBe("TiB");
+    });
+
+    it("uses the metric's own label for every other metric", () => {
+        expect(metric_unit_label("views", 1e12)).toBe("Views");
+        expect(metric_unit_label("downloads", 1e12)).toBe("Downloads");
+    });
+
+    it("spells out the ratio of a scaled metric, for a title that reads as a phrase", () => {
+        expect(metric_unit_label("views_per_asset", 1e12)).toBe("Views per Asset");
+        expect(metric_unit_label("downloads_per_asset", 1e12)).toBe("Downloads per Asset");
+        expect(metric_unit_label("bytes_per_size", 1e12)).toBe("Bytes per Size");
+    });
+
+    it("leaves the '/' form in the labels the dropdown and table headings use", () => {
+        for (const metric of SCALED_PLOT_METRICS) {
+            expect(METRIC_LABELS[metric]).toContain(" / ");
+        }
+    });
+
+    it("falls back to the metric name when it has no label", () => {
+        expect(metric_unit_label("unlabeled", 1)).toBe("unlabeled");
+    });
+});
+
+describe("histogram_plot_title", () => {
+    it("names the byte unit of the largest plotted value, per subject", () => {
+        expect(histogram_plot_title("bytes", 2.5e15, "Dandiset")).toBe("PB per Dandiset");
+        expect(histogram_plot_title("bytes", 2.5e12, "asset")).toBe("TB per asset");
+        expect(histogram_plot_title("bytes", 1024 ** 4, "Dandiset", true)).toBe("TiB per Dandiset");
+    });
+
+    it("names a raw count metric, per subject", () => {
+        expect(histogram_plot_title("views", 1e6, "Dandiset")).toBe("Views per Dandiset");
+        expect(histogram_plot_title("downloads", 1e6, "asset")).toBe("Downloads per asset");
+    });
+
+    it("spells out a scaled metric's ratio, per subject", () => {
+        expect(histogram_plot_title("views_per_asset", 1e3, "Dandiset")).toBe("Views per Asset per Dandiset");
+        expect(histogram_plot_title("downloads_per_asset", 1e3, "Dandiset")).toBe("Downloads per Asset per Dandiset");
+    });
+
+    it("gives bytes-per-stored-byte a title of its own, that ratio not reading as a phrase", () => {
+        expect(histogram_plot_title("bytes_per_size", 1e3, "Dandiset")).toBe(
+            "Bytes transferred relative to total size of Dandiset"
+        );
+    });
+
+    it("keeps that title whatever the plotted values and prefix are", () => {
+        for (const [peak, binary] of [[0, false], [1e18, true], [NaN, false]]) {
+            expect(histogram_plot_title("bytes_per_size", peak, "Dandiset", binary)).toBe(
+                "Bytes transferred relative to total size of Dandiset"
+            );
+        }
     });
 });

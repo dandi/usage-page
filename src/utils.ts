@@ -161,6 +161,127 @@ export function format_ratio(value: number): string {
     return value.toLocaleString(undefined, { maximumSignificantDigits: 2 });
 }
 
+// ── Plot metrics ─────────────────────────────────────────────────────────────
+
+/**
+ * Display labels for every metric that can appear in a plot, whether as the
+ * plotted quantity or as a line of hover text.
+ */
+export const METRIC_LABELS: Record<string, string> = {
+    bytes: "Bytes",
+    views: "Views",
+    downloads: "Downloads",
+    requests: "Requests",
+    views_per_asset: "Views / Asset",
+    downloads_per_asset: "Downloads / Asset",
+    bytes_per_size: "Bytes / Size",
+};
+
+/**
+ * The raw usage metrics a plot can be drawn in.  Every selection and every
+ * section carries all three, and this is the order the per-asset table lists
+ * them in, so it doubles as the metric order offered for a single Dandiset.
+ */
+export const RAW_PLOT_METRICS = ["bytes", "views", "downloads"];
+
+/**
+ * The metrics normalized by how much content a Dandiset holds.  They can only
+ * be plotted per Dandiset (the archive-wide selection), the only case whose
+ * bars have a known asset count and stored size to divide by.
+ */
+export const SCALED_PLOT_METRICS = ["views_per_asset", "downloads_per_asset", "bytes_per_size"];
+
+/**
+ * The order the archive-wide (per-Dandiset) metric selector lists its metrics
+ * in, mirroring the column order of the per-Dandiset table beside it: each
+ * scaled rate ahead of the totals it is derived from, closing on bytes.  Keep
+ * this in step with that table's columns (see load_dandiset_histogram).
+ */
+export const PER_DANDISET_METRIC_ORDER = [
+    "views_per_asset",
+    "downloads_per_asset",
+    "views",
+    "downloads",
+    "bytes_per_size",
+    "bytes",
+];
+
+/**
+ * Normalizes a metric name (typically read from a URL parameter) to one of
+ * `allowed`, falling back to `fallback` for anything unrecognized.
+ */
+export function validate_plot_metric(metric: string | null, allowed: string[], fallback = "bytes"): string {
+    return metric !== null && allowed.includes(metric) ? metric : fallback;
+}
+
+/**
+ * The metrics the histogram offers for a selection, in the order its dropdown
+ * lists them: the per-Dandiset order for the archive-wide selection, and the
+ * raw metrics alone for a single Dandiset, whose bars are assets and so have
+ * no asset count or stored size to be scaled by.
+ */
+export function histogram_metrics_for(is_archive: boolean): string[] {
+    return is_archive ? PER_DANDISET_METRIC_ORDER : RAW_PLOT_METRICS;
+}
+
+/**
+ * The metric a histogram is drawn in when the URL says nothing: the first entry
+ * of the dropdown for that selection — "Views / Asset" per Dandiset, which
+ * compares Dandisets of very different sizes on equal terms, and "Bytes" per
+ * asset.
+ */
+export function default_histogram_metric(is_archive: boolean): string {
+    return histogram_metrics_for(is_archive)[0];
+}
+
+/**
+ * Formats one value of `metric` in that metric's own units: bytes with a byte
+ * suffix, the scaled metrics as ratios, and the raw counts with thousands
+ * separators (or "--" when the count is missing).
+ */
+export function format_metric_value(metric: string, value: number, use_binary = false): string {
+    if (metric === "bytes") return format_bytes(value, 2, use_binary);
+    if (SCALED_PLOT_METRICS.includes(metric)) return format_ratio(value);
+    return isFinite(value) ? value.toLocaleString() : "--";
+}
+
+/**
+ * Names the unit a plot drawn in `metric` is effectively in, for use in its
+ * title: for bytes, the byte unit the largest plotted value calls for (e.g.
+ * "TB"); for every other metric, the metric's own label (e.g. "Views").
+ *
+ * A scaled metric spells its ratio out — "Views per Asset" rather than the
+ * "Views / Asset" of the dropdown and the table heading — since a title reads
+ * as a phrase ("Views per Asset per Dandiset") rather than as a column label.
+ */
+export function metric_unit_label(metric: string, peak_value: number, use_binary = false): string {
+    if (metric === "bytes") return bytes_unit(peak_value, use_binary);
+    return (METRIC_LABELS[metric] ?? metric).replace(" / ", " per ");
+}
+
+/**
+ * Titles that replace the "<unit> per <subject>" pattern outright, for a metric
+ * whose ratio does not survive being spelled out — "Bytes per Size per
+ * Dandiset" says little about what is being divided by what.  Only the
+ * archive-wide (per-Dandiset) histogram can plot the metrics covered here, so
+ * the wording names the Dandiset itself.
+ */
+const METRIC_PLOT_TITLE_OVERRIDES: Record<string, string> = {
+    bytes_per_size: "Bytes transferred relative to total size of Dandiset",
+};
+
+/**
+ * Builds a histogram's title: the unit the y-axis is effectively in, followed
+ * by what one bar stands for — "PB per Dandiset", "Views per Asset per
+ * Dandiset", "TB per asset" — unless the metric names a title of its own.
+ */
+export function histogram_plot_title(metric: string, peak_value: number, subject: string, use_binary = false): string {
+    return (
+        METRIC_PLOT_TITLE_OVERRIDES[metric] ??
+        `${metric_unit_label(metric, peak_value, use_binary)} per ${subject}`
+    );
+}
+
 /**
  * Returns just the unit `format_bytes` would use for `bytes` (e.g. "TB", or
  * "TiB" in binary mode), without the numeric part.  Used to name the unit a
