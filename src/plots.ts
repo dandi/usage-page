@@ -13,6 +13,8 @@ import {
     RAW_PLOT_METRICS,
     SCALED_PLOT_METRICS,
     PER_DANDISET_METRIC_ORDER,
+    histogram_metrics_for,
+    default_histogram_metric,
     validate_plot_metric,
     format_metric_value,
     metric_unit_label,
@@ -315,21 +317,32 @@ function apply_over_time_metric_visibility() {
 }
 
 /**
+ * Whether the histogram is showing Dandisets (the archive-wide selection)
+ * rather than the assets of one Dandiset.  An empty selector means its options
+ * have not been fetched yet, which is still the archive-wide default; the
+ * selection is re-applied once they arrive, so a deep-linked scaled metric is
+ * not dropped in the meantime.
+ */
+function histogram_shows_dandisets(): boolean {
+    const selector = document.getElementById("dandiset_selector") as HTMLSelectElement | null;
+    return (selector?.value || "archive") === "archive";
+}
+
+/**
  * Shows the histogram metric selector only in plot view (its table lists every
  * metric already), and offers the scaled metrics only for the archive-wide
  * selection, whose bars are Dandisets with a known asset count and stored size.
- * Any other selection falls back to "Bytes" when a scaled metric was active.
+ * Any other selection falls back to its own first metric ("Bytes") when a
+ * scaled metric was active.
  */
 function apply_histogram_metric_visibility() {
     const container = document.getElementById("histogram_metric_container");
     if (container) container.style.display = USE_HISTOGRAM_TABLE ? "none" : "";
 
-    // An empty selector means its options have not been fetched yet, which is
-    // still the archive-wide default; the selection is re-applied once they
-    // arrive, so a deep-linked scaled metric is not dropped in the meantime.
-    const dandiset_selector = document.getElementById("dandiset_selector") as HTMLSelectElement | null;
-    const is_archive = (dandiset_selector?.value || "archive") === "archive";
-    if (!is_archive && SCALED_PLOT_METRICS.includes(HISTOGRAM_METRIC)) HISTOGRAM_METRIC = "bytes";
+    const is_archive = histogram_shows_dandisets();
+    if (!is_archive && SCALED_PLOT_METRICS.includes(HISTOGRAM_METRIC)) {
+        HISTOGRAM_METRIC = default_histogram_metric(false);
+    }
 
     const selector = document.getElementById("histogram_metric") as HTMLSelectElement | null;
     if (!selector) return;
@@ -341,7 +354,9 @@ function apply_histogram_metric_visibility() {
     // it, so the dropdown and the table read the same way round.  Re-appending
     // an option moves it to the end, so walking the order sorts the list; the
     // hidden scaled metrics trail the per-asset ones, out of sight.
-    const metric_order = is_archive ? PER_DANDISET_METRIC_ORDER : [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS];
+    const metric_order = is_archive
+        ? histogram_metrics_for(true)
+        : [...histogram_metrics_for(false), ...SCALED_PLOT_METRICS];
     metric_order.forEach((metric) => {
         const option = selector.querySelector(`option[value="${metric}"]`);
         if (option) selector.appendChild(option);
@@ -460,7 +475,10 @@ let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 // the raw metrics only; the per-Dandiset histogram additionally offers the
 // scaled ones (see SCALED_PLOT_METRICS), which exist only for that selection.
 let OVER_TIME_METRIC = "bytes";  // "bytes" | "views" | "downloads"
-let HISTOGRAM_METRIC = "bytes";  // the above, plus the scaled metrics for the archive
+// Defaults to the first metric its dropdown offers for the archive-wide
+// selection the page opens on, and falls back to the first metric of whichever
+// selection is active thereafter (see default_histogram_metric).
+let HISTOGRAM_METRIC = default_histogram_metric(true);
 let TOP_N_DANDISETS = 8;
 let USE_OVER_TIME_TABLE = false;
 let USE_HISTOGRAM_TABLE = false;
@@ -602,7 +620,15 @@ function syncFromUrl() {
     if (histogramRadio) histogramRadio.checked = true;
     apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
 
-    HISTOGRAM_METRIC = validate_plot_metric(params.get("hist_metric"), [...RAW_PLOT_METRICS, ...SCALED_PLOT_METRICS]);
+    // Which metrics are on offer, and which of them is the default, both follow
+    // the current selection; apply_histogram_metric_visibility() re-resolves
+    // this once the Dandiset list has arrived and a selection is made.
+    const histogram_is_archive = histogram_shows_dandisets();
+    HISTOGRAM_METRIC = validate_plot_metric(
+        params.get("hist_metric"),
+        histogram_metrics_for(histogram_is_archive),
+        default_histogram_metric(histogram_is_archive)
+    );
     apply_histogram_metric_visibility();
 
     // Ignore testing Dandisets
@@ -855,7 +881,7 @@ window.addEventListener("load", () => {
             HISTOGRAM_METRIC = (histMetricSelect as HTMLSelectElement).value;
 
             const params = new URLSearchParams(window.location.search);
-            setUrlParam(params, "hist_metric", HISTOGRAM_METRIC, "bytes");
+            setUrlParam(params, "hist_metric", HISTOGRAM_METRIC, default_histogram_metric(histogram_shows_dandisets()));
             const query = params.toString();
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
@@ -1135,16 +1161,21 @@ Promise.all([
         // Update the plots and URL when a new Dandiset ID is selected
         selector.addEventListener("change", (event) => {
             const id = (event.target as HTMLSelectElement).value;
+            // Applied before the URL is written, since the selection decides
+            // which metrics the histogram offers and which of them is its
+            // default — both of which the "hist_metric" parameter is relative to.
+            setSelectedDandiset(id);
+
             const params = new URLSearchParams(window.location.search);
             if (id === "archive") {
                 params.delete("dandiset");
             } else {
                 params.set("dandiset", id);
             }
+            setUrlParam(params, "hist_metric", HISTOGRAM_METRIC, default_histogram_metric(id === "archive"));
             const query = params.toString();
             const newUrl = window.location.pathname + (query ? "?" + query : "");
             window.history.pushState({}, "", newUrl);
-            setSelectedDandiset(id);
         });
 
         // Handle browser back/forward navigation

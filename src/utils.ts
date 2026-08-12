@@ -208,10 +208,30 @@ export const PER_DANDISET_METRIC_ORDER = [
 
 /**
  * Normalizes a metric name (typically read from a URL parameter) to one of
- * `allowed`, falling back to "bytes" for anything unrecognized.
+ * `allowed`, falling back to `fallback` for anything unrecognized.
  */
-export function validate_plot_metric(metric: string | null, allowed: string[]): string {
-    return metric !== null && allowed.includes(metric) ? metric : "bytes";
+export function validate_plot_metric(metric: string | null, allowed: string[], fallback = "bytes"): string {
+    return metric !== null && allowed.includes(metric) ? metric : fallback;
+}
+
+/**
+ * The metrics the histogram offers for a selection, in the order its dropdown
+ * lists them: the per-Dandiset order for the archive-wide selection, and the
+ * raw metrics alone for a single Dandiset, whose bars are assets and so have
+ * no asset count or stored size to be scaled by.
+ */
+export function histogram_metrics_for(is_archive: boolean): string[] {
+    return is_archive ? PER_DANDISET_METRIC_ORDER : RAW_PLOT_METRICS;
+}
+
+/**
+ * The metric a histogram is drawn in when the URL says nothing: the first entry
+ * of the dropdown for that selection — "Views / Asset" per Dandiset, which
+ * compares Dandisets of very different sizes on equal terms, and "Bytes" per
+ * asset.
+ */
+export function default_histogram_metric(is_archive: boolean): string {
+    return histogram_metrics_for(is_archive)[0];
 }
 
 /**

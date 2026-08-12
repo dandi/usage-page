@@ -15,6 +15,8 @@ import {
     RAW_PLOT_METRICS,
     SCALED_PLOT_METRICS,
     PER_DANDISET_METRIC_ORDER,
+    histogram_metrics_for,
+    default_histogram_metric,
     validate_plot_metric,
     format_metric_value,
     metric_unit_label,
@@ -467,6 +469,40 @@ describe("validate_plot_metric", () => {
         expect(validate_plot_metric("nonsense", RAW_PLOT_METRICS)).toBe("bytes");
         expect(validate_plot_metric(null, RAW_PLOT_METRICS)).toBe("bytes");
         expect(validate_plot_metric("", RAW_PLOT_METRICS)).toBe("bytes");
+    });
+
+    it("uses the given fallback instead of bytes when one is passed", () => {
+        expect(validate_plot_metric(null, PER_DANDISET_METRIC_ORDER, "views_per_asset")).toBe("views_per_asset");
+        expect(validate_plot_metric("nonsense", PER_DANDISET_METRIC_ORDER, "views_per_asset")).toBe("views_per_asset");
+    });
+});
+
+describe("histogram_metrics_for", () => {
+    it("offers the per-Dandiset order for the archive-wide selection", () => {
+        expect(histogram_metrics_for(true)).toEqual(PER_DANDISET_METRIC_ORDER);
+    });
+
+    it("offers the raw metrics alone for a single Dandiset, whose bars are assets", () => {
+        expect(histogram_metrics_for(false)).toEqual(RAW_PLOT_METRICS);
+        expect(histogram_metrics_for(false).some((metric) => SCALED_PLOT_METRICS.includes(metric))).toBe(false);
+    });
+});
+
+describe("default_histogram_metric", () => {
+    it("defaults to the first metric its dropdown offers, for either selection", () => {
+        expect(default_histogram_metric(true)).toBe(histogram_metrics_for(true)[0]);
+        expect(default_histogram_metric(false)).toBe(histogram_metrics_for(false)[0]);
+    });
+
+    it("leads with a scaled metric per Dandiset and with bytes per asset", () => {
+        expect(default_histogram_metric(true)).toBe("views_per_asset");
+        expect(default_histogram_metric(false)).toBe("bytes");
+    });
+
+    it("returns a metric that selection actually offers", () => {
+        for (const is_archive of [true, false]) {
+            expect(histogram_metrics_for(is_archive)).toContain(default_histogram_metric(is_archive));
+        }
     });
 });
 
