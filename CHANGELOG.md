@@ -34,6 +34,8 @@
 
 #### 🐛 Bug Fix
 
+- Fixed the band of whitespace that opened between the per-Dandiset section and the geography section below it when the page was loaded (or refreshed) directly into a table view. Each section reserves the height of the view being replaced so the page does not jump while the new one renders, but that reservation was measured from the whole section, which briefly holds both of its views at once — a re-render un-hides the plot — and so came out as tall as the plot and the table stacked. The height is now taken from the taller of the two views rather than their sum, and is released as soon as the new view has content of its own, so a short view can no longer leave a gap below it. The per-Dandiset section also no longer un-hides its plot while the table view is active, which had pushed the table down for as long as the data took to load. ([#244](https://github.com/dandi/usage-page/pull/244))
+- Re-sized a plot when it is switched back into view, so one drawn while hidden (the page having been loaded into the table view) is no longer left at Plotly's default size instead of the width of the page. The shared resize helper now also skips hidden plots, which Plotly rejects, clearing the "Resize must be passed a displayed plot div element" errors logged when the window was resized with a section in table view. ([#244](https://github.com/dandi/usage-page/pull/244))
 - Applied "Ignore testing datasets" to the per-Dandiset plot as well as its table, so the setting now means the same thing in both views. Previously it filtered the table only, which left the testing Dandisets as the tallest bars of the plot — most visibly under the scaled metrics, which they lead by a wide margin. ([#243](https://github.com/dandi/usage-page/pull/243))
 - Fixed the log-scale y-axis of both histograms, which paired six tick positions with only four labels ("KB" through "TB") and so mislabeled the upper decades. All plots now share one y-axis builder, which pairs each decade with its own label. ([#243](https://github.com/dandi/usage-page/pull/243))
 
@@ -47,6 +49,7 @@
 
 #### 🧪 Tests
 
+- Covered the height reservation of both view-mode helpers with the cases behind the whitespace bug — two views visible at once, and a new view that has already rendered — and added an integration test asserting that a fresh load of the per-Dandiset table view leaves no gap below the table. ([#244](https://github.com/dandi/usage-page/pull/244))
 - Added unit tests for the new gzipped-JSONL data path (`parse_dandiset_numbers_jsonl`, `decode_maybe_gzipped_response`, `fetch_maybe_gzipped_text`), the `scaled_metric` and `format_ratio` helpers, and the table renderer's handling of missing numeric values. The Chromatic fixtures now serve gzipped asset-count and total-size files, so the snapshot run exercises the client-side decompression too. ([#241](https://github.com/dandi/usage-page/pull/241))
 
 - Extracted `escape_html`, `make_cumulative`, `fetchWithRetry`, `apply_view_mode`, `apply_geo_view_mode`, and `render_sortable_table` into a new `src/plot-helpers.ts` module and added 50 unit tests covering all six helpers; raised overall statement coverage from 5% to 13%. ([#175](https://github.com/dandi/usage-page/pull/175))

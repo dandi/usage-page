@@ -98,4 +98,23 @@ test.describe("DANDI Access Page", () => {
     test("geography section is present", async ({ page }) => {
         await expect(page.locator("#geography_heatmap, #geo_table_section").first()).toBeVisible();
     });
+
+    // Regression: loading straight into the histogram table view (a refresh on
+    // a deep link) used to reserve the height of the plot and the table
+    // stacked, leaving a band of whitespace between the table and the
+    // geography section below it.
+    test("histogram table view leaves no gap below the table on a fresh load", async ({ page }) => {
+        await page.goto("/?histogram=table");
+
+        const table = page.locator("#histogram_table");
+        await expect(table.locator("tbody tr").first()).toBeVisible();
+        await expect(page.locator("#histogram_plot")).toBeHidden();
+
+        const gap = await page.evaluate(() => {
+            const table_el = document.getElementById("histogram_table");
+            const section_el = table_el.closest(".view-section");
+            return section_el.offsetHeight - table_el.offsetHeight;
+        });
+        expect(gap).toBeLessThanOrEqual(1);
+    });
 });

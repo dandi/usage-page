@@ -161,6 +161,18 @@ describe("fetchWithRetry", () => {
 
 // ── apply_view_mode ───────────────────────────────────────────────────────────
 
+/**
+ * jsdom lays nothing out, so every element measures 0 tall; the view-mode
+ * helpers reserve space from measured heights, and this gives them something
+ * to measure.
+ */
+function stub_height(element_id: string, height: number): void {
+    Object.defineProperty(document.getElementById(element_id)!, "offsetHeight", {
+        configurable: true,
+        get: () => height,
+    });
+}
+
 describe("apply_view_mode", () => {
     beforeEach(() => {
         document.body.innerHTML = `
@@ -185,17 +197,43 @@ describe("apply_view_mode", () => {
         expect(document.getElementById("over_time_table")!.style.display).toBe("none");
     });
 
-    it("locks the min-height to the current height when switching to table and offsetHeight is positive", () => {
+    it("reserves the height of the plot it replaces while the table is still empty", () => {
         const section = document.querySelector(".view-section") as HTMLElement;
-        Object.defineProperty(section, "offsetHeight", { configurable: true, get: () => 400 });
+        stub_height("over_time_plot", 400);
 
         apply_view_mode("over_time_plot", "over_time_table", true);
 
         expect(section.style.minHeight).toBe("400px");
     });
+
+    it("reserves only the taller view when both are visible at once", () => {
+        // A re-render un-hides the plot while the table view is active, so both
+        // can be on screen; the reservation must not stack the two heights.
+        const section = document.querySelector(".view-section") as HTMLElement;
+        stub_height("over_time_plot", 350);
+        stub_height("over_time_table", 0);
+        document.getElementById("over_time_table")!.style.display = "";
+
+        apply_view_mode("over_time_plot", "over_time_table", true);
+
+        expect(section.style.minHeight).toBe("350px");
+    });
+
+    it("releases the reservation once the table has rendered", () => {
+        const section = document.querySelector(".view-section") as HTMLElement;
+        section.style.minHeight = "500px";
+        stub_height("over_time_plot", 400);
+        stub_height("over_time_table", 200);
+
+        apply_view_mode("over_time_plot", "over_time_table", true);
+
+        expect(section.style.minHeight).toBe("");
+    });
+
     it("releases the min-height lock when switching back to plot", () => {
         const section = document.querySelector(".view-section") as HTMLElement;
         section.style.minHeight = "500px";
+        stub_height("over_time_plot", 400);
 
         apply_view_mode("over_time_plot", "over_time_table", false);
 
@@ -262,17 +300,30 @@ describe("apply_geo_view_mode", () => {
         expect(document.getElementById("top_regions_table")!.style.display).toBe("none");
     });
 
-    it("locks the min-height to the current height when switching away from map and offsetHeight is positive", () => {
+    it("reserves the height of the map it replaces while the table is still empty", () => {
         const section = document.querySelector(".view-section") as HTMLElement;
-        Object.defineProperty(section, "offsetHeight", { configurable: true, get: () => 350 });
+        stub_height("geography_heatmap", 350);
 
         apply_geo_view_mode("table");
 
         expect(section.style.minHeight).toBe("350px");
     });
+
+    it("releases the reservation once the table section has rendered", () => {
+        const section = document.querySelector(".view-section") as HTMLElement;
+        section.style.minHeight = "400px";
+        stub_height("geography_heatmap", 350);
+        stub_height("geo_table_section", 120);
+
+        apply_geo_view_mode("table");
+
+        expect(section.style.minHeight).toBe("");
+    });
+
     it("releases the min-height lock when switching back to a map view", () => {
         const section = document.querySelector(".view-section") as HTMLElement;
         section.style.minHeight = "400px";
+        stub_height("geography_heatmap", 350);
 
         apply_geo_view_mode("regions");
 

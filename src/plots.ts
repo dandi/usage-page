@@ -838,6 +838,7 @@ window.addEventListener("load", () => {
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
             apply_view_mode("over_time_plot", "over_time_table", USE_OVER_TIME_TABLE);
+            resize_plot("over_time_plot");
             apply_over_time_group_by_visibility();
             apply_over_time_metric_visibility();
         });
@@ -871,6 +872,7 @@ window.addEventListener("load", () => {
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
             apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
+            resize_plot("histogram_plot");
             apply_histogram_metric_visibility();
         });
     });
@@ -988,14 +990,22 @@ window.addEventListener("load", () => {
 // Add an event listener for window resize
 window.addEventListener("resize", resizePlots);
 
+/**
+ * Re-sizes a rendered Plotly graph to its container, doing nothing when the
+ * graph is absent, empty, or hidden — Plotly throws on a hidden div, which has
+ * no width to size to.  Used both on window resize and when a plot is shown
+ * again, since one drawn while hidden falls back to Plotly's default size.
+ */
+function resize_plot(plot_id: string): void {
+    const el = document.getElementById(plot_id) as Plotly.PlotlyHTMLElement | null;
+    if (el && (el as any).data && el.offsetParent !== null) {
+        Plotly.Plots.resize(el);
+    }
+}
+
 function resizePlots() {
     const plotIds = ["over_time_plot", "histogram_plot", "aws_histogram", "geography_heatmap"];
-    plotIds.forEach((id) => {
-        const el = document.getElementById(id) as Plotly.PlotlyHTMLElement | null;
-        if (el && (el as any).data) {
-            Plotly.Plots.resize(el);
-        }
-    });
+    plotIds.forEach(resize_plot);
 
     // Update min zoom for the choroplethmap based on new width
     const mapEl = document.getElementById("geography_heatmap") as Plotly.PlotlyHTMLElement | null;
@@ -1930,14 +1940,14 @@ function load_histogram(dandiset_id: string): Promise<void> | string {
         return "";
     }
 
-    if (plot_element) plot_element.style.display = "";
     if (controls_el) controls_el.style.display = "";
-    if (section_el) {
-        section_el.style.display = "";
-        // Clear any locked height from the previous dandiset so the section
-        // doesn't retain a stale tall gap when a new (shorter) dataset loads.
-        section_el.style.minHeight = "";
-    }
+    if (section_el) section_el.style.display = "";
+    // Restore whichever of the two views is selected, rather than un-hiding the
+    // plot unconditionally: in table view an un-hidden plot pushes the table
+    // down for as long as the fetch takes, and the height reserved when the new
+    // data arrives would cover the two of them stacked.  This also clears any
+    // height locked in for the previous Dandiset.
+    apply_view_mode("histogram_plot", "histogram_table", USE_HISTOGRAM_TABLE);
 
     if (dandiset_id === "archive") {
         return load_dandiset_histogram();

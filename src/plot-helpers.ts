@@ -201,10 +201,45 @@ export function format_dandiset_label(id: string, titles: Record<string, string>
 // ── View-mode helpers ─────────────────────────────────────────────────────────
 
 /**
- * Toggles visibility between a Plotly plot element and its paired table element.
- * Before switching, the enclosing `.view-section` wrapper's current rendered
- * height is stored as its `min-height`, so elements further down the page do
- * not jump when a shorter view replaces a taller one.
+ * Height of the tallest of the given elements, ignoring those that are absent
+ * or hidden (a hidden element has an `offsetHeight` of 0).  Measured before a
+ * view switch, this is the height of the view being replaced.
+ *
+ * The tallest is taken rather than the enclosing section's own height, since
+ * both views can briefly be visible at once — a re-render un-hides the plot —
+ * and the section then measures as the two of them stacked, which is taller
+ * than either view ever is on its own.
+ */
+function tallest_view_height(elements: (HTMLElement | null)[]): number {
+    return elements.reduce((tallest, el) => Math.max(tallest, el ? el.offsetHeight : 0), 0);
+}
+
+/**
+ * Reserves space for the view that was just switched to while it is still
+ * empty, by holding the height of the view it replaced as the section's
+ * `min-height`, so elements further down the page do not jump.  Once the new
+ * view has rendered content of its own the lock is released: keeping it would
+ * leave a gap below whenever the new view is the shorter of the two.
+ *
+ * @param section_el - The `.view-section` wrapper to lock, if any.
+ * @param incoming_el - The view that is now visible.
+ * @param outgoing_height - Height of the replaced view, measured before the switch.
+ */
+function reserve_section_height(
+    section_el: HTMLElement | null,
+    incoming_el: HTMLElement | null,
+    outgoing_height: number
+): void {
+    if (!section_el) return;
+    const incoming_height = incoming_el ? incoming_el.offsetHeight : 0;
+    section_el.style.minHeight =
+        incoming_height === 0 && outgoing_height > 0 ? outgoing_height + 'px' : '';
+}
+
+/**
+ * Toggles visibility between a Plotly plot element and its paired table element,
+ * reserving the height of the view being replaced while the new one is still
+ * empty (see reserve_section_height).
  *
  * @param plot_id - ID of the plot container element.
  * @param table_id - ID of the table container element.
@@ -215,23 +250,12 @@ export function apply_view_mode(plot_id: string, table_id: string, use_table: bo
     const table_el = document.getElementById(table_id);
 
     const section_el = (plot_el && plot_el.closest('.view-section')) as HTMLElement | null;
-    if (section_el) {
-        if (use_table) {
-            // Switching to table: lock the current (plot) height so elements below
-            // don't jump while the table renders.
-            const current_height = section_el.offsetHeight;
-            if (current_height > 0) {
-                section_el.style.minHeight = current_height + 'px';
-            }
-        } else {
-            // Switching back to plot: release the lock so the section shrinks back
-            // to the plot's natural height and doesn't leave an empty gap below.
-            section_el.style.minHeight = '';
-        }
-    }
+    const outgoing_height = tallest_view_height([plot_el, table_el]);
 
     if (plot_el) plot_el.style.display = use_table ? "none" : "";
     if (table_el) table_el.style.display = use_table ? "" : "none";
+
+    reserve_section_height(section_el, use_table ? table_el : plot_el, outgoing_height);
 }
 
 /**
@@ -243,22 +267,8 @@ export function apply_geo_view_mode(view: string): void {
     const tableEl = document.getElementById("geo_table_section");
     const showMap = (view === "regions" || view === "points");
 
-    // Lock the section height before switching to prevent layout shift on elements below
     const section_el = (mapEl && mapEl.closest('.view-section')) as HTMLElement | null;
-    if (section_el) {
-        if (!showMap) {
-            // Switching to table: lock the current (map) height so elements below
-            // don't jump while the table renders.
-            const current_height = section_el.offsetHeight;
-            if (current_height > 0) {
-                section_el.style.minHeight = current_height + 'px';
-            }
-        } else {
-            // Switching back to map: release the lock so the section returns to its
-            // natural height and doesn't leave an empty gap below.
-            section_el.style.minHeight = '';
-        }
-    }
+    const outgoing_height = tallest_view_height([mapEl, tableEl]);
 
     if (mapEl)   mapEl.style.display   = showMap ? "" : "none";
     if (tableEl) tableEl.style.display = showMap ? "none" : "";
@@ -267,6 +277,8 @@ export function apply_geo_view_mode(view: string): void {
     const awsEl     = document.getElementById("aws_histogram");
     if (regionsEl) regionsEl.style.display = (view === "table") ? "" : "none";
     if (awsEl)     awsEl.style.display     = (view === "aws")   ? "" : "none";
+
+    reserve_section_height(section_el, showMap ? mapEl : tableEl, outgoing_height);
 }
 
 // ── Source-data URL derivation ────────────────────────────────────────────────
