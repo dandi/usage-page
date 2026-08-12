@@ -249,9 +249,14 @@ export function format_metric_value(metric: string, value: number, use_binary = 
  * Names the unit a plot drawn in `metric` is effectively in, for use in its
  * title: for bytes, the byte unit the largest plotted value calls for (e.g.
  * "TB"); for every other metric, the metric's own label (e.g. "Views").
+ *
+ * A scaled metric spells its ratio out — "Views per Asset" rather than the
+ * "Views / Asset" of the dropdown and the table heading — since a title reads
+ * as a phrase ("Views per Asset per Dandiset") rather than as a column label.
  */
 export function metric_unit_label(metric: string, peak_value: number, use_binary = false): string {
-    return metric === "bytes" ? bytes_unit(peak_value, use_binary) : (METRIC_LABELS[metric] ?? metric);
+    if (metric === "bytes") return bytes_unit(peak_value, use_binary);
+    return (METRIC_LABELS[metric] ?? metric).replace(" / ", " per ");
 }
 
 /**

@@ -536,7 +536,19 @@ describe("metric_unit_label", () => {
 
     it("uses the metric's own label for every other metric", () => {
         expect(metric_unit_label("views", 1e12)).toBe("Views");
-        expect(metric_unit_label("downloads_per_asset", 1e12)).toBe("Downloads / Asset");
+        expect(metric_unit_label("downloads", 1e12)).toBe("Downloads");
+    });
+
+    it("spells out the ratio of a scaled metric, for a title that reads as a phrase", () => {
+        expect(metric_unit_label("views_per_asset", 1e12)).toBe("Views per Asset");
+        expect(metric_unit_label("downloads_per_asset", 1e12)).toBe("Downloads per Asset");
+        expect(metric_unit_label("bytes_per_size", 1e12)).toBe("Bytes per Size");
+    });
+
+    it("leaves the '/' form in the labels the dropdown and table headings use", () => {
+        for (const metric of SCALED_PLOT_METRICS) {
+            expect(METRIC_LABELS[metric]).toContain(" / ");
+        }
     });
 
     it("falls back to the metric name when it has no label", () => {
