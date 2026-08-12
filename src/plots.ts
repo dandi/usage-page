@@ -18,6 +18,7 @@ import {
     validate_plot_metric,
     format_metric_value,
     metric_unit_label,
+    histogram_plot_title,
 } from "./utils.js";
 import {
     escape_html,
@@ -2031,7 +2032,7 @@ function load_dandiset_histogram(): Promise<void> {
         const layout = applyTheme({
             bargap: 0,
             title: {
-                text: `${metric_unit_label(HISTOGRAM_METRIC, peak_plotted_value(plot_data, false), USE_BINARY)} per Dandiset`,
+                text: histogram_plot_title(HISTOGRAM_METRIC, peak_plotted_value(plot_data, false), "Dandiset", USE_BINARY),
                 font: { size: 24 }
             },
             xaxis: {
@@ -2153,7 +2154,7 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
             const layout = applyTheme({
                 bargap: 0,
                 title: {
-                    text: `${metric_unit_label(HISTOGRAM_METRIC, peak_plotted_value(plot_data, false), USE_BINARY)} per asset`,
+                    text: histogram_plot_title(HISTOGRAM_METRIC, peak_plotted_value(plot_data, false), "asset", USE_BINARY),
                     font: { size: 24 }
                 },
                 xaxis: {

@@ -260,6 +260,29 @@ export function metric_unit_label(metric: string, peak_value: number, use_binary
 }
 
 /**
+ * Titles that replace the "<unit> per <subject>" pattern outright, for a metric
+ * whose ratio does not survive being spelled out — "Bytes per Size per
+ * Dandiset" says little about what is being divided by what.  Only the
+ * archive-wide (per-Dandiset) histogram can plot the metrics covered here, so
+ * the wording names the Dandiset itself.
+ */
+const METRIC_PLOT_TITLE_OVERRIDES: Record<string, string> = {
+    bytes_per_size: "Bytes transferred relative to total size of Dandiset",
+};
+
+/**
+ * Builds a histogram's title: the unit the y-axis is effectively in, followed
+ * by what one bar stands for — "PB per Dandiset", "Views per Asset per
+ * Dandiset", "TB per asset" — unless the metric names a title of its own.
+ */
+export function histogram_plot_title(metric: string, peak_value: number, subject: string, use_binary = false): string {
+    return (
+        METRIC_PLOT_TITLE_OVERRIDES[metric] ??
+        `${metric_unit_label(metric, peak_value, use_binary)} per ${subject}`
+    );
+}
+
+/**
  * Returns just the unit `format_bytes` would use for `bytes` (e.g. "TB", or
  * "TiB" in binary mode), without the numeric part.  Used to name the unit a
  * plot's y-axis is effectively in.  Non-positive and non-finite inputs fall

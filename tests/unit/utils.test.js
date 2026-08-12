@@ -20,6 +20,7 @@ import {
     validate_plot_metric,
     format_metric_value,
     metric_unit_label,
+    histogram_plot_title,
 } from "../../src/utils.ts";
 
 // ── setUrlParam ──────────────────────────────────────────────────────────────
@@ -553,5 +554,37 @@ describe("metric_unit_label", () => {
 
     it("falls back to the metric name when it has no label", () => {
         expect(metric_unit_label("unlabeled", 1)).toBe("unlabeled");
+    });
+});
+
+describe("histogram_plot_title", () => {
+    it("names the byte unit of the largest plotted value, per subject", () => {
+        expect(histogram_plot_title("bytes", 2.5e15, "Dandiset")).toBe("PB per Dandiset");
+        expect(histogram_plot_title("bytes", 2.5e12, "asset")).toBe("TB per asset");
+        expect(histogram_plot_title("bytes", 1024 ** 4, "Dandiset", true)).toBe("TiB per Dandiset");
+    });
+
+    it("names a raw count metric, per subject", () => {
+        expect(histogram_plot_title("views", 1e6, "Dandiset")).toBe("Views per Dandiset");
+        expect(histogram_plot_title("downloads", 1e6, "asset")).toBe("Downloads per asset");
+    });
+
+    it("spells out a scaled metric's ratio, per subject", () => {
+        expect(histogram_plot_title("views_per_asset", 1e3, "Dandiset")).toBe("Views per Asset per Dandiset");
+        expect(histogram_plot_title("downloads_per_asset", 1e3, "Dandiset")).toBe("Downloads per Asset per Dandiset");
+    });
+
+    it("gives bytes-per-stored-byte a title of its own, that ratio not reading as a phrase", () => {
+        expect(histogram_plot_title("bytes_per_size", 1e3, "Dandiset")).toBe(
+            "Bytes transferred relative to total size of Dandiset"
+        );
+    });
+
+    it("keeps that title whatever the plotted values and prefix are", () => {
+        for (const [peak, binary] of [[0, false], [1e18, true], [NaN, false]]) {
+            expect(histogram_plot_title("bytes_per_size", peak, "Dandiset", binary)).toBe(
+                "Bytes transferred relative to total size of Dandiset"
+            );
+        }
     });
 });
