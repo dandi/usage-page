@@ -1239,15 +1239,16 @@ function update_totals(dandiset_id: string) {
                 "Dandiset source determination is heuristic and may change over time. " +
                 "Activity that cannot be confidently attributed to a Dandiset or any other field " +
                 "is reported as 'undetermined'.",
+            // Ordered as the table views are: views, downloads, then requests.
             metrics: [
                 { label: "Transferred", value: format_bytes(totals.total_bytes_sent) },
-                { label: "Web requests", value: format_metric(totals.total_number_of_requests) },
-                { label: "Full downloads", value: format_metric(totals.total_number_of_downloads) },
                 {
                     label: "Views",
                     value: format_metric(totals.total_number_of_views),
                     tooltip: "Streaming sessions per asset, counted separately from full downloads.",
                 },
+                { label: "Full downloads", value: format_metric(totals.total_number_of_downloads) },
+                { label: "Web requests", value: format_metric(totals.total_number_of_requests) },
                 {
                     label: "Unique visitors",
                     value: format_metric(totals.number_of_requesters),

@@ -4,7 +4,7 @@
 
 #### 🚀 Enhancement
 
-- Replaced the totals sentence and its block of footnotes above the plots with a single-row table of the same metrics, moving each caveat behind an info icon on the metric (or the caption) it qualifies. ([#246](https://github.com/dandi/usage-page/pull/246))
+- Replaced the totals sentence and its block of footnotes above the plots with a table of the same metrics, moving each caveat behind an info icon on the metric (or the caption) it qualifies. The metrics are read as a row of labelled columns that wraps over as many lines as a narrow viewport needs, so the summary is never scrolled sideways. ([#246](https://github.com/dandi/usage-page/pull/246))
 - Restyled the scroll bars of every table view as a slim, rounded, accent-tinted thumb on a transparent track, replacing the platform default that read as a light gray slab against the table, most jarringly in dark mode. ([#245](https://github.com/dandi/usage-page/pull/245))
 - Added a "Metric" dropdown to the over-time and per-Dandiset histogram plots, so the plot is drawn in the chosen metric rather than always in bytes; the histogram additionally offers the scaled metrics for the archive-wide selection. Each choice is remembered in the URL (`ot_metric`, `hist_metric`), is shown only in plot view, and drives the plot's title and y-axis. ([#243](https://github.com/dandi/usage-page/pull/243))
 - Disabled the over-time metric dropdown while grouping by asset type, the one grouping whose source data carries no metric other than bytes. ([#243](https://github.com/dandi/usage-page/pull/243))

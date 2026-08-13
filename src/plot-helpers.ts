@@ -565,7 +565,7 @@ export function render_sortable_table(
 
 // ── Totals summary ────────────────────────────────────────────────────────────
 
-/** One column of the totals summary: a metric label above its formatted value. */
+/** One entry of the totals summary: a metric label above its formatted value. */
 export interface TotalsMetric {
     label: string;
     value: string;
@@ -598,10 +598,16 @@ function info_icon_html(label: string, tooltip: string): string {
 }
 
 /**
- * Renders the scalar totals of the current selection as a single-row table —
- * one column per metric — instead of a sentence.  Caveats that used to trail
- * the sentence as footnotes are attached to the metric they qualify (or to the
- * caption, when they qualify the whole summary) as info icons.
+ * Renders the scalar totals of the current selection as a table of one metric
+ * per row — laid out by the stylesheet as a row of labelled columns — instead
+ * of a sentence.  Caveats that used to trail the sentence as footnotes are
+ * attached to the metric they qualify (or to the caption, when they qualify
+ * the whole summary) as info icons.
+ *
+ * Each metric is its own row so that the layout can wrap to as many lines as
+ * the viewport needs, rather than overflowing a single row of columns; the
+ * ARIA roles restate the semantics the display changes behind that would
+ * otherwise drop.
  */
 export function render_totals_summary(container_id: string, summary: TotalsSummary): void {
     const container = document.getElementById(container_id);
@@ -612,16 +618,16 @@ export function render_totals_summary(container_id: string, summary: TotalsSumma
         : "";
     let html =
         `<div class="totals-caption">${escape_html(summary.caption)}${caption_icon}</div>` +
-        '<div class="totals-table-container"><table class="totals-table"><thead><tr>';
+        '<table class="totals-table" role="table"><tbody role="rowgroup">';
     summary.metrics.forEach((metric) => {
         const icon = metric.tooltip ? " " + info_icon_html(metric.label, metric.tooltip) : "";
-        html += `<th scope="col"><span class="totals-th-inner">${escape_html(metric.label)}${icon}</span></th>`;
+        html +=
+            '<tr role="row">' +
+            `<th scope="row" role="rowheader"><span class="totals-th-inner">${escape_html(metric.label)}${icon}</span></th>` +
+            `<td role="cell">${escape_html(metric.value)}</td>` +
+            "</tr>";
     });
-    html += "</tr></thead><tbody><tr>";
-    summary.metrics.forEach((metric) => {
-        html += `<td>${escape_html(metric.value)}</td>`;
-    });
-    html += "</tr></tbody></table></div>";
+    html += "</tbody></table>";
     if (summary.note) {
         const note_icon = summary.note_tooltip ? " " + info_icon_html(summary.note, summary.note_tooltip) : "";
         html += `<div class="totals-note">${escape_html(summary.note)}${note_icon}</div>`;

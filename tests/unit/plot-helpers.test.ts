@@ -1207,18 +1207,20 @@ describe("render_totals_summary", () => {
         render_totals_summary("totals", summary);
     });
 
-    it("renders one header cell and one value cell per metric", () => {
-        // The trailing "i" of a header is the info icon's own text.
-        const headers = Array.from(document.querySelectorAll("#totals thead th")).map((th) =>
-            th.textContent!.trim()
-        );
-        const values = Array.from(document.querySelectorAll("#totals tbody td")).map((td) => td.textContent);
-        expect(headers).toEqual(["Transferred", "Views i"]);
-        expect(values).toEqual(["15.0 TB", "96,000"]);
+    it("renders one row of a label and a value per metric, in the order given", () => {
+        // The trailing "i" of a label is the info icon's own text.
+        const rows = Array.from(document.querySelectorAll("#totals tbody tr")).map((tr) => [
+            tr.querySelector("th")!.textContent!.trim(),
+            tr.querySelector("td")!.textContent,
+        ]);
+        expect(rows).toEqual([
+            ["Transferred", "15.0 TB"],
+            ["Views i", "96,000"],
+        ]);
     });
 
     it("attaches an info icon only to the metrics that carry a caveat", () => {
-        const icons = document.querySelectorAll("#totals thead .info-icon");
+        const icons = document.querySelectorAll("#totals th .info-icon");
         expect(icons.length).toBe(1);
         expect(icons[0].getAttribute("data-tooltip")).toBe("Streaming (partial) accesses of an asset.");
     });
