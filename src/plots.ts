@@ -1246,7 +1246,7 @@ function update_totals(dandiset_id: string) {
                 {
                     label: "Views",
                     value: format_metric(totals.total_number_of_views),
-                    tooltip: "Streaming (partial) accesses of an asset, counted separately from full downloads.",
+                    tooltip: "Streaming sessions per asset, counted separately from full downloads.",
                 },
                 {
                     label: "Unique visitors",
