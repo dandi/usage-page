@@ -1248,7 +1248,11 @@ function update_totals(dandiset_id: string) {
                     tooltip: "Streaming sessions per asset, counted separately from full downloads.",
                 },
                 { label: "Full downloads", value: format_metric(totals.total_number_of_downloads) },
-                { label: "Web requests", value: format_metric(totals.total_number_of_requests) },
+                {
+                    label: "Web requests",
+                    value: format_metric(totals.total_number_of_requests),
+                    tooltip: "Any successful HTTP request, including full downloads.",
+                },
                 {
                     label: "Unique visitors",
                     value: format_metric(totals.number_of_requesters),
