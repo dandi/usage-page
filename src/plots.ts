@@ -5,6 +5,7 @@ import {
     parse_by_day_tsv,
     parse_by_asset_type_per_week_tsv,
     aggregate_by_timebin,
+    undetermined_bytes_per_week,
     format_bytes as format_bytes_pure,
     scaled_metric,
     format_ratio,
@@ -1513,43 +1514,42 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                     };
                 });
 
+                // Bytes per week that the asset-type breakdown accounts for
+                const total_bytes = raw_dates.map((_, i) =>
+                    asset_types.reduce((sum, type) => sum + ((series_map.get(type) ?? [])[i] || 0), 0)
+                );
+
                 // Build an "Other" series: archive total minus the sum of all asset types
                 if (archive_data) {
-                    const archive_agg = aggregate_by_timebin(archive_data.dates, archive_data.bytes, effective_aggregation);
-                    const archive_plot_data = USE_CUMULATIVE
-                        ? make_cumulative(archive_agg.bytes_sent)
-                        : archive_agg.bytes_sent;
-                    // Build per-date lookup for the sum of all asset-type series
-                    const series_by_date = new Map<string, number>();
-                    for (const series of plot_info) {
-                        (series.x as string[]).forEach((date, idx) => {
-                            series_by_date.set(date, (series_by_date.get(date) || 0) + (series.y as number[])[idx]);
+                    const undetermined_weekly = undetermined_bytes_per_week(
+                        raw_dates, total_bytes, archive_data.dates, archive_data.bytes,
+                    );
+                    // Skip the series outright when every byte is accounted for, rather
+                    // than leaving an always-empty entry in the legend
+                    if (undetermined_weekly.some((bytes) => bytes > 0)) {
+                        const agg_other = aggregate_by_timebin(raw_dates, undetermined_weekly, effective_aggregation);
+                        const other_y = USE_CUMULATIVE ? make_cumulative(agg_other.bytes_sent) : agg_other.bytes_sent;
+                        const other_human_readable = other_y.map((b) => format_bytes(b));
+                        plot_info.push({
+                            ...(USE_OT_LINE_PLOT
+                                ? {
+                                    type: "scatter", mode: "lines", line: { color: "rgba(150,150,150,0.7)" },
+                                    ...(USE_STACKED
+                                        ? { stackgroup: "one" }
+                                        : { fill: "tozeroy", fillcolor: "rgba(150,150,150,0.15)" }),
+                                }
+                                : { type: "bar", marker: { color: "rgba(150,150,150,0.7)" } }),
+                            name: "Undetermined file types",
+                            x: agg_other.dates,
+                            y: other_y,
+                            text: agg_other.dates.map((date, idx) =>
+                                `Undetermined file types<br>${bin_label_prefix[effective_aggregation]}${date}<br>${other_human_readable[idx]}`
+                            ),
+                            textposition: "none",
+                            hoverinfo: "text",
                         });
+                        all_dates_for_layout.push(...agg_other.dates);
                     }
-                    const other_y = archive_agg.dates.map((date, i) => {
-                        const asset_type_total = series_by_date.get(date) || 0;
-                        return Math.max(0, archive_plot_data[i] - asset_type_total);
-                    });
-                    const other_human_readable = other_y.map((b) => format_bytes(b));
-                    plot_info.push({
-                        ...(USE_OT_LINE_PLOT
-                            ? {
-                                type: "scatter", mode: "lines", line: { color: "rgba(150,150,150,0.7)" },
-                                ...(USE_STACKED
-                                    ? { stackgroup: "one" }
-                                    : { fill: "tozeroy", fillcolor: "rgba(150,150,150,0.15)" }),
-                            }
-                            : { type: "bar", marker: { color: "rgba(150,150,150,0.7)" } }),
-                        name: "Undetermined file types",
-                        x: archive_agg.dates,
-                        y: other_y,
-                        text: archive_agg.dates.map((date, idx) =>
-                            `Undetermined file types<br>${bin_label_prefix[effective_aggregation]}${date}<br>${other_human_readable[idx]}`
-                        ),
-                        textposition: "none",
-                        hoverinfo: "text",
-                    });
-                    all_dates_for_layout.push(...archive_agg.dates);
                 }
 
                 const unique_dates = [...new Set(all_dates_for_layout)].sort();
@@ -1571,9 +1571,6 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                 attach_legend_tooltips(plot_element_id, ASSET_TYPE_DESCRIPTIONS);
 
                 // Table: show total bytes per time bin (sum across all asset types)
-                const total_bytes = raw_dates.map((_, i) =>
-                    asset_types.reduce((sum, type) => sum + ((series_map.get(type) ?? [])[i] || 0), 0)
-                );
                 const agg_total = aggregate_by_timebin(raw_dates, total_bytes, effective_aggregation);
                 const per_bin_titles: Record<string, string> = {
                     weekly: "Usage per week",

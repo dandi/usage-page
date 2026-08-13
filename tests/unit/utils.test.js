@@ -5,6 +5,7 @@ import {
     parse_by_day_tsv,
     parse_by_asset_type_per_week_tsv,
     aggregate_by_timebin,
+    undetermined_bytes_per_week,
     format_bytes,
     bytes_unit,
     scaled_metric,
@@ -238,6 +239,57 @@ describe("aggregate_by_timebin", () => {
         const result = aggregate_by_timebin(["2024-01-01", "2024-01-07"], [10, 20], "weekly");
         const week1Idx = result.dates.indexOf("2024-01-01");
         expect(result.bytes_sent[week1Idx]).toBe(30);
+    });
+});
+
+// ── undetermined_bytes_per_week ──────────────────────────────────────────────
+
+describe("undetermined_bytes_per_week", () => {
+    // Two whole weeks of daily totals, 10 bytes a day, straddling a year boundary:
+    // Mon 2025-12-29 through Sun 2026-01-04, then Mon 2026-01-05 onwards.
+    const week_starts = ["2025-12-29", "2026-01-05"];
+    const daily_dates = [];
+    const daily_bytes = [];
+    for (const week of week_starts) {
+        for (let offset = 0; offset < 7; offset += 1) {
+            const day = new Date(week + "T00:00:00Z");
+            day.setUTCDate(day.getUTCDate() + offset);
+            daily_dates.push(day.toISOString().slice(0, 10));
+            daily_bytes.push(10);
+        }
+    }
+
+    it("returns the weekly total less the bytes the breakdown accounts for", () => {
+        expect(undetermined_bytes_per_week(week_starts, [30, 50], daily_dates, daily_bytes)).toEqual([40, 20]);
+    });
+
+    it("returns zero for every week the breakdown fully accounts for", () => {
+        expect(undetermined_bytes_per_week(week_starts, [70, 70], daily_dates, daily_bytes)).toEqual([0, 0]);
+    });
+
+    it("clamps a week whose parts exceed its total to zero", () => {
+        expect(undetermined_bytes_per_week(week_starts, [100, 70], daily_dates, daily_bytes)).toEqual([0, 0]);
+    });
+
+    it("returns zero for a week the daily series says nothing about", () => {
+        expect(undetermined_bytes_per_week(["2025-12-22", ...week_starts], [0, 70, 70], daily_dates, daily_bytes))
+            .toEqual([0, 0, 0]);
+    });
+
+    it("attributes days to the week containing them, not to the calendar bin they fall in", () => {
+        // The 2025-12-29 week runs into January, so a difference taken per month
+        // or per year would charge those days to the wrong bin; per week, the
+        // fully accounted-for breakdown leaves nothing undetermined.
+        expect(undetermined_bytes_per_week(week_starts, [70, 70], daily_dates, daily_bytes)).toEqual([0, 0]);
+        // Same daily data binned by year splits 70/70 into 30 for 2025 and 110 for 2026
+        const yearly = aggregate_by_timebin(daily_dates, daily_bytes, "yearly");
+        expect(yearly.bytes_sent).toEqual([30, 110]);
+    });
+
+    it("ignores daily dates outside the reported weeks", () => {
+        const extended_dates = [...daily_dates, "2026-01-12"];
+        const extended_bytes = [...daily_bytes, 999];
+        expect(undetermined_bytes_per_week(week_starts, [70, 70], extended_dates, extended_bytes)).toEqual([0, 0]);
     });
 });
 
