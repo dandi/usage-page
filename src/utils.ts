@@ -86,6 +86,32 @@ export function aggregate_by_timebin(dates: string[], bytes_sent: number[], aggr
     };
 }
 
+/**
+ * Bytes per week that an asset-type breakdown leaves unaccounted for: for each
+ * of `week_starts` (the Mondays the breakdown is reported on), the whole-archive
+ * total for that week less the `accounted_bytes` the breakdown attributes to it.
+ * Weeks the daily series says nothing about, and any week whose parts already
+ * exceed the total, contribute nothing rather than a negative remainder.
+ *
+ * The difference has to be taken here, on the breakdown's own week grid, and
+ * binned to the display aggregation only afterwards.  Differencing binned series
+ * instead would weigh a month (or year) of daily totals against whichever whole
+ * weeks happen to begin inside it, and report the days on either side of that
+ * seam as unaccounted-for bytes.
+ */
+export function undetermined_bytes_per_week(
+    week_starts: string[],
+    accounted_bytes: number[],
+    daily_dates: string[],
+    daily_bytes: number[],
+): number[] {
+    const weekly = aggregate_by_timebin(daily_dates, daily_bytes, "weekly");
+    const total_by_week = new Map(weekly.dates.map((date, i) => [date, weekly.bytes_sent[i]]));
+    return week_starts.map((week, i) =>
+        Math.max(0, (total_by_week.get(week) ?? 0) - (accounted_bytes[i] ?? 0))
+    );
+}
+
 export function format_bytes(bytes: number, decimals = 2, use_binary = false): string {
     if (bytes === 0) return "0 Bytes";
 
