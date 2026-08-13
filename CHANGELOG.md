@@ -4,7 +4,7 @@
 
 #### 🐛 Bug Fix
 
-- Fixed the "Undetermined file types" series of the over-time plot grouped by asset type, which weighed the archive total against the weekly asset-type breakdown only after binning and so reported the days around each month and year boundary as undetermined bytes. The series is now left out entirely when every byte is accounted for. ([#248](https://github.com/dandi/usage-page/pull/248))
+- Fixed the "Undetermined file types" series of the over-time plot grouped by asset type, which weighed the archive total against the weekly asset-type breakdown only after binning and so reported the days around each month and year boundary as undetermined bytes. The series is now left out entirely when every byte is accounted for. ([#249](https://github.com/dandi/usage-page/pull/249))
 
 #### 🚀 Enhancement
 
