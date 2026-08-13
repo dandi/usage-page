@@ -1722,7 +1722,7 @@ function load_over_time_plot(dandiset_id: string): Promise<void> {
                         x: global_bins,
                         y: plot_data,
                         text: global_bins.map((date, idx) =>
-                            `DANDI:${format_dandiset_label(series.id, DANDISET_TITLES)}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}` +
+                            `${format_dandiset_label(series.id, DANDISET_TITLES)}<br>${bin_label_prefix[TIME_AGGREGATION]}${date}` +
                             hover_metric_lines(OVER_TIME_METRIC, {
                                 bytes: display_metrics.bytes[idx],
                                 views: display_metrics.views[idx],
