@@ -1,4 +1,4 @@
-import { test, takeSnapshot } from "@chromatic-com/playwright";
+import { test, takeSnapshot, expect } from "@chromatic-com/playwright";
 import { gzipSync } from "node:zlib";
 
 // ── Static fixture data ──────────────────────────────────────────────────────
@@ -154,18 +154,81 @@ async function mockVersion(page) {
     });
 }
 
+const PLOT_IDS = ["over_time_plot", "histogram_plot", "geography_heatmap"];
+
+// Text the plot loaders write into their container when they give up, e.g.
+// "Failed to load data for geographic choropleth."
+const PLOT_FAILURE_TEXT = "Failed to load";
+
 /**
- * Waits until all three main Plotly plot sections have finished rendering.
- * Plotly adds the "js-plotly-plot" class to a div once newPlot() completes.
+ * Waits until all three main Plotly plot sections have settled — either every
+ * one has drawn, or at least one has given up and written its failure message.
+ *
+ * A plot counts as drawn only once it holds a drawing surface, not merely the
+ * "js-plotly-plot" class Plotly adds partway through newPlot(): a plot that
+ * throws after that point keeps the class while its contents are replaced by
+ * the failure text.  Waiting on the failure text as well means a broken plot
+ * fails the assertion below rather than timing out here.
  */
 async function waitForPlotsToRender(page) {
     await page.waitForFunction(
-        () => {
-            const isRendered = (id) => document.getElementById(id)?.classList.contains("js-plotly-plot");
-            return isRendered("over_time_plot") && isRendered("histogram_plot") && isRendered("geography_heatmap");
+        ([ids, failureText]) => {
+            const failed = ids.some((id) => (document.getElementById(id)?.innerText ?? "").includes(failureText));
+            const drawn = ids.every((id) => {
+                const el = document.getElementById(id);
+                return el?.classList.contains("js-plotly-plot") && el.querySelector("svg, canvas") !== null;
+            });
+            return failed || drawn;
         },
+        [PLOT_IDS, PLOT_FAILURE_TEXT],
         { timeout: 30000 },
     );
+}
+
+/**
+ * Asserts that no plot rendered its failure placeholder.  Chromatic would show
+ * the placeholder as an image diff, but only against an existing baseline; a
+ * plot that has never rendered at a given viewport would otherwise be accepted
+ * as that viewport's baseline.
+ */
+async function expectPlotsRendered(page) {
+    const failed = await page.evaluate(
+        ([ids, failureText]) => ids.filter((id) => (document.getElementById(id)?.innerText ?? "").includes(failureText)),
+        [PLOT_IDS, PLOT_FAILURE_TEXT],
+    );
+    expect(failed, "Plots showing a load-failure message instead of a plot").toEqual([]);
+}
+
+/**
+ * Asserts that the page does not scroll sideways at the current viewport, and
+ * names the elements that overflow it when it does.  This is the failure mode
+ * a narrow viewport hits first — a control bar that cannot wrap runs off the
+ * screen — and it is far easier to act on as a named element than as a diff.
+ */
+async function expectNoHorizontalOverflow(page) {
+    const { scrollWidth, clientWidth, offenders } = await page.evaluate(() => {
+        const root = document.documentElement;
+        const offenders = [];
+        document.querySelectorAll("body *").forEach((el) => {
+            // Plotly measures text in a deliberately oversized off-screen SVG.
+            if (el.id === "js-plotly-tester") return;
+            // A plot's internal geometry is drawn to its own coordinate space
+            // and is reported here in the thousands of pixels; the <svg> that
+            // holds it is checked instead.  ownerSVGElement is null on that
+            // outermost <svg> and non-null only on what is nested inside it.
+            if (el.ownerSVGElement) return;
+            const { width } = el.getBoundingClientRect();
+            if (width > root.clientWidth + 1) {
+                const id = el.id ? `#${el.id}` : "";
+                const names = typeof el.className === "string" ? el.className.trim().split(/\s+/).filter(Boolean) : [];
+                const classes = names.length ? `.${names.join(".")}` : "";
+                offenders.push(`${el.tagName.toLowerCase()}${id}${classes} (${Math.round(width)}px)`);
+            }
+        });
+        return { scrollWidth: root.scrollWidth, clientWidth: root.clientWidth, offenders };
+    });
+    expect(offenders, `Elements wider than the ${clientWidth}px viewport`).toEqual([]);
+    expect(scrollWidth, `Page scrolls sideways at ${clientWidth}px`).toBeLessThanOrEqual(clientWidth + 1);
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -177,29 +240,24 @@ test.describe("DANDI Usage Page", () => {
     // test (which would show up as four redundant snapshots in Chromatic's UI).
     test.use({ disableAutoSnapshot: true });
 
-    test("dark theme", async ({ page }, testInfo) => {
-        await setupDataMocks(page);
-        await page.addInitScript(() => {
-            localStorage.setItem("theme", "dark");
-            // Pre-dismiss the analytics consent banner so it does not overlap the plots
-            localStorage.setItem("analytics_consent", "declined");
+    // Each theme is captured once per viewport project (see the Playwright
+    // Chromatic config).  The project name is spelled into the snapshot name so
+    // that the viewports are separate baselines in Chromatic rather than one
+    // baseline the three of them take turns overwriting.
+    for (const theme of ["dark", "light"]) {
+        test(`${theme} theme`, async ({ page }, testInfo) => {
+            await setupDataMocks(page);
+            await page.addInitScript((theme) => {
+                localStorage.setItem("theme", theme);
+                // Pre-dismiss the analytics consent banner so it does not overlap the plots
+                localStorage.setItem("analytics_consent", "declined");
+            }, theme);
+            await page.goto("/");
+            await waitForPlotsToRender(page);
+            await mockVersion(page);
+            await expectPlotsRendered(page);
+            await expectNoHorizontalOverflow(page);
+            await takeSnapshot(page, `${theme} theme — ${testInfo.project.name}`, testInfo);
         });
-        await page.goto("/");
-        await waitForPlotsToRender(page);
-        await mockVersion(page);
-        await takeSnapshot(page, testInfo);
-    });
-
-    test("light theme", async ({ page }, testInfo) => {
-        await setupDataMocks(page);
-        await page.addInitScript(() => {
-            localStorage.setItem("theme", "light");
-            // Pre-dismiss the analytics consent banner so it does not overlap the plots
-            localStorage.setItem("analytics_consent", "declined");
-        });
-        await page.goto("/");
-        await waitForPlotsToRender(page);
-        await mockVersion(page);
-        await takeSnapshot(page, testInfo);
-    });
+    }
 });
