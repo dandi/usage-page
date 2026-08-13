@@ -12,6 +12,9 @@
     --color-accent-subtle: rgba(var(--color-accent-rgb), 0.08);
     --color-scrollbar-thumb: rgba(var(--color-accent-rgb), 0.35);
     --color-scrollbar-thumb-hover: rgba(var(--color-accent-rgb), 0.65);
+    /* Tooltips sit on --color-header, which is dark under both themes, so their
+       text stays light in both and is not part of the light-theme overrides. */
+    --color-tooltip-text: #e0e0e0;
     /* ─────────────────────────────────────────────────────────────────────── */
     --font-main: 'Source Sans 3', -apple-system, sans-serif;
     --radius: 6px;
@@ -176,14 +179,90 @@ h1 {
     color: var(--color-text);
 }
 
+/* ── Totals summary ──
+   The scalar totals of the current selection, as a table of one metric per
+   row, laid out here as a row of labelled columns with each metric's caveats
+   behind an info icon rather than spelled out as a footnote.
+
+   The DOM rows are turned into the columns of a wrapping flex row, so that a
+   viewport too narrow for all of them breaks the summary over as many lines as
+   it takes instead of scrolling sideways. */
 #totals {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
     text-align: center;
-    font-size: 1.5em;
     font-weight: 300;
     margin: 12px auto 24px;
-    line-height: 1.5;
-    max-width: 800px;
+    max-width: 100%;
     color: var(--color-text-secondary);
+}
+
+.totals-caption,
+.totals-note {
+    font-size: 0.95em;
+    max-width: 640px;
+}
+
+/* Trails the last line of the caption or note, rather than being centered
+   against the block as a flex item would be when the text wraps. */
+.totals-caption .info-icon,
+.totals-note .info-icon {
+    vertical-align: -2px;
+}
+
+.totals-table {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    row-gap: 14px;
+    max-width: 100%;
+}
+
+.totals-table tbody {
+    display: contents;
+}
+
+/* One metric: its label above its value, the two the same width. */
+.totals-table tr {
+    display: flex;
+    flex-direction: column;
+}
+
+/* The columns of a line are flush against one another, so that the rules under
+   their labels join into the single rule the line is read against. */
+.totals-table th,
+.totals-table td {
+    padding-left: clamp(8px, 1.2vw, 16px);
+    padding-right: clamp(8px, 1.2vw, 16px);
+    white-space: nowrap;
+}
+
+.totals-table th {
+    font-size: 0.75em;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.totals-th-inner {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.totals-table td {
+    font-size: clamp(1.15rem, 0.85rem + 1.1vw, 1.5rem);
+    font-weight: 300;
+    text-align: center;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+    padding-top: 8px;
 }
 
 .ControllerContainer {
@@ -753,10 +832,14 @@ input[type="number"]:focus {
     top: 50%;
     transform: translateY(-50%);
     background: var(--color-header);
-    color: var(--color-text);
+    color: var(--color-tooltip-text);
     font-size: 0.8rem;
     font-style: normal;
     font-weight: 400;
+    /* Reset the typography of whatever the icon sits in (the totals table
+       headers are uppercase and letter-spaced, for one). */
+    text-transform: none;
+    letter-spacing: normal;
     padding: 5px 10px;
     border-radius: var(--radius);
     white-space: nowrap;
@@ -766,6 +849,22 @@ input[type="number"]:focus {
     z-index: 200;
     border: 1px solid var(--color-border);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Wide variant, for sentence-length text that would run off the viewport as
+   the single nowrap line of the default tooltip: wraps to a fixed width and
+   hangs below the icon instead of to its left. */
+.info-icon-wide::after {
+    right: auto;
+    left: 50%;
+    top: calc(100% + 8px);
+    transform: translateX(-50%);
+    white-space: normal;
+    width: max-content;
+    /* Never wider than the viewport it has to fit inside. */
+    max-width: min(280px, calc(100vw - 32px));
+    text-align: left;
+    line-height: 1.4;
 }
 
 .info-icon:hover::after,

@@ -562,3 +562,76 @@ export function render_sortable_table(
 
     render_table();
 }
+
+// ── Totals summary ────────────────────────────────────────────────────────────
+
+/** One entry of the totals summary: a metric label above its formatted value. */
+export interface TotalsMetric {
+    label: string;
+    value: string;
+    /** Caveat about the metric, shown behind an info icon beside its label. */
+    tooltip?: string;
+}
+
+export interface TotalsSummary {
+    /** Line above the table naming what the totals cover. */
+    caption: string;
+    /** Caveats that apply to the summary as a whole, shown behind an info icon. */
+    caption_tooltip?: string;
+    metrics: TotalsMetric[];
+    /** Optional line below the table, for a selection-specific remark. */
+    note?: string;
+    note_tooltip?: string;
+}
+
+/**
+ * Markup for one info icon, matching the icons used by the settings panels:
+ * hovering (or focusing) it reveals `tooltip`, which is also the accessible
+ * name so the text is reachable without a pointer.
+ */
+function info_icon_html(label: string, tooltip: string): string {
+    const text = escape_html(tooltip);
+    return (
+        `<span class="info-icon info-icon-wide" data-tooltip="${text}" tabindex="0" role="img" ` +
+        `aria-label="${escape_html(label)}: ${text}">i</span>`
+    );
+}
+
+/**
+ * Renders the scalar totals of the current selection as a table of one metric
+ * per row — laid out by the stylesheet as a row of labelled columns — instead
+ * of a sentence.  Caveats that used to trail the sentence as footnotes are
+ * attached to the metric they qualify (or to the caption, when they qualify
+ * the whole summary) as info icons.
+ *
+ * Each metric is its own row so that the layout can wrap to as many lines as
+ * the viewport needs, rather than overflowing a single row of columns; the
+ * ARIA roles restate the semantics the display changes behind that would
+ * otherwise drop.
+ */
+export function render_totals_summary(container_id: string, summary: TotalsSummary): void {
+    const container = document.getElementById(container_id);
+    if (!container) return;
+
+    const caption_icon = summary.caption_tooltip
+        ? " " + info_icon_html(summary.caption, summary.caption_tooltip)
+        : "";
+    let html =
+        `<div class="totals-caption">${escape_html(summary.caption)}${caption_icon}</div>` +
+        '<table class="totals-table" role="table"><tbody role="rowgroup">';
+    summary.metrics.forEach((metric) => {
+        const icon = metric.tooltip ? " " + info_icon_html(metric.label, metric.tooltip) : "";
+        html +=
+            '<tr role="row">' +
+            `<th scope="row" role="rowheader"><span class="totals-th-inner">${escape_html(metric.label)}${icon}</span></th>` +
+            `<td role="cell">${escape_html(metric.value)}</td>` +
+            "</tr>";
+    });
+    html += "</tbody></table>";
+    if (summary.note) {
+        const note_icon = summary.note_tooltip ? " " + info_icon_html(summary.note, summary.note_tooltip) : "";
+        html += `<div class="totals-note">${escape_html(summary.note)}${note_icon}</div>`;
+    }
+
+    container.innerHTML = html;
+}

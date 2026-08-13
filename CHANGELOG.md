@@ -4,6 +4,7 @@
 
 #### 🚀 Enhancement
 
+- Replaced the totals sentence and its block of footnotes above the plots with a table of the same metrics, each caveat behind an info icon on the metric (or the caption) it qualifies. The metrics are read as a row of labelled columns that wraps over as many lines as a narrow viewport needs, so the summary is never scrolled sideways. ([#246](https://github.com/dandi/usage-page/pull/246))
 - Restyled the scroll bars of every table view as a slim, rounded, accent-tinted thumb on a transparent track, replacing the platform default that read as a light gray slab against the table, most jarringly in dark mode. ([#245](https://github.com/dandi/usage-page/pull/245))
 - Added a "Metric" dropdown to the over-time and per-Dandiset histogram plots, so the plot is drawn in the chosen metric rather than always in bytes; the histogram additionally offers the scaled metrics for the archive-wide selection. Each choice is remembered in the URL (`ot_metric`, `hist_metric`), is shown only in plot view, and drives the plot's title and y-axis. ([#243](https://github.com/dandi/usage-page/pull/243))
 - Disabled the over-time metric dropdown while grouping by asset type, the one grouping whose source data carries no metric other than bytes. ([#243](https://github.com/dandi/usage-page/pull/243))
@@ -35,6 +36,7 @@
 
 #### 🐛 Bug Fix
 
+- Fixed the near-invisible tooltip text of every info icon under the light theme, which was drawn in the theme's dark body color on the tooltip's dark background. ([#246](https://github.com/dandi/usage-page/pull/246))
 - Fixed the band of whitespace that opened below a section loaded, or refreshed, directly into its table view. The height each section reserves while swapping views was measured from the whole section, which briefly holds both of its views at once, and so came out as tall as the two stacked; it is now taken from the taller view and released once the new one has content of its own. ([#244](https://github.com/dandi/usage-page/pull/244))
 - Re-sized a plot when it is switched back into view, so one drawn while hidden is no longer left at Plotly's default size. The shared resize helper now also skips hidden plots, clearing the "Resize must be passed a displayed plot div element" errors. ([#244](https://github.com/dandi/usage-page/pull/244))
 - Applied "Ignore testing datasets" to the per-Dandiset plot as well as its table, so the setting means the same thing in both views. ([#243](https://github.com/dandi/usage-page/pull/243))
@@ -51,6 +53,7 @@
 
 #### 🧪 Tests
 
+- Added unit tests for the totals summary renderer, covering its columns, info icons, optional note, and HTML escaping. ([#246](https://github.com/dandi/usage-page/pull/246))
 - Covered the view-mode height reservation with the cases behind the whitespace bug, and added an integration test asserting that a fresh load of the per-Dandiset table view leaves no gap below the table. ([#244](https://github.com/dandi/usage-page/pull/244))
 - Added unit tests for the gzipped-JSONL data path, the `scaled_metric` and `format_ratio` helpers, and the table renderer's handling of missing numeric values; the Chromatic fixtures now serve gzipped files, exercising the client-side decompression. ([#241](https://github.com/dandi/usage-page/pull/241))
 

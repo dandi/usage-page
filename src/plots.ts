@@ -28,6 +28,7 @@ import {
     apply_geo_view_mode,
     derive_data_source_urls,
     render_sortable_table,
+    render_totals_summary,
     parse_dandiset_titles_jsonl,
     parse_dandiset_numbers_jsonl,
     fetch_maybe_gzipped_text,
@@ -1228,30 +1229,45 @@ function update_totals(dandiset_id: string) {
     try {
         const format_metric = (value: number | string | undefined) =>
             typeof value === "number" ? value.toLocaleString() : String(value ?? "--");
-        const human_readable_bytes_sent = format_bytes(totals.total_bytes_sent);
-        const web_requests = format_metric(totals.total_number_of_requests);
-        const downloads = format_metric(totals.total_number_of_downloads);
-        const views = format_metric(totals.total_number_of_views);
-        const visitors = format_metric(totals.number_of_requesters);
-        const regions = format_metric(totals.number_of_unique_regions);
-        const countries = format_metric(totals.number_of_unique_countries);
-        const header =
-            `A total of ${human_readable_bytes_sent} was transferred in ` +
-            `${web_requests} web requests, ${downloads} full downloads, and ${views} views<sup>&Dagger;</sup> ` +
-            `by ${visitors} unique visitors<sup>&dagger;</sup> across ${regions} regions in ` +
-            `${countries} countries. <sup>*</sup>`;
-        totals_element!.innerHTML = dandiset_id === "undetermined"
-                ? header + `<br>However, the usage could not be uniquely associated with a particular Dandiset.<br>The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication.`
-                : header;
-
-        // Add the footnote
-        const footnote = document.createElement("div");
-        footnote.style.fontSize = "0.5em";
-        footnote.style.marginTop = "7px";
-        footnote.innerHTML = "<sup>*</sup> Dandiset source determination is heuristic and may change over time.<br><sup>&dagger;</sup> Unique visitors are counted by unique IP address and may be skewed by undetermined VPN usage patterns." +
-            "<br><sup>&Dagger;</sup> Views are streaming (partial) accesses of an asset, counted separately from full downloads." +
-            "<br>Activity that cannot be confidently attributed to a Dandiset or any other field is reported as 'undetermined'.";
-        totals_element!.appendChild(footnote);
+        const selection =
+            dandiset_id === "archive" ? "the entire archive"
+            : dandiset_id === "undetermined" ? "undetermined usage"
+            : `Dandiset ${dandiset_id}`;
+        render_totals_summary(totals_element_id, {
+            caption: `Totals for ${selection}`,
+            caption_tooltip:
+                "Dandiset source determination is heuristic and may change over time. " +
+                "Activity that cannot be confidently attributed to a Dandiset or any other field " +
+                "is reported as 'undetermined'.",
+            // Ordered as the table views are: views, downloads, then requests.
+            metrics: [
+                { label: "Transferred", value: format_bytes(totals.total_bytes_sent) },
+                {
+                    label: "Views",
+                    value: format_metric(totals.total_number_of_views),
+                    tooltip: "Streaming sessions per asset, counted separately from full downloads",
+                },
+                { label: "Full downloads", value: format_metric(totals.total_number_of_downloads) },
+                {
+                    label: "Web requests",
+                    value: format_metric(totals.total_number_of_requests),
+                    tooltip: "Any successful HTTP request, including full downloads",
+                },
+                {
+                    label: "Unique visitors",
+                    value: format_metric(totals.number_of_requesters),
+                    tooltip: "Counted by unique IP address, and so may be skewed by undetermined VPN usage patterns",
+                },
+                { label: "Regions", value: format_metric(totals.number_of_unique_regions) },
+                { label: "Countries", value: format_metric(totals.number_of_unique_countries) },
+            ],
+            note: dandiset_id === "undetermined"
+                ? "This usage could not be uniquely associated with a particular Dandiset."
+                : undefined,
+            note_tooltip: dandiset_id === "undetermined"
+                ? "The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication"
+                : undefined,
+        });
     } catch (error) {
         console.error("Error:", error);
         if (totals_element) {

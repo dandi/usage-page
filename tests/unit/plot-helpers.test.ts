@@ -8,6 +8,7 @@ import {
     apply_geo_view_mode,
     derive_data_source_urls,
     render_sortable_table,
+    render_totals_summary,
     parse_dandiset_titles_jsonl,
     parse_dandiset_numbers_jsonl,
     build_table_tsv,
@@ -1186,5 +1187,83 @@ describe("render_sortable_table sort persistence", () => {
         render_sortable_table("my_table", "Title", columns, rows, fmt);
 
         expect(sorted_key()).toBe("total");
+    });
+});
+
+// ── render_totals_summary ─────────────────────────────────────────────────────
+
+describe("render_totals_summary", () => {
+    const summary = {
+        caption: "Totals for the entire archive",
+        caption_tooltip: "Dandiset source determination is heuristic.",
+        metrics: [
+            { label: "Transferred", value: "15.0 TB" },
+            { label: "Views", value: "96,000", tooltip: "Streaming (partial) accesses of an asset." },
+        ],
+    };
+
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="totals"></div>';
+        render_totals_summary("totals", summary);
+    });
+
+    it("renders one row of a label and a value per metric, in the order given", () => {
+        // The trailing "i" of a label is the info icon's own text.
+        const rows = Array.from(document.querySelectorAll("#totals tbody tr")).map((tr) => [
+            tr.querySelector("th")!.textContent!.trim(),
+            tr.querySelector("td")!.textContent,
+        ]);
+        expect(rows).toEqual([
+            ["Transferred", "15.0 TB"],
+            ["Views i", "96,000"],
+        ]);
+    });
+
+    it("attaches an info icon only to the metrics that carry a caveat", () => {
+        const icons = document.querySelectorAll("#totals th .info-icon");
+        expect(icons.length).toBe(1);
+        expect(icons[0].getAttribute("data-tooltip")).toBe("Streaming (partial) accesses of an asset.");
+    });
+
+    it("puts the summary-wide caveat behind an info icon on the caption", () => {
+        const icon = document.querySelector("#totals .totals-caption .info-icon")!;
+        expect(icon.getAttribute("data-tooltip")).toBe("Dandiset source determination is heuristic.");
+        expect(icon.getAttribute("aria-label")).toBe(
+            "Totals for the entire archive: Dandiset source determination is heuristic."
+        );
+    });
+
+    it("omits the note line when the selection has no remark", () => {
+        expect(document.querySelector("#totals .totals-note")).toBeNull();
+    });
+
+    it("renders the note and its info icon when given one", () => {
+        render_totals_summary("totals", {
+            ...summary,
+            note: "This usage could not be uniquely associated with a particular Dandiset.",
+            note_tooltip: "Typically caused by an asset leaving a 'draft' state.",
+        });
+        const note = document.querySelector("#totals .totals-note")!;
+        expect(note.textContent).toContain("could not be uniquely associated");
+        expect(note.querySelector(".info-icon")!.getAttribute("data-tooltip")).toBe(
+            "Typically caused by an asset leaving a 'draft' state."
+        );
+    });
+
+    it("escapes values and tooltips rather than injecting markup", () => {
+        render_totals_summary("totals", {
+            caption: "Totals",
+            metrics: [{ label: "<b>Views</b>", value: "<img src=x>", tooltip: "<script>alert(1)</script>" }],
+        });
+        expect(document.querySelector("#totals tbody td img")).toBeNull();
+        expect(document.querySelector("#totals tbody td")!.textContent).toBe("<img src=x>");
+        expect(document.querySelector("#totals .info-icon")!.getAttribute("data-tooltip")).toBe(
+            "<script>alert(1)</script>"
+        );
+    });
+
+    it("does nothing when the container is absent", () => {
+        document.body.innerHTML = "";
+        expect(() => render_totals_summary("totals", summary)).not.toThrow();
     });
 });
