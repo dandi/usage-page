@@ -4,10 +4,15 @@
 
 #### 🐛 Bug Fix
 
+- Fixed the geographic choropleth failing to load below a viewport width of about 400 px, where the map — sized as a fraction of the viewport — collapsed to less height than Plotly's own margins and threw out of the plot call, leaving the section's error message in place of the map. ([#251](https://github.com/dandi/usage-page/pull/251))
+- Stopped the control bars above each plot from running off the side of a narrow viewport and taking the whole page into a sideways scroll; they now wrap onto as many rows as they need. ([#251](https://github.com/dandi/usage-page/pull/251))
+- Stopped the tooltip of an info icon near the edge of a narrow viewport from scrolling the page sideways while hidden. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the "Undetermined file types" series of the over-time plot grouped by asset type, which weighed the archive total against the weekly asset-type breakdown only after binning and so reported the days around each month and year boundary as undetermined bytes. The series is now left out entirely when every byte is accounted for. ([#249](https://github.com/dandi/usage-page/pull/249))
 
 #### 🚀 Enhancement
 
+- Added tablet (768 px) and mobile (390 px) viewports to the Chromatic Playwright snapshots, which until now only covered a desktop width, and made the run fail outright on a plot that did not render or on a page that scrolls sideways. ([#251](https://github.com/dandi/usage-page/pull/251))
+- Gave the map's credits a line each and trimmed the margins around the map on a narrow viewport, so the credits stay on the map and the map itself keeps most of the space. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Removed the gap to the left of the "View:" label above each plot, left there by the section anchor link that is invisible until the controls are hovered. ([#250](https://github.com/dandi/usage-page/pull/250))
 - Dropped the "DANDI:" prefix from the hover text of the over-time plot grouped by Dandisets, so each hover leads with the Dandiset's ID and title. ([#247](https://github.com/dandi/usage-page/pull/247))
 - Replaced the totals sentence and its block of footnotes above the plots with a table of the same metrics, each caveat behind an info icon on the metric (or the caption) it qualifies. The metrics are read as a row of labelled columns that wraps over as many lines as a narrow viewport needs, so the summary is never scrolled sideways. ([#246](https://github.com/dandi/usage-page/pull/246))

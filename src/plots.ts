@@ -2738,16 +2738,38 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // we need zoom = log2(width / 256) to fill the container once
             const minZoom = defaultZoom - 0.15;
 
+            // Plotly does not wrap annotation text, so on a map too narrow to
+            // hold the attribution on one line it runs off the side of the
+            // page.  The credits are broken onto a line each below the width
+            // that line needs (ATTRIBUTION_ONE_LINE_PX, at the font size set
+            // in the annotation), which no credit on its own exceeds.
+            const ATTRIBUTION_ONE_LINE_PX = 430;
+            const attribution_credits = [
+                'Geographic boundaries are defined by <a href="https://gadm.org/" target="_blank">GADM v4.1</a>',
+                '<a href="https://carto.com/attributions" target="_blank">© CARTO</a>',
+                '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
+            ];
+            const is_narrow_map = mapWidth - 24 < ATTRIBUTION_ONE_LINE_PX;
+            const attribution_text = is_narrow_map
+                ? attribution_credits.join("<br>")
+                : attribution_credits.join(" | ");
+
+            // Plotly's default margins leave room for the axis labels of a
+            // cartesian plot, which a map has none of.  They cost nothing on a
+            // wide map but eat most of a narrow one, so they are trimmed back
+            // there to what the title needs.  The right margin is left at the
+            // default, which is what the colorbar and its tick labels sit in.
+            const narrow_map_margin = { l: 8, t: 56, b: 8 };
+
         const layout = applyTheme({
             title: {
                 text: "Usage by region",
                 font: { size: 24 },
             },
+            ...(is_narrow_map ? { margin: narrow_map_margin } : {}),
             annotations: [
                 {
-                    text: 'Geographic boundaries are defined by <a href="https://gadm.org/" target="_blank">GADM v4.1</a> | '
-                        + '<a href="https://carto.com/attributions" target="_blank">© CARTO</a> | '
-                        + '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
+                    text: attribution_text,
                     showarrow: false,
                     xref: "paper",
                     yref: "paper",
@@ -2755,6 +2777,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     y: 0.01,
                     xanchor: "left",
                     yanchor: "bottom",
+                    align: "left",
                     font: {
                         size: 10,
                         color: getTheme().textSecondary,

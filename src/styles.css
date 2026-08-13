@@ -197,6 +197,12 @@ h1 {
     margin: 12px auto 24px;
     max-width: 100%;
     color: var(--color-text-secondary);
+    /* The tooltip of an info icon near the edge of a narrow viewport hangs
+       past it, and is laid out whether or not it is being shown, so without
+       this the whole page scrolls sideways to reveal a tooltip nobody can
+       see.  `clip` rather than `hidden` so that the tooltips, which hang
+       below their icon, are still free to overflow downwards. */
+    overflow-x: clip;
 }
 
 .totals-caption,
@@ -265,23 +271,30 @@ h1 {
     padding-top: 8px;
 }
 
+/* The control bars are sized to their contents, but never past the width of
+   the viewport: past that they wrap onto as many rows as they need, rather
+   than overflowing and taking the whole page into a sideways scroll. */
 .ControllerContainer {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 10px 16px;
     margin: 0 auto;
     padding: 10px 20px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     width: fit-content;
+    max-width: 100%;
 }
 
 .SubControllerContainer {
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 6px;
 }
 
@@ -356,10 +369,16 @@ input[type="number"]:focus {
     min-height: 350px;
 }
 
+/* The map is sized against the viewport width so it keeps its proportions as
+   the page is resized, but it is floored at a height that still leaves room
+   for a map once Plotly has taken its margins, title and colorbar out of it.
+   Without the floor a narrow viewport collapses the drawing area to nothing
+   and Plotly throws out of newPlot(), leaving the section's error message in
+   place of the map. */
 #geography_heatmap {
     margin: 8px auto;
     width: 90vw;
-    height: 50vw;
+    height: max(360px, 50vw);
 }
 
 /* Hide the built-in MapLibre attribution widget — credits are surfaced via
@@ -376,6 +395,7 @@ input[type="number"]:focus {
 .PlotViewControls {
     margin: 16px auto 0;
     width: fit-content;
+    max-width: 100%;
     /* 48 px sticky header + 12 px breathing room */
     scroll-margin-top: 60px;
 }
@@ -658,6 +678,8 @@ input[type="number"]:focus {
 /* ── Segmented radio toggle ──────────────────────────────────── */
 .radio-toggle {
     display: inline-flex;
+    justify-content: center;
+    flex-wrap: wrap;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -1035,6 +1057,22 @@ input[type="number"]:focus {
     .consent-banner {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    /* Reclaim the page gutters for the controls, which are the widest thing
+       on the page once the plots have been sized against the viewport. */
+    .page-content {
+        padding: 0 10px;
+    }
+
+    .ControllerContainer {
+        padding: 10px 12px;
+    }
+
+    /* The divider before the settings gear reads as a rule between the
+       controls once the bar wraps, so it is dropped at these widths. */
+    .ControllerContainer .separator {
+        display: none;
     }
 }
 
