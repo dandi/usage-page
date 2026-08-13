@@ -8,6 +8,7 @@
 
 #### 🚀 Enhancement
 
+- Removed the gap to the left of the "View:" label above each plot, left there by the section anchor link that is invisible until the controls are hovered. ([#250](https://github.com/dandi/usage-page/pull/250))
 - Dropped the "DANDI:" prefix from the hover text of the over-time plot grouped by Dandisets, so each hover leads with the Dandiset's ID and title. ([#247](https://github.com/dandi/usage-page/pull/247))
 - Replaced the totals sentence and its block of footnotes above the plots with a table of the same metrics, each caveat behind an info icon on the metric (or the caption) it qualifies. The metrics are read as a row of labelled columns that wraps over as many lines as a narrow viewport needs, so the summary is never scrolled sideways. ([#246](https://github.com/dandi/usage-page/pull/246))
 - Restyled the scroll bars of every table view as a slim, rounded, accent-tinted thumb on a transparent track, replacing the platform default that read as a light gray slab against the table, most jarringly in dark mode. ([#245](https://github.com/dandi/usage-page/pull/245))
