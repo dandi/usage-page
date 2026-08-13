@@ -1245,18 +1245,18 @@ function update_totals(dandiset_id: string) {
                 {
                     label: "Views",
                     value: format_metric(totals.total_number_of_views),
-                    tooltip: "Streaming sessions per asset, counted separately from full downloads.",
+                    tooltip: "Streaming sessions per asset, counted separately from full downloads",
                 },
                 { label: "Full downloads", value: format_metric(totals.total_number_of_downloads) },
                 {
                     label: "Web requests",
                     value: format_metric(totals.total_number_of_requests),
-                    tooltip: "Any successful HTTP request, including full downloads.",
+                    tooltip: "Any successful HTTP request, including full downloads",
                 },
                 {
                     label: "Unique visitors",
                     value: format_metric(totals.number_of_requesters),
-                    tooltip: "Counted by unique IP address, and so may be skewed by undetermined VPN usage patterns.",
+                    tooltip: "Counted by unique IP address, and so may be skewed by undetermined VPN usage patterns",
                 },
                 { label: "Regions", value: format_metric(totals.number_of_unique_regions) },
                 { label: "Countries", value: format_metric(totals.number_of_unique_countries) },
@@ -1265,7 +1265,7 @@ function update_totals(dandiset_id: string) {
                 ? "This usage could not be uniquely associated with a particular Dandiset."
                 : undefined,
             note_tooltip: dandiset_id === "undetermined"
-                ? "The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication."
+                ? "The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication"
                 : undefined,
         });
     } catch (error) {
