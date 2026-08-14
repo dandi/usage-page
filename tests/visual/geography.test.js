@@ -3,15 +3,19 @@ import { setupDataMocks, waitForMapToSettle, waitForPlotsToRender } from "../fix
 
 // ── Why this suite exists ────────────────────────────────────────────────────
 //
-// The Chromatic run archives a serialization of the DOM, which carries a
-// <canvas> element's size and position but none of its pixels.  The geography
-// section is drawn by MapLibre into a WebGL canvas, so Chromatic's snapshot of
-// it covers the title, colorbar and credits around a map that is always blank —
-// a map that failed to draw at all looks exactly like one that drew perfectly.
+// The Chromatic run archives a serialization of the DOM, which carries a canvas
+// element's size and position but none of its pixels.  The geography section is
+// drawn by MapLibre into a WebGL canvas, so it reaches Chromatic only because
+// that run stands a screenshot in for the canvas before archiving it (see
+// inlineMapCanvas in the shared fixtures).
 //
-// Playwright's own screenshots are taken by the browser and do include canvas
-// pixels, so this suite is what actually holds the map to account: it compares
-// the rendered section against a committed PNG.
+// That makes the map visible there, but it does not make it verified: what
+// Chromatic diffs is whatever image the run baked in, and accepting a changed
+// Chromatic baseline is a judgement someone makes by eye.  This suite is the
+// one that fails the build.  It compares the section against a PNG committed
+// beside it and, because a map's worth of regions is far too few pixels to
+// register against any workable difference tolerance, asks the map outright
+// how much of the data it drew.
 //
 // The baselines are per platform (Playwright suffixes them with the browser and
 // OS), and are the Linux ones CI runs on.  Regenerate with:
