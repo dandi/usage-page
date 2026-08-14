@@ -59,6 +59,38 @@ async function countRenderedRegions(page) {
 }
 
 /**
+ * Moves the map to the top-left corner of the viewport for the capture.
+ *
+ * Its size in CSS pixels is a whole number, but its position is not: it is
+ * centered, which puts its left edge on a half pixel, and it sits below a
+ * column of text whose height rounds differently depending on the fonts
+ * available.  An element straddling the pixel grid is captured one pixel wider
+ * and taller than it is, and Playwright rejects a size mismatch outright
+ * without comparing anything — so a baseline taken on a machine whose text is a
+ * fraction of a pixel different is one that can never match.
+ *
+ * Pinning it to whole coordinates, over a backdrop of its own, makes the
+ * captured image depend on the section alone.  Nothing is redrawn: the size is
+ * untouched, so Plotly has no resize to react to and the canvas keeps the
+ * pixels it already holds.
+ */
+async function pinToViewportCorner(page) {
+    await page.evaluate(() => {
+        const el = document.getElementById("geography_heatmap");
+        el.style.position = "fixed";
+        el.style.top = "0";
+        el.style.left = "0";
+        el.style.margin = "0";
+        // Plotly leaves the paper behind the title and credits transparent, so
+        // without a backdrop of its own the section is captured with whatever
+        // it now sits over — the site header, text and all — showing through.
+        el.style.background = getComputedStyle(document.body).backgroundColor;
+        el.style.zIndex = "9999";
+    });
+    await page.waitForTimeout(100);
+}
+
+/**
  * Waits for MapLibre to finish drawing.  Plotly resolves newPlot() once the map
  * is created, which is well before it has painted its layers, so the canvas can
  * still be empty at that point.
@@ -95,6 +127,7 @@ test.describe("Geography choropleth", () => {
                 await page.goto("/");
                 await waitForPlotsToRender(page);
                 await waitForMapToSettle(page);
+                await pinToViewportCorner(page);
 
                 expect(await countRenderedRegions(page), "Choropleth regions painted onto the map").toBe(
                     viewport.regions,
