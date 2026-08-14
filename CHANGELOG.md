@@ -11,6 +11,7 @@
 
 #### 🚀 Enhancement
 
+- Added a screenshot-comparison suite (`npm run test:visual`) covering the geographic choropleth against PNG baselines committed beside it, plus an assertion on the regions MapLibre reports having painted. Chromatic archives the DOM, which carries a canvas element but none of its pixels, so a map that failed to draw was indistinguishable there from one that drew perfectly. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Added tablet and phone viewports, portrait and landscape both, to the Chromatic Playwright snapshots, which until now only covered a desktop width, and made the run fail outright on a plot that did not render, a page that scrolls sideways, or a plot title run over by its mode bar. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Served a flat stand-in basemap to the Chromatic snapshot run in place of the live CARTO one, taking the last live request out of a suite that mocks everything else. The map's own canvas is not part of a Chromatic archive either way, so the geography section is snapshotted by its title, colorbar and credits rather than by the map. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Gave the map's credits a line each and trimmed the margins around the map on a narrow viewport, so the credits stay on the map and the map itself keeps most of the space. ([#251](https://github.com/dandi/usage-page/pull/251))
