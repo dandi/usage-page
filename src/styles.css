@@ -1053,6 +1053,41 @@ input[type="number"]:focus {
     color: #fff;
 }
 
+/* Below the width at which the widest control bar can lay out on one row, a
+   card's trailing icons are pinned to its top corner rather than left to wrap
+   onto a row of their own, where they read as one more control rather than as
+   the card's own affordances.  Only the cards that carry those icons reserve
+   the room for them (each is 32 px wide), so the rest stay symmetrical. */
+@media (max-width: 900px) {
+    .ControllerContainer:has(.settings-wrapper) {
+        padding-right: 48px;
+    }
+
+    /* The archive-wide bar carries a link to the source data beside its gear,
+       so it needs the room for two. */
+    .ControllerContainer:has(.dandiset-data-link) {
+        padding-right: 86px;
+    }
+
+    .ControllerContainer .settings-wrapper {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+    }
+
+    .dandiset-data-link {
+        position: absolute;
+        top: 8px;
+        right: 48px;
+    }
+
+    /* The divider before the gear reads as a rule between rows once the bar
+       has wrapped and the gear has left the row, so it is dropped here. */
+    .ControllerContainer .separator {
+        display: none;
+    }
+}
+
 @media (max-width: 700px) {
     .consent-banner {
         align-items: flex-start;
@@ -1060,19 +1095,17 @@ input[type="number"]:focus {
     }
 
     /* Reclaim the page gutters for the controls, which are the widest thing
-       on the page once the plots have been sized against the viewport. */
+       on the page once the plots have been sized against the viewport.  Set
+       as longhands so as to leave the right-hand padding reserved above for
+       the pinned icons alone. */
     .page-content {
         padding: 0 10px;
     }
 
     .ControllerContainer {
-        padding: 10px 12px;
-    }
-
-    /* The divider before the settings gear reads as a rule between the
-       controls once the bar wraps, so it is dropped at these widths. */
-    .ControllerContainer .separator {
-        display: none;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        padding-left: 12px;
     }
 }
 

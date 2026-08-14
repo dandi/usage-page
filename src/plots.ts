@@ -2756,10 +2756,13 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
 
             // Plotly's default margins leave room for the axis labels of a
             // cartesian plot, which a map has none of.  They cost nothing on a
-            // wide map but eat most of a narrow one, so they are trimmed back
-            // there to what the title needs.  The right margin is left at the
-            // default, which is what the colorbar and its tick labels sit in.
-            const narrow_map_margin = { l: 8, t: 56, b: 8 };
+            // wide map but eat most of a narrow one, so the side and bottom
+            // ones are trimmed back there.  The right and top margins are left
+            // at their defaults: the right is where the colorbar and its tick
+            // labels sit, and the top is what holds the title clear of the
+            // mode bar drawn over the first row of the plot, which a touch
+            // device shows for good rather than only while hovered.
+            const narrow_map_margin = { l: 8, b: 8 };
 
         const layout = applyTheme({
             title: {

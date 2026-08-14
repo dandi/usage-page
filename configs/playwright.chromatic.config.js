@@ -10,12 +10,18 @@ import { defineConfig, devices } from "@playwright/test";
  * which the Chromatic workflow does not install, and Chromatic replays the
  * archive in its own browser regardless.
  *
+ * The landscape entries are the portrait ones turned on their side, which is
+ * the widest a phone or tablet gets and the layout a reader reaches for when
+ * a plot is too cramped to read.
+ *
  * `undefined` keeps the Desktop Chrome default (1280x720).
  */
 const VIEWPORTS = [
     { name: "desktop", viewport: undefined },
     { name: "tablet", viewport: { width: 768, height: 1024 } },
+    { name: "tablet-landscape", viewport: { width: 1024, height: 768 } },
     { name: "mobile", viewport: { width: 390, height: 844 } },
+    { name: "mobile-landscape", viewport: { width: 844, height: 390 } },
 ];
 
 export default defineConfig({

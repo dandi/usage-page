@@ -89,14 +89,37 @@ date\tNeurophysiology\tMicroscopy\tVideo\tMiscellaneous
 2024-01-08\t60000000\t35000000\t25000000\t15000000
 `;
 
+// The basemap the choropleth is drawn over is a MapLibre style fetched from
+// CARTO (positron for the light theme, dark matter for the dark one).  These
+// stand in for it: a single flat background layer and no tile sources, in the
+// rough tone of the basemap each replaces.  MapLibre needs *some* style to
+// initialize — given none it errors out and the map never draws at all, region
+// fills included — so this is what keeps the map in the snapshot while keeping
+// the snapshot off the network and off whatever the live basemap looks like on
+// the day.
+const BASEMAP_BACKGROUNDS = { "dark-matter": "#101a33", positron: "#e9edf3" };
+
+function basemap_style_for(url) {
+    const name = url.includes("dark-matter") ? "dark-matter" : "positron";
+    return JSON.stringify({
+        version: 8,
+        sources: {},
+        layers: [{ id: "background", type: "background", paint: { "background-color": BASEMAP_BACKGROUNDS[name] } }],
+    });
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
  * Registers Playwright route handlers that intercept every external data
- * request (raw.githubusercontent.com) and respond with the static fixture
- * values above.  Must be called before page.goto().
+ * request (raw.githubusercontent.com, and the CARTO basemap behind the
+ * choropleth) and respond with the static fixture values above.  Must be
+ * called before page.goto().
  */
 async function setupDataMocks(page) {
+    await page.route(/basemaps\.cartocdn\.com/, (route) =>
+        route.fulfill({ status: 200, contentType: "application/json", body: basemap_style_for(route.request().url()) }),
+    );
     await page.route("**/dandiset_id_to_title.jsonl", (route) =>
         route.fulfill({ status: 200, contentType: "text/plain", body: DANDISET_TITLES_JSONL }),
     );
@@ -200,6 +223,37 @@ async function expectPlotsRendered(page) {
 }
 
 /**
+ * Asserts that no plot's title is run over by its mode bar, which Plotly draws
+ * across the first row of the plot rather than above it — hidden until hovered
+ * on a mouse, but on show for good on a touch device, which is where a title
+ * pulled up into that row by a trimmed margin collides with it.
+ */
+async function expectModeBarClearOfTitles(page) {
+    const { collisions, checked } = await page.evaluate((ids) => {
+        const collisions = [];
+        let checked = 0;
+        for (const id of ids) {
+            const plot = document.getElementById(id);
+            const bar = plot?.querySelector(".modebar");
+            const title = plot?.querySelector(".gtitle");
+            if (!bar || !title) continue;
+            const b = bar.getBoundingClientRect();
+            const t = title.getBoundingClientRect();
+            // The mode bar is laid out whether or not it is being shown, so a
+            // zero-sized one means it was never drawn and there is nothing to
+            // compare the title against.
+            if (b.width === 0 || b.height === 0) continue;
+            checked += 1;
+            const clears = t.top >= b.bottom || t.bottom <= b.top || t.left >= b.right || t.right <= b.left;
+            if (!clears) collisions.push(`${id} (title ${Math.round(t.top)}-${Math.round(t.bottom)}, mode bar ${Math.round(b.top)}-${Math.round(b.bottom)})`);
+        }
+        return { collisions, checked };
+    }, PLOT_IDS);
+    expect(collisions, "Plot titles run over by their mode bar").toEqual([]);
+    expect(checked, "Plots whose mode bar could be compared against their title").toBeGreaterThan(0);
+}
+
+/**
  * Asserts that the page does not scroll sideways at the current viewport, and
  * names the elements that overflow it when it does.  This is the failure mode
  * a narrow viewport hits first — a control bar that cannot wrap runs off the
@@ -257,6 +311,7 @@ test.describe("DANDI Usage Page", () => {
             await mockVersion(page);
             await expectPlotsRendered(page);
             await expectNoHorizontalOverflow(page);
+            await expectModeBarClearOfTitles(page);
             await takeSnapshot(page, `${theme} theme — ${testInfo.project.name}`, testInfo);
         });
     }
