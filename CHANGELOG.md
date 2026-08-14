@@ -4,6 +4,7 @@
 
 #### 🐛 Bug Fix
 
+- Stopped the Dandiset selector from stretching the bar above it off the side of a narrow viewport: a drop-down is laid out as wide as the widest option in it, and the options carry full Dandiset titles. The selected title is now clipped to the width available, the drop-down itself still opening as wide as its options need. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the geographic choropleth failing to load below a viewport width of about 400 px, where the map — sized as a fraction of the viewport — collapsed to less height than Plotly's own margins and threw out of the plot call, leaving the section's error message in place of the map. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Stopped the control bars above each plot from running off the side of a narrow viewport and taking the whole page into a sideways scroll; they now wrap onto as many rows as they need. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Stopped the tooltip of an info icon near the edge of a narrow viewport from scrolling the page sideways while hidden. ([#251](https://github.com/dandi/usage-page/pull/251))

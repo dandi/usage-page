@@ -27,14 +27,19 @@ const ALL_DANDISET_TOTALS = JSON.stringify({
     "000001": { total_bytes_sent: 5000000000, total_number_of_downloads: 900, total_number_of_requests: 6400, total_number_of_views: 540, number_of_requesters: 320, number_of_unique_regions: 10, number_of_unique_countries: 5 },
     "000002": { total_bytes_sent: 3000000000, total_number_of_downloads: 450, total_number_of_requests: 4100, total_number_of_views: 310, number_of_requesters: 210, number_of_unique_regions: 8, number_of_unique_countries: 4 },
     "000003": { total_bytes_sent: 1000000000, total_number_of_downloads: 120, total_number_of_requests: 1200, total_number_of_views: 95, number_of_requesters: "<50", number_of_unique_regions: 5, number_of_unique_countries: 3 },
+    "000004": { total_bytes_sent: 800000000, total_number_of_downloads: 90, total_number_of_requests: 900, total_number_of_views: 70, number_of_requesters: 60, number_of_unique_regions: 6, number_of_unique_countries: 3 },
     undetermined: { total_bytes_sent: 250000000, total_number_of_downloads: 60, total_number_of_requests: 300, total_number_of_views: 40, number_of_requesters: 75, number_of_unique_regions: 4, number_of_unique_countries: 2 },
 });
 
 // Titles for the mock Dandisets.  "000003" is deliberately left out so the
 // snapshot also covers a row whose name is unknown (and so is not hyperlinked).
+// "000004" carries a title of the length real Dandisets reach.  A <select> is
+// as wide as its widest option, so a fixture of short titles hides the one
+// thing about this control that is hard to get right on a narrow viewport.
 const DANDISET_TITLES_JSONL = `\
 {"000001": "Mock electrophysiology recordings"}
 {"000002": "Mock calcium imaging dataset"}
+{"000004": "A detailed data-driven network model of prefrontal cortex reproduces key features of in vivo activity"}
 `;
 
 // Asset counts and stored sizes behind the scaled metrics of the per-Dandiset
