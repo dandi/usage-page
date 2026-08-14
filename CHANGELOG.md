@@ -11,8 +11,8 @@
 
 #### 🚀 Enhancement
 
-- Added tablet (768 px), phone (390 px) and the landscape rotation of each to the Chromatic Playwright snapshots, which until now only covered a desktop width, and made the run fail outright on a plot that did not render, a page that scrolls sideways, or a plot title run over by its mode bar. ([#251](https://github.com/dandi/usage-page/pull/251))
-- Served a flat stand-in basemap to the Chromatic snapshots in place of the live CARTO one, so the geography section is captured against fixed content like every other section. ([#251](https://github.com/dandi/usage-page/pull/251))
+- Added tablet and phone viewports, portrait and landscape both, to the Chromatic Playwright snapshots, which until now only covered a desktop width, and made the run fail outright on a plot that did not render, a page that scrolls sideways, or a plot title run over by its mode bar. ([#251](https://github.com/dandi/usage-page/pull/251))
+- Served a flat stand-in basemap to the Chromatic snapshot run in place of the live CARTO one, taking the last live request out of a suite that mocks everything else. The map's own canvas is not part of a Chromatic archive either way, so the geography section is snapshotted by its title, colorbar and credits rather than by the map. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Gave the map's credits a line each and trimmed the margins around the map on a narrow viewport, so the credits stay on the map and the map itself keeps most of the space. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Pinned a control card's settings gear, and the archive-wide bar's link to its source data, to the card's top corner at the widths where the bar wraps, rather than letting them drop to a row of their own along the bottom. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Removed the gap to the left of the "View:" label above each plot, left there by the section anchor link that is invisible until the controls are hovered. ([#250](https://github.com/dandi/usage-page/pull/250))

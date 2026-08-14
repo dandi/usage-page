@@ -1,29 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
 
-/**
- * Viewports every snapshot is captured at.
- *
- * Chromatic's Playwright integration has no viewport option of its own: it
- * replays the archived page at whatever viewport the Playwright run recorded,
- * so covering a width means running the suite at that width.  Only the
- * viewport is emulated — the device descriptors for real phones run on WebKit,
- * which the Chromatic workflow does not install, and Chromatic replays the
- * archive in its own browser regardless.
- *
- * The landscape entries are the portrait ones turned on their side, which is
- * the widest a phone or tablet gets and the layout a reader reaches for when
- * a plot is too cramped to read.
- *
- * `undefined` keeps the Desktop Chrome default (1280x720).
- */
-const VIEWPORTS = [
-    { name: "desktop", viewport: undefined },
-    { name: "tablet", viewport: { width: 768, height: 1024 } },
-    { name: "tablet-landscape", viewport: { width: 1024, height: 768 } },
-    { name: "mobile", viewport: { width: 390, height: 844 } },
-    { name: "mobile-landscape", viewport: { width: 844, height: 390 } },
-];
-
 export default defineConfig({
     testDir: "../tests/chromatic",
     fullyParallel: true,
@@ -38,10 +14,15 @@ export default defineConfig({
             args: ["--disable-gpu"],
         },
     },
-    projects: VIEWPORTS.map(({ name, viewport }) => ({
-        name,
-        use: { ...devices["Desktop Chrome"], ...(viewport ? { viewport } : {}) },
-    })),
+    // One project only: the viewports each snapshot is taken at are set per
+    // test rather than per project, since Chromatic keys an archive by the
+    // test's title alone.  See tests/chromatic/visual.test.js.
+    projects: [
+        {
+            name: "chromium",
+            use: { ...devices["Desktop Chrome"] },
+        },
+    ],
     webServer: {
         command: "npm run dev",
         url: "http://localhost:5173",

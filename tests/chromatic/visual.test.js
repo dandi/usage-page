@@ -287,32 +287,49 @@ async function expectNoHorizontalOverflow(page) {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
+/**
+ * Viewports every snapshot is taken at, as a matrix of the two device classes
+ * against the two orientations, plus the desktop width the suite started at
+ * (the Desktop Chrome default this config runs under).
+ *
+ * These are per-test rather than per-project because Chromatic keys an archive
+ * by the test's title alone: run as Playwright projects, each viewport writes
+ * over the last one's manifest and only the project that runs last reaches
+ * Chromatic at all.  Naming the viewport in the test title keeps them apart.
+ */
+const VIEWPORTS = [
+    { name: "desktop", width: 1280, height: 720 },
+    { name: "tablet-portrait", width: 768, height: 1024 },
+    { name: "tablet-landscape", width: 1024, height: 768 },
+    { name: "mobile-portrait", width: 390, height: 844 },
+    { name: "mobile-landscape", width: 844, height: 390 },
+];
+
 test.describe("DANDI Usage Page", () => {
     // The Chromatic fixture calls takeSnapshot automatically after the test body
     // unless disableAutoSnapshot is set. Since we call takeSnapshot explicitly
     // ourselves, disabling the automatic one prevents two identical captures per
-    // test (which would show up as four redundant snapshots in Chromatic's UI).
+    // test (which would show up as redundant snapshots in Chromatic's UI).
     test.use({ disableAutoSnapshot: true });
 
-    // Each theme is captured once per viewport project (see the Playwright
-    // Chromatic config).  The project name is spelled into the snapshot name so
-    // that the viewports are separate baselines in Chromatic rather than one
-    // baseline the three of them take turns overwriting.
-    for (const theme of ["dark", "light"]) {
-        test(`${theme} theme`, async ({ page }, testInfo) => {
-            await setupDataMocks(page);
-            await page.addInitScript((theme) => {
-                localStorage.setItem("theme", theme);
-                // Pre-dismiss the analytics consent banner so it does not overlap the plots
-                localStorage.setItem("analytics_consent", "declined");
-            }, theme);
-            await page.goto("/");
-            await waitForPlotsToRender(page);
-            await mockVersion(page);
-            await expectPlotsRendered(page);
-            await expectNoHorizontalOverflow(page);
-            await expectModeBarClearOfTitles(page);
-            await takeSnapshot(page, `${theme} theme — ${testInfo.project.name}`, testInfo);
-        });
+    for (const viewport of VIEWPORTS) {
+        for (const theme of ["dark", "light"]) {
+            test(`${theme} theme — ${viewport.name}`, async ({ page }, testInfo) => {
+                await page.setViewportSize({ width: viewport.width, height: viewport.height });
+                await setupDataMocks(page);
+                await page.addInitScript((theme) => {
+                    localStorage.setItem("theme", theme);
+                    // Pre-dismiss the analytics consent banner so it does not overlap the plots
+                    localStorage.setItem("analytics_consent", "declined");
+                }, theme);
+                await page.goto("/");
+                await waitForPlotsToRender(page);
+                await mockVersion(page);
+                await expectPlotsRendered(page);
+                await expectNoHorizontalOverflow(page);
+                await expectModeBarClearOfTitles(page);
+                await takeSnapshot(page, testInfo);
+            });
+        }
     }
 });
