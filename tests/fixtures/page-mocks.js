@@ -288,5 +288,3 @@ export async function expectNoHorizontalOverflow(page) {
     expect(offenders, `Elements wider than the ${clientWidth}px viewport`).toEqual([]);
     expect(scrollWidth, `Page scrolls sideways at ${clientWidth}px`).toBeLessThanOrEqual(clientWidth + 1);
 }
-
-// ── Tests ────────────────────────────────────────────────────────────────────
