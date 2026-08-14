@@ -1,12 +1,18 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/**
+ * Screenshot-comparison suite.  Separate from the Chromatic config because the
+ * two answer different questions: Chromatic diffs an archived DOM in its own
+ * service, this one diffs pixels the browser painted against PNGs committed
+ * beside the tests, which is the only way to hold a WebGL canvas to account.
+ */
 export default defineConfig({
-    testDir: "../tests/chromatic",
+    testDir: "../tests/visual",
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
-    reporter: [["html", { outputFolder: "../playwright-report-chromatic", open: "never" }]],
+    reporter: [["html", { outputFolder: "../playwright-report-visual", open: "never" }]],
     use: {
         baseURL: "http://localhost:5173",
         trace: "on-first-retry",
@@ -14,9 +20,6 @@ export default defineConfig({
             args: ["--disable-gpu"],
         },
     },
-    // One project only: the viewports each snapshot is taken at are set per
-    // test rather than per project, since Chromatic keys an archive by the
-    // test's title alone.  See tests/chromatic/visual.test.js.
     projects: [
         {
             name: "chromium",

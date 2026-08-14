@@ -197,6 +197,12 @@ h1 {
     margin: 12px auto 24px;
     max-width: 100%;
     color: var(--color-text-secondary);
+    /* The tooltip of an info icon near the edge of a narrow viewport hangs
+       past it, and is laid out whether or not it is being shown, so without
+       this the whole page scrolls sideways to reveal a tooltip nobody can
+       see.  `clip` rather than `hidden` so that the tooltips, which hang
+       below their icon, are still free to overflow downwards. */
+    overflow-x: clip;
 }
 
 .totals-caption,
@@ -265,24 +271,35 @@ h1 {
     padding-top: 8px;
 }
 
+/* The control bars are sized to their contents, but never past the width of
+   the viewport: past that they wrap onto as many rows as they need, rather
+   than overflowing and taking the whole page into a sideways scroll. */
 .ControllerContainer {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 10px 16px;
     margin: 0 auto;
     padding: 10px 20px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     width: fit-content;
+    max-width: 100%;
 }
 
 .SubControllerContainer {
     display: flex;
     align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 6px;
+    /* Flex items refuse to shrink below their content by default, which for a
+       group holding a <select> means below the widest option in it.  Allowing
+       it to shrink is what lets the rule on `select` below take effect. */
+    min-width: 0;
 }
 
 label {
@@ -294,6 +311,12 @@ label {
     cursor: pointer;
 }
 
+/* A <select> is laid out as wide as the widest option it holds, and Dandiset
+   labels carry the full title, which on a narrow viewport runs the control —
+   and the bar around it — off the side of the screen.  Capping it clips the
+   label of the selected Dandiset instead; the drop-down itself is drawn by the
+   browser at whatever width its options need, so nothing becomes unreadable at
+   the point of choosing. */
 select {
     font-family: var(--font-main);
     font-size: 0.85em;
@@ -305,6 +328,7 @@ select {
     cursor: pointer;
     outline: none;
     transition: border-color 0.15s;
+    max-width: 100%;
 }
 
 select:hover, select:focus {
@@ -356,10 +380,16 @@ input[type="number"]:focus {
     min-height: 350px;
 }
 
+/* The map is sized against the viewport width so it keeps its proportions as
+   the page is resized, but it is floored at a height that still leaves room
+   for a map once Plotly has taken its margins, title and colorbar out of it.
+   Without the floor a narrow viewport collapses the drawing area to nothing
+   and Plotly throws out of newPlot(), leaving the section's error message in
+   place of the map. */
 #geography_heatmap {
     margin: 8px auto;
     width: 90vw;
-    height: 50vw;
+    height: max(360px, 50vw);
 }
 
 /* Hide the built-in MapLibre attribution widget — credits are surfaced via
@@ -376,6 +406,7 @@ input[type="number"]:focus {
 .PlotViewControls {
     margin: 16px auto 0;
     width: fit-content;
+    max-width: 100%;
     /* 48 px sticky header + 12 px breathing room */
     scroll-margin-top: 60px;
 }
@@ -658,6 +689,8 @@ input[type="number"]:focus {
 /* ── Segmented radio toggle ──────────────────────────────────── */
 .radio-toggle {
     display: inline-flex;
+    justify-content: center;
+    flex-wrap: wrap;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 8px;
@@ -1031,10 +1064,59 @@ input[type="number"]:focus {
     color: #fff;
 }
 
+/* Below the width at which the widest control bar can lay out on one row, a
+   card's trailing icons are pinned to its top corner rather than left to wrap
+   onto a row of their own, where they read as one more control rather than as
+   the card's own affordances.  Only the cards that carry those icons reserve
+   the room for them (each is 32 px wide), so the rest stay symmetrical. */
+@media (max-width: 900px) {
+    .ControllerContainer:has(.settings-wrapper) {
+        padding-right: 48px;
+    }
+
+    /* The archive-wide bar carries a link to the source data beside its gear,
+       so it needs the room for two. */
+    .ControllerContainer:has(.dandiset-data-link) {
+        padding-right: 86px;
+    }
+
+    .ControllerContainer .settings-wrapper {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+    }
+
+    .dandiset-data-link {
+        position: absolute;
+        top: 8px;
+        right: 48px;
+    }
+
+    /* The divider before the gear reads as a rule between rows once the bar
+       has wrapped and the gear has left the row, so it is dropped here. */
+    .ControllerContainer .separator {
+        display: none;
+    }
+}
+
 @media (max-width: 700px) {
     .consent-banner {
         align-items: flex-start;
         flex-direction: column;
+    }
+
+    /* Reclaim the page gutters for the controls, which are the widest thing
+       on the page once the plots have been sized against the viewport.  Set
+       as longhands so as to leave the right-hand padding reserved above for
+       the pinned icons alone. */
+    .page-content {
+        padding: 0 10px;
+    }
+
+    .ControllerContainer {
+        padding-top: 10px;
+        padding-bottom: 10px;
+        padding-left: 12px;
     }
 }
 
