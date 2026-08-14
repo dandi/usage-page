@@ -1,10 +1,11 @@
-import { test, takeSnapshot } from "@chromatic-com/playwright";
+import { test, takeSnapshot, expect } from "@chromatic-com/playwright";
 import {
     expectModeBarClearOfTitles,
     expectNoHorizontalOverflow,
     expectPlotsRendered,
     inlineMapCanvas,
     mockVersion,
+    relinkFragmentPaints,
     setupDataMocks,
     waitForMapToSettle,
     waitForPlotsToRender,
@@ -54,6 +55,11 @@ test.describe("DANDI Usage Page", () => {
                 await expectModeBarClearOfTitles(page);
                 // Last, so that the assertions above run against the live map.
                 await inlineMapCanvas(page);
+                // The colorbar's gradient is the one such reference on the page;
+                // if that ever stops being true, this is where to find out.
+                expect(await relinkFragmentPaints(page), "Paint references rewritten for the archive").toBeGreaterThan(
+                    0,
+                );
                 await takeSnapshot(page, testInfo.title, testInfo);
             });
         }

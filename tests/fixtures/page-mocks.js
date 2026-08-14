@@ -228,6 +228,42 @@ export async function waitForMapToSettle(page) {
 }
 
 /**
+ * Rewrites same-document paint references so that they survive being archived.
+ *
+ * Plotly fills the colorbar with a gradient it defines in the document and
+ * points at from an inline style, as `fill: url(#some-id)`.  Chrome resolves
+ * that reference against the page's own address when it serializes the style,
+ * so what an archive records is `url("http://localhost:5173/#some-id")` — an
+ * absolute URL into a document that no longer exists once the archive is
+ * replayed from somewhere else.  The reference then points at nothing and the
+ * colorbar comes out an empty outline.
+ *
+ * The same reference written as an SVG presentation attribute is stored as it
+ * was written, so moving it there keeps it relative to whatever document the
+ * archive ends up in.  The two are equivalent to the browser, an inline style
+ * simply outranking the attribute, so nothing changes about how the live page
+ * paints.
+ *
+ * Returns how many it rewrote, so a caller can tell it did something.
+ */
+export async function relinkFragmentPaints(page) {
+    return page.evaluate(() => {
+        let rewritten = 0;
+        document.querySelectorAll("svg *").forEach((el) => {
+            for (const property of ["fill", "stroke"]) {
+                const value = el.style?.getPropertyValue(property) ?? "";
+                const fragment = /^url\(["']?[^"')]*#([^"')]+)["']?\)$/.exec(value.trim());
+                if (!fragment) continue;
+                el.style.removeProperty(property);
+                el.setAttribute(property, `url(#${fragment[1]})`);
+                rewritten += 1;
+            }
+        });
+        return rewritten;
+    });
+}
+
+/**
  * Replaces the map's canvas with an <img> of what it is currently showing.
  *
  * The choropleth is drawn by MapLibre into a WebGL canvas, and a canvas carries
