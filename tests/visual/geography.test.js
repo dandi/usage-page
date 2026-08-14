@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { setupDataMocks, waitForPlotsToRender } from "../fixtures/page-mocks.js";
+import { setupDataMocks, waitForMapToSettle, waitForPlotsToRender } from "../fixtures/page-mocks.js";
 
 // ── Why this suite exists ────────────────────────────────────────────────────
 //
@@ -88,25 +88,6 @@ async function pinToViewportCorner(page) {
         el.style.zIndex = "9999";
     });
     await page.waitForTimeout(100);
-}
-
-/**
- * Waits for MapLibre to finish drawing.  Plotly resolves newPlot() once the map
- * is created, which is well before it has painted its layers, so the canvas can
- * still be empty at that point.
- */
-async function waitForMapToSettle(page) {
-    await page.waitForFunction(
-        () => {
-            const el = document.getElementById("geography_heatmap");
-            const map = el?._fullLayout?.map?._subplot?.map;
-            return Boolean(map?.loaded?.());
-        },
-        undefined,
-        { timeout: 30000 },
-    );
-    // MapLibre reports itself loaded a frame or two before the last paint.
-    await page.waitForTimeout(500);
 }
 
 const VIEWPORTS = [

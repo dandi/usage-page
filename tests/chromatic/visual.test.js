@@ -3,8 +3,10 @@ import {
     expectModeBarClearOfTitles,
     expectNoHorizontalOverflow,
     expectPlotsRendered,
+    inlineMapCanvas,
     mockVersion,
     setupDataMocks,
+    waitForMapToSettle,
     waitForPlotsToRender,
 } from "../fixtures/page-mocks.js";
 
@@ -45,11 +47,14 @@ test.describe("DANDI Usage Page", () => {
                 }, theme);
                 await page.goto("/");
                 await waitForPlotsToRender(page);
+                await waitForMapToSettle(page);
                 await mockVersion(page);
                 await expectPlotsRendered(page);
                 await expectNoHorizontalOverflow(page);
                 await expectModeBarClearOfTitles(page);
-                await takeSnapshot(page, testInfo);
+                // Last, so that the assertions above run against the live map.
+                await inlineMapCanvas(page);
+                await takeSnapshot(page, testInfo.title, testInfo);
             });
         }
     }

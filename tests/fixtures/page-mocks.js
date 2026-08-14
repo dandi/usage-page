@@ -213,6 +213,74 @@ export async function waitForPlotsToRender(page) {
 }
 
 /**
+ * Waits for MapLibre to finish drawing.  Plotly resolves newPlot() once the map
+ * is created, which is well before it has painted its layers, so the canvas can
+ * still be empty at that point.
+ */
+export async function waitForMapToSettle(page) {
+    await page.waitForFunction(
+        () => Boolean(document.getElementById("geography_heatmap")?._fullLayout?.map?._subplot?.map?.loaded?.()),
+        undefined,
+        { timeout: 30000 },
+    );
+    // MapLibre reports itself loaded a frame or two before the last paint.
+    await page.waitForTimeout(500);
+}
+
+/**
+ * Replaces the map's canvas with an <img> of what it is currently showing.
+ *
+ * The choropleth is drawn by MapLibre into a WebGL canvas, and a canvas carries
+ * its pixels nowhere but its own drawing buffer: a serialized DOM has the
+ * element's size and position and nothing of what was painted into it.  So an
+ * archive-based snapshot of this section shows an empty rectangle where the map
+ * should be, and a map that failed to draw is indistinguishable from one that
+ * drew perfectly.
+ *
+ * Playwright's own screenshots are taken by the browser and do include canvas
+ * pixels.  Taking one here and standing it in for the canvas as a data URI puts
+ * the map into the DOM as something a serialization can carry, so the archive
+ * holds a picture of the map rather than a hole where one was.
+ *
+ * The map must have settled first — see waitForMapToSettle.
+ */
+export async function inlineMapCanvas(page) {
+    // A screenshot clipped to the canvas still picks up whatever is drawn over
+    // it, which here is Plotly's SVG layer carrying the credits.  Those are
+    // archived as live text in their own right, so baking them into the image
+    // as well would leave them drawn twice, one copy over the other.
+    const overlaySelector = "#geography_heatmap svg";
+    await page.evaluate((selector) => {
+        document.querySelectorAll(selector).forEach((svg) => {
+            svg.style.visibility = "hidden";
+        });
+    }, overlaySelector);
+
+    const canvas = page.locator("#geography_heatmap canvas.maplibregl-canvas");
+    const png = await canvas.screenshot();
+
+    await page.evaluate((selector) => {
+        document.querySelectorAll(selector).forEach((svg) => {
+            svg.style.visibility = "";
+        });
+    }, overlaySelector);
+
+    await page.evaluate((dataUri) => {
+        const canvasEl = document.querySelector("#geography_heatmap canvas.maplibregl-canvas");
+        if (!canvasEl) return;
+        const image = document.createElement("img");
+        image.src = dataUri;
+        // The canvas is laid out by MapLibre through inline styles; the image
+        // takes them over so that it lands exactly where the canvas was.
+        image.style.cssText = canvasEl.style.cssText;
+        image.setAttribute("data-testid", "map-canvas-image");
+        image.alt = "";
+        canvasEl.parentNode.insertBefore(image, canvasEl);
+        canvasEl.style.display = "none";
+    }, `data:image/png;base64,${png.toString("base64")}`);
+}
+
+/**
  * Asserts that no plot rendered its failure placeholder.  Chromatic would show
  * the placeholder as an image diff, but only against an existing baseline; a
  * plot that has never rendered at a given viewport would otherwise be accepted
