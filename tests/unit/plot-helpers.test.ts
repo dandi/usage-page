@@ -1262,8 +1262,6 @@ describe("render_sortable_table sort persistence", () => {
 
 describe("render_totals_summary", () => {
     const summary = {
-        caption: "Totals for the entire archive",
-        caption_tooltip: "Dandiset source determination is heuristic.",
         metrics: [
             { label: "Transferred", value: "15.0 TB" },
             { label: "Views", value: "96,000", tooltip: "Streaming (partial) accesses of an asset." },
@@ -1293,12 +1291,17 @@ describe("render_totals_summary", () => {
         expect(icons[0].getAttribute("data-tooltip")).toBe("Streaming (partial) accesses of an asset.");
     });
 
-    it("puts the summary-wide caveat behind an info icon on the caption", () => {
-        const icon = document.querySelector("#totals .totals-caption .info-icon")!;
-        expect(icon.getAttribute("data-tooltip")).toBe("Dandiset source determination is heuristic.");
-        expect(icon.getAttribute("aria-label")).toBe(
-            "Totals for the entire archive: Dandiset source determination is heuristic."
+    it("keeps the line breaks of a tooltip, which the stylesheet shows it as", () => {
+        render_totals_summary("totals", {
+            metrics: [{ label: "Views", value: "1", tooltip: "Streaming sessions per asset,\ncounted separately" }],
+        });
+        expect(document.querySelector("#totals .info-icon")!.getAttribute("data-tooltip")).toBe(
+            "Streaming sessions per asset,\ncounted separately"
         );
+    });
+
+    it("leads with the table, no caption above it", () => {
+        expect(document.querySelector("#totals")!.firstElementChild!.tagName).toBe("TABLE");
     });
 
     it("omits the note line when the selection has no remark", () => {
@@ -1320,7 +1323,6 @@ describe("render_totals_summary", () => {
 
     it("escapes values and tooltips rather than injecting markup", () => {
         render_totals_summary("totals", {
-            caption: "Totals",
             metrics: [{ label: "<b>Views</b>", value: "<img src=x>", tooltip: "<script>alert(1)</script>" }],
         });
         expect(document.querySelector("#totals tbody td img")).toBeNull();

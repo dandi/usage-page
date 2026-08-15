@@ -657,15 +657,14 @@ export function render_sortable_table(
 export interface TotalsMetric {
     label: string;
     value: string;
-    /** Caveat about the metric, shown behind an info icon beside its label. */
+    /**
+     * Caveat about the metric, shown behind an info icon beside its label,
+     * broken over the lines its newlines mark.
+     */
     tooltip?: string;
 }
 
 export interface TotalsSummary {
-    /** Line above the table naming what the totals cover. */
-    caption: string;
-    /** Caveats that apply to the summary as a whole, shown behind an info icon. */
-    caption_tooltip?: string;
     metrics: TotalsMetric[];
     /** Optional line below the table, for a selection-specific remark. */
     note?: string;
@@ -676,6 +675,10 @@ export interface TotalsSummary {
  * Markup for one info icon, matching the icons used by the settings panels:
  * hovering (or focusing) it reveals `tooltip`, which is also the accessible
  * name so the text is reachable without a pointer.
+ *
+ * Newlines in `tooltip` are kept, and are the lines it is shown as: the
+ * stylesheet sizes the tooltip to the longest of them rather than wrapping the
+ * text itself (see .info-icon-wide).
  */
 function info_icon_html(label: string, tooltip: string): string {
     const text = escape_html(tooltip);
@@ -688,9 +691,10 @@ function info_icon_html(label: string, tooltip: string): string {
 /**
  * Renders the scalar totals of the current selection as a table of one metric
  * per row — laid out by the stylesheet as a row of labelled columns — instead
- * of a sentence.  Caveats that used to trail the sentence as footnotes are
- * attached to the metric they qualify (or to the caption, when they qualify
- * the whole summary) as info icons.
+ * of a sentence.  Caveats that used to trail the sentence are attached to the
+ * metric they qualify as info icons; the ones about how the totals are
+ * attributed at all qualify every section of the page, not just this one, and
+ * are spelled out in the footnote at the foot of the page instead.
  *
  * Each metric is its own row so that the layout can wrap to as many lines as
  * the viewport needs, rather than overflowing a single row of columns; the
@@ -701,12 +705,7 @@ export function render_totals_summary(container_id: string, summary: TotalsSumma
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    const caption_icon = summary.caption_tooltip
-        ? " " + info_icon_html(summary.caption, summary.caption_tooltip)
-        : "";
-    let html =
-        `<div class="totals-caption">${escape_html(summary.caption)}${caption_icon}</div>` +
-        '<table class="totals-table" role="table"><tbody role="rowgroup">';
+    let html = '<table class="totals-table" role="table"><tbody role="rowgroup">';
     summary.metrics.forEach((metric) => {
         const icon = metric.tooltip ? " " + info_icon_html(metric.label, metric.tooltip) : "";
         html +=
