@@ -1236,18 +1236,21 @@ function update_totals(dandiset_id: string) {
             typeof value === "number" ? value.toLocaleString() : String(value ?? "--");
         render_totals_summary(totals_element_id, {
             // Ordered as the table views are: views, then downloads.
+            // Tooltips break their own lines (see .info-icon-wide), so each is
+            // written as the lines it should read as, at a clause boundary and
+            // short enough not to be wrapped again on a phone.
             metrics: [
                 { label: "Transferred", value: format_bytes(totals.total_bytes_sent) },
                 {
                     label: "Views",
                     value: format_metric(totals.total_number_of_views),
-                    tooltip: "Streaming sessions per asset, counted separately from full downloads",
+                    tooltip: "Streaming sessions per asset,\ncounted separately from full downloads",
                 },
                 { label: "Full downloads", value: format_metric(totals.total_number_of_downloads) },
                 {
                     label: "Unique visitors",
                     value: format_metric(totals.number_of_requesters),
-                    tooltip: "Counted by unique IP address, and so may be skewed by undetermined VPN usage patterns",
+                    tooltip: "Counted by unique IP address,\nand so may be skewed by\nundetermined VPN usage patterns",
                 },
                 { label: "Regions", value: format_metric(totals.number_of_unique_regions) },
                 { label: "Countries", value: format_metric(totals.number_of_unique_countries) },
@@ -1256,7 +1259,7 @@ function update_totals(dandiset_id: string) {
                 ? "This usage could not be uniquely associated with a particular Dandiset."
                 : undefined,
             note_tooltip: dandiset_id === "undetermined"
-                ? "The primary cause of this is when an asset is removed from a 'draft' state prior to being made persistent by publication"
+                ? "The primary cause of this is when an asset is\nremoved from a 'draft' state prior to being\nmade persistent by publication"
                 : undefined,
         });
     } catch (error) {

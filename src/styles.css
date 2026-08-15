@@ -905,14 +905,21 @@ input[type="number"]:focus {
 }
 
 /* Wide variant, for sentence-length text that would run off the viewport as
-   the single nowrap line of the default tooltip: wraps to a fixed width and
-   hangs below the icon instead of to its left. */
+   the single nowrap line of the default tooltip: breaks over several lines and
+   hangs below the icon instead of to its left.
+
+   The lines are the ones written into `data-tooltip`, and the box is sized to
+   the longest of them: a box left to wrap the text itself is as wide as the
+   width it wrapped against, however short the line that lands under it, which
+   leaves the text sitting in a box visibly wider than itself.  The max-width
+   only has to catch a line too long for the viewport, which then wraps as it
+   would have anyway. */
 .info-icon-wide::after {
     right: auto;
     left: 50%;
     top: calc(100% + 8px);
     transform: translateX(-50%);
-    white-space: normal;
+    white-space: pre-line;
     width: max-content;
     /* Never wider than the viewport it has to fit inside. */
     max-width: min(280px, calc(100vw - 32px));

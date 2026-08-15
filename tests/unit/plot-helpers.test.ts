@@ -1291,6 +1291,15 @@ describe("render_totals_summary", () => {
         expect(icons[0].getAttribute("data-tooltip")).toBe("Streaming (partial) accesses of an asset.");
     });
 
+    it("keeps the line breaks of a tooltip, which the stylesheet shows it as", () => {
+        render_totals_summary("totals", {
+            metrics: [{ label: "Views", value: "1", tooltip: "Streaming sessions per asset,\ncounted separately" }],
+        });
+        expect(document.querySelector("#totals .info-icon")!.getAttribute("data-tooltip")).toBe(
+            "Streaming sessions per asset,\ncounted separately"
+        );
+    });
+
     it("leads with the table, no caption above it", () => {
         expect(document.querySelector("#totals")!.firstElementChild!.tagName).toBe("TABLE");
     });

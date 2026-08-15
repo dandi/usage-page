@@ -657,7 +657,10 @@ export function render_sortable_table(
 export interface TotalsMetric {
     label: string;
     value: string;
-    /** Caveat about the metric, shown behind an info icon beside its label. */
+    /**
+     * Caveat about the metric, shown behind an info icon beside its label,
+     * broken over the lines its newlines mark.
+     */
     tooltip?: string;
 }
 
@@ -672,6 +675,10 @@ export interface TotalsSummary {
  * Markup for one info icon, matching the icons used by the settings panels:
  * hovering (or focusing) it reveals `tooltip`, which is also the accessible
  * name so the text is reachable without a pointer.
+ *
+ * Newlines in `tooltip` are kept, and are the lines it is shown as: the
+ * stylesheet sizes the tooltip to the longest of them rather than wrapping the
+ * text itself (see .info-icon-wide).
  */
 function info_icon_html(label: string, tooltip: string): string {
     const text = escape_html(tooltip);
