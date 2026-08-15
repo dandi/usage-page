@@ -1120,6 +1120,58 @@ input[type="number"]:focus {
     }
 }
 
+/* ── Phone-portrait layout of the usage-over-time controls ──
+   Below about 430 px neither the four aggregation periods nor the two
+   drop-downs beside them fit across a row, so the card falls apart into five
+   short rows over most of which its width sits unused: the periods wrap 3 + 1,
+   and the metric and group-by drop-downs each take a row of their own.
+
+   Here the periods are laid out as a 2x2 grid and the drop-downs share the row
+   below, each under its own label, which fills the card's width and takes two
+   rows out of its height. */
+@media (max-width: 430px) {
+    /* A row of its own.  The drop-downs below are laid out from a flex basis
+       small enough to be pulled onto whatever row has the space for it, and
+       this is the row above them that has to have none. */
+    #over_time_aggregate_container {
+        flex-basis: 100%;
+    }
+
+    /* An even 2x2 rather than the 3 + 1 the row wraps into, which reads as a
+       control that ran out of room rather than as one laid out; the cells are
+       also a good deal easier to hit with a thumb. */
+    #over_time_aggregate_container .radio-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+    }
+
+    /* The two drop-downs share the row in equal halves.  The basis is what
+       keeps them together — small enough that they are laid onto the same row,
+       large enough that neither is pulled onto the row above — and both grow
+       past it to fill the row. */
+    #over_time_metric_container,
+    #over_time_group_by_container {
+        flex: 1 1 40%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 3px;
+    }
+
+    /* Each label goes above the control it names rather than beside it: half a
+       phone's width does not fit both, and this way the drop-down is left wide
+       enough to show its longest option ("Downloads", "Asset type") in full. */
+    #over_time_metric_container label,
+    #over_time_group_by_container label {
+        text-align: center;
+    }
+
+    #over_time_metric_container select,
+    #over_time_group_by_container select {
+        width: 100%;
+    }
+}
+
 /* ── Site footer ── */
 .site-footer {
     display: flex;

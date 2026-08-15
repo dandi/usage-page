@@ -12,6 +12,7 @@
 
 #### 🚀 Enhancement
 
+- Laid the usage-over-time controls out for a phone in portrait, where the four aggregation periods had wrapped 3 + 1 and the metric and group-by drop-downs each took a row of their own: the periods are now an even 2x2 grid and the two drop-downs share the row below it, each under its own label. ([#253](https://github.com/dandi/usage-page/pull/253))
 - Opened both geographic map views on the United States rather than on longitude 0, which put a narrow map over Europe. ([#252](https://github.com/dandi/usage-page/pull/252))
 - Opened the points map on the same window on the world as the choropleth of the same width, instead of always on the whole of it, so a phone-width map is not the entire world drawn into a few hundred pixels. The window is also given the shape of the map it is drawn into, which it was not before: on a phone the world had been letterboxed into a band across the middle. ([#252](https://github.com/dandi/usage-page/pull/252))
 
