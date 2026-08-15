@@ -87,8 +87,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
 
-  <script type="module" crossorigin src="./assets/index-BZjQNrcY.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-D0ezQjGN.css">
+  <script type="module" crossorigin src="./assets/index-Bsnn8Xhw.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DyK9pATW.css">
 </head>
 <body>
     <header class="site-header">
@@ -179,21 +179,26 @@
                 <label for="aggregation_yearly">Yearly</label>
             </div>
         </div>
-        <div class="SubControllerContainer" id="over_time_metric_container">
-            <label for="over_time_metric">Metric:</label>
-            <select id="over_time_metric">
-                <option value="bytes">Bytes</option>
-                <option value="views">Views</option>
-                <option value="downloads">Downloads</option>
-            </select>
-        </div>
-        <div class="SubControllerContainer" id="over_time_group_by_container">
-            <label for="over_time_group_by">Group by:</label>
-            <select id="over_time_group_by">
-                <option value="none">None</option>
-                <option value="dandisets">Dandisets</option>
-                <option value="asset_type">Asset type</option>
-            </select>
+        <!-- One item of the bar rather than two, so that a bar too narrow for
+             all of it puts the pair on a row of its own instead of leaving the
+             metric beside the periods above and stranding the group-by. -->
+        <div class="SubControllerPair" id="over_time_metric_group">
+            <div class="SubControllerContainer" id="over_time_metric_container">
+                <label for="over_time_metric">Metric:</label>
+                <select id="over_time_metric">
+                    <option value="bytes">Bytes</option>
+                    <option value="views">Views</option>
+                    <option value="downloads">Downloads</option>
+                </select>
+            </div>
+            <div class="SubControllerContainer" id="over_time_group_by_container">
+                <label for="over_time_group_by">Group by:</label>
+                <select id="over_time_group_by">
+                    <option value="none">None</option>
+                    <option value="dandisets">Dandisets</option>
+                    <option value="asset_type">Asset type</option>
+                </select>
+            </div>
         </div>
         <div id="ot_settings_container" style="display:contents">
         <div class="separator"></div>
