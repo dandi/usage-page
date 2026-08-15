@@ -182,7 +182,8 @@ h1 {
 /* ── Totals summary ──
    The scalar totals of the current selection, as a table of one metric per
    row, laid out here as a row of labelled columns with each metric's caveats
-   behind an info icon rather than spelled out as a footnote.
+   behind an info icon rather than spelled out as a footnote; the caveats about
+   the summary as a whole sit behind one more icon below the table.
 
    The DOM rows are turned into the columns of a wrapping flex row, so that a
    viewport too narrow for all of them breaks the summary over as many lines as
@@ -205,15 +206,14 @@ h1 {
     overflow-x: clip;
 }
 
-.totals-caption,
+.totals-footnote,
 .totals-note {
     font-size: 0.95em;
     max-width: 640px;
 }
 
-/* Trails the last line of the caption or note, rather than being centered
-   against the block as a flex item would be when the text wraps. */
-.totals-caption .info-icon,
+/* Trails the last line of the note, rather than being centered against the
+   block as a flex item would be when the text wraps. */
 .totals-note .info-icon {
     vertical-align: -2px;
 }

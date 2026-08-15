@@ -662,9 +662,16 @@ export interface TotalsMetric {
 }
 
 export interface TotalsSummary {
-    /** Line above the table naming what the totals cover. */
+    /**
+     * Names what the totals cover.  Not displayed: it is only the accessible
+     * name of the summary-wide caveat icon, so that the caveat is read out
+     * against the selection it belongs to.
+     */
     caption: string;
-    /** Caveats that apply to the summary as a whole, shown behind an info icon. */
+    /**
+     * Caveats that apply to the summary as a whole, shown behind an info icon
+     * below the table.
+     */
     caption_tooltip?: string;
     metrics: TotalsMetric[];
     /** Optional line below the table, for a selection-specific remark. */
@@ -689,8 +696,8 @@ function info_icon_html(label: string, tooltip: string): string {
  * Renders the scalar totals of the current selection as a table of one metric
  * per row — laid out by the stylesheet as a row of labelled columns — instead
  * of a sentence.  Caveats that used to trail the sentence as footnotes are
- * attached to the metric they qualify (or to the caption, when they qualify
- * the whole summary) as info icons.
+ * attached to the metric they qualify as info icons; those qualifying the
+ * summary as a whole stay a footnote, below the table.
  *
  * Each metric is its own row so that the layout can wrap to as many lines as
  * the viewport needs, rather than overflowing a single row of columns; the
@@ -701,12 +708,7 @@ export function render_totals_summary(container_id: string, summary: TotalsSumma
     const container = document.getElementById(container_id);
     if (!container) return;
 
-    const caption_icon = summary.caption_tooltip
-        ? " " + info_icon_html(summary.caption, summary.caption_tooltip)
-        : "";
-    let html =
-        `<div class="totals-caption">${escape_html(summary.caption)}${caption_icon}</div>` +
-        '<table class="totals-table" role="table"><tbody role="rowgroup">';
+    let html = '<table class="totals-table" role="table"><tbody role="rowgroup">';
     summary.metrics.forEach((metric) => {
         const icon = metric.tooltip ? " " + info_icon_html(metric.label, metric.tooltip) : "";
         html +=
@@ -719,6 +721,9 @@ export function render_totals_summary(container_id: string, summary: TotalsSumma
     if (summary.note) {
         const note_icon = summary.note_tooltip ? " " + info_icon_html(summary.note, summary.note_tooltip) : "";
         html += `<div class="totals-note">${escape_html(summary.note)}${note_icon}</div>`;
+    }
+    if (summary.caption_tooltip) {
+        html += `<div class="totals-footnote">${info_icon_html(summary.caption, summary.caption_tooltip)}</div>`;
     }
 
     container.innerHTML = html;
