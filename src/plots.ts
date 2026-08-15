@@ -240,10 +240,13 @@ function syncThemeToggleIcon() {
  * shows/hides the "Dandisets" option based on whether the archive is selected.
  * When a non-archive dandiset is selected, the "Dandisets" option is hidden and
  * any active "dandisets" group-by is reset to "none".
- * The whole control is hidden when the table view is active.
+ * The whole control is hidden when the table view is active, along with the
+ * "Metric" control it is laid out beside, which the table view hides too: the
+ * two are one item of the bar, and hiding them by it leaves no empty item
+ * behind to hold a gap, or a row, open in the bar's layout.
  */
 function apply_over_time_group_by_visibility() {
-    const container = document.getElementById("over_time_group_by_container");
+    const container = document.getElementById("over_time_metric_group");
     if (!container) return;
     container.style.display = !USE_OVER_TIME_TABLE ? "" : "none";
 
@@ -302,15 +305,16 @@ function apply_daily_aggregation_restriction() {
 }
 
 /**
- * Shows the over-time metric selector only in plot view, since the table view
- * lists every metric as its own column already, and restricts it to "Bytes"
- * while grouping by asset type — the one grouping whose source data carries no
- * other metric.  A selection that is unavailable falls back to "Bytes".
+ * Restricts the over-time metric selector to "Bytes" while grouping by asset
+ * type — the one grouping whose source data carries no other metric.  A
+ * selection that is unavailable falls back to "Bytes".
+ *
+ * Showing it in plot view alone, since the table view lists every metric as a
+ * column of its own already, is left to apply_over_time_group_by_visibility():
+ * the two controls are hidden by the same view switch, and are hidden together
+ * as the one item of the bar they are laid out as.
  */
 function apply_over_time_metric_visibility() {
-    const container = document.getElementById("over_time_metric_container");
-    if (container) container.style.display = USE_OVER_TIME_TABLE ? "none" : "";
-
     const bytes_only = OVER_TIME_GROUP_BY === "asset_type";
     if (bytes_only) OVER_TIME_METRIC = "bytes";
 
