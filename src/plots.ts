@@ -27,6 +27,8 @@ import {
     fetchWithRetry,
     apply_view_mode,
     apply_geo_view_mode,
+    default_choropleth_view,
+    default_points_view,
     derive_data_source_urls,
     render_sortable_table,
     render_totals_summary,
@@ -1012,9 +1014,7 @@ function resizePlots() {
     // Update min zoom for the choroplethmap based on new width
     const mapEl = document.getElementById("geography_heatmap") as Plotly.PlotlyHTMLElement | null;
     if (mapEl && GEO_VIEW === "regions" && (mapEl as any)._fullLayout && (mapEl as any)._fullLayout.map && (mapEl as any)._fullLayout.map._subplot) {
-        const mapWidth = mapEl.offsetWidth;
-        const defaultZoom = Math.max(1, Math.log2(mapWidth / 512));
-        const minZoom = defaultZoom - 0.15;
+        const minZoom = default_choropleth_view(mapEl.offsetWidth).min_zoom;
         const map = (mapEl as any)._fullLayout.map._subplot.map;
         if (map && map.setMinZoom) {
             map.setMinZoom(minZoom);
@@ -2569,6 +2569,16 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                 },
             ];
 
+            // The points map opens on the same part of the world as the
+            // choropleth, rather than on the whole of it: a phone-width map of
+            // every region at once is unreadable, and the world's coastlines
+            // are drawn a point at a time here rather than by MapLibre.
+            const points_element = document.getElementById(plot_element_id);
+            const default_view = default_points_view(
+                points_element ? points_element.offsetWidth : 800,
+                points_element ? points_element.offsetHeight : 450,
+            );
+
             const layout = applyTheme({
                 title: {
                     text: "Usage by region",
@@ -2576,6 +2586,8 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                 },
                 geo: {
                     projection: { type: "equirectangular" },
+                    lonaxis: { range: default_view.longitude_range },
+                    lataxis: { range: default_view.latitude_range },
                     bgcolor: getTheme().surface,
                     lakecolor: getTheme().bg,
                     landcolor: getTheme().border,
@@ -2733,10 +2745,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
 
             const mapEl = document.getElementById(plot_element_id);
             const mapWidth = mapEl ? mapEl.offsetWidth : 800;
-            const defaultZoom = Math.max(1, Math.log2(mapWidth / 512));
-            // Min zoom allows seeing the full earth: at 256px per tile at zoom 0,
-            // we need zoom = log2(width / 256) to fill the container once
-            const minZoom = defaultZoom - 0.15;
+            const default_view = default_choropleth_view(mapWidth);
 
             // Plotly does not wrap annotation text, so on a map too narrow to
             // hold the attribution on one line it runs off the side of the
@@ -2792,9 +2801,9 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         });
         (layout as any).map = {
             style: getTheme().mapStyle,
-            center: { lat: 40, lon: 0 },
-            zoom: defaultZoom,
-            minzoom: minZoom,
+            center: default_view.center,
+            zoom: default_view.zoom,
+            minzoom: default_view.min_zoom,
         };
 
         Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG).then(() => {
@@ -2803,7 +2812,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             if (el && (el as any)._fullLayout && (el as any)._fullLayout.map && (el as any)._fullLayout.map._subplot) {
                 const map = (el as any)._fullLayout.map._subplot.map;
                 if (map) {
-                    if (map.setMinZoom) map.setMinZoom(minZoom);
+                    if (map.setMinZoom) map.setMinZoom(default_view.min_zoom);
                 }
             }
         });

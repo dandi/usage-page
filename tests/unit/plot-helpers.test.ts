@@ -6,6 +6,8 @@ import {
     fetchWithRetry,
     apply_view_mode,
     apply_geo_view_mode,
+    default_choropleth_view,
+    default_points_view,
     derive_data_source_urls,
     render_sortable_table,
     render_totals_summary,
@@ -334,6 +336,72 @@ describe("apply_geo_view_mode", () => {
     it("does not throw when geo elements are absent", () => {
         document.body.innerHTML = "";
         expect(() => apply_geo_view_mode("regions")).not.toThrow();
+    });
+});
+
+// ── default_choropleth_view / default_points_view ─────────────────────────────
+
+/** The degrees of longitude a MapLibre map of this width shows at this zoom. */
+function tiled_map_longitude_span(map_width_px: number, zoom: number): number {
+    return (360 * map_width_px) / (512 * Math.pow(2, zoom));
+}
+
+describe("default_choropleth_view", () => {
+    it("centers the view on the United States", () => {
+        expect(default_choropleth_view(400).center).toEqual({ lat: 40, lon: -98 });
+    });
+
+    it("opens on the whole world once the map is wide enough to draw it", () => {
+        const view = default_choropleth_view(2048);
+        expect(view.zoom).toBeCloseTo(2);
+        expect(tiled_map_longitude_span(2048, view.zoom)).toBeCloseTo(360);
+    });
+
+    it("opens on a proportionally narrower window on a narrower map", () => {
+        const view = default_choropleth_view(400);
+        expect(tiled_map_longitude_span(400, view.zoom)).toBeCloseTo(360 * (400 / 1024));
+    });
+
+    it("allows zooming a little further out than the default", () => {
+        const view = default_choropleth_view(400);
+        expect(view.min_zoom).toBeCloseTo(view.zoom - 0.15);
+    });
+});
+
+describe("default_points_view", () => {
+    it("opens on the same window of longitude as the choropleth of that width", () => {
+        const [west, east] = default_points_view(400, 320).longitude_range;
+        expect(east - west).toBeCloseTo(tiled_map_longitude_span(400, default_choropleth_view(400).zoom));
+    });
+
+    it("centers the view on the United States", () => {
+        const view = default_points_view(400, 320);
+        const [west, east] = view.longitude_range;
+        const [south, north] = view.latitude_range;
+        expect((west + east) / 2).toBeCloseTo(-98);
+        expect((south + north) / 2).toBeCloseTo(40);
+    });
+
+    it("gives the window the shape of the map it is drawn into", () => {
+        const view = default_points_view(400, 320);
+        const [west, east] = view.longitude_range;
+        const [south, north] = view.latitude_range;
+        // 400 x 320 less Plotly's margins is a drawing area of 240 x 140.
+        expect((east - west) / (north - south)).toBeCloseTo(240 / 140);
+    });
+
+    it("opens on the whole world once the map is wide enough to draw it", () => {
+        const view = default_points_view(2048, 1200);
+        expect(view.longitude_range).toEqual([-180, 180]);
+        expect(view.latitude_range).toEqual([-90, 90]);
+    });
+
+    it("pulls a window that would run off the end of the world back inside it", () => {
+        // A `geo` subplot does not repeat the world to either side, so a
+        // US-centered window this wide would leave empty paper to the west.
+        const view = default_points_view(800, 600);
+        expect(view.longitude_range[0]).toBeCloseTo(-180);
+        expect(view.longitude_range[1] - view.longitude_range[0]).toBeCloseTo(360 * (800 / 1024));
     });
 });
 
