@@ -32,8 +32,8 @@ const MASKED_TEXT = [".gtitle", ".annotation"];
 
 // The fixture data carries three mappable regions — US/California, DE/Bavaria
 // and GB/England (AWS/us-east-1 is not a place) — but how many of them the map
-// opens on depends on its width: the view is centered on longitude 0 and zoomed
-// to the map's width, so a phone-width map does not reach California.  Each
+// opens on depends on its width: the view is centered on the United States and
+// zoomed to the map's width, so a phone-width map does not reach Europe.  Each
 // viewport therefore states what it should be showing.
 
 /**
@@ -96,7 +96,7 @@ async function pinToViewportCorner(page) {
 
 const VIEWPORTS = [
     { name: "desktop", width: 1280, height: 720, regions: 3 },
-    { name: "mobile-portrait", width: 390, height: 844, regions: 2 },
+    { name: "mobile-portrait", width: 390, height: 844, regions: 1 },
 ];
 
 test.describe("Geography choropleth", () => {

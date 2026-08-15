@@ -198,6 +198,94 @@ export function format_dandiset_label(id: string, titles: Record<string, string>
     return title ? `${id} - ${title}` : id;
 }
 
+// ── Default map view ──────────────────────────────────────────────────────────
+
+/**
+ * Where both map views open, in degrees: the middle of the contiguous United
+ * States, which is where most of the archive's traffic is served to.
+ */
+const MAP_DEFAULT_CENTER = { latitude: 40, longitude: -98 };
+
+/**
+ * The width, in CSS pixels, at which a map opens on the whole world.  A map
+ * narrower than this opens on a proportionally narrower window on it instead:
+ * the world squeezed into a phone's width is both unreadable and, for the
+ * points view, needlessly expensive to draw.
+ */
+const WORLD_VIEW_WIDTH_PX = 1024;
+
+/**
+ * The margins Plotly leaves around a plot by default, which the map is drawn
+ * inside: 80 px to each side, and 100 px above the plot and 80 below it.  Used
+ * to work out the shape of the drawn map from the size of its container, which
+ * is the only one of the two known before the map is drawn.
+ */
+const PLOTLY_HORIZONTAL_MARGIN_PX = 160;
+const PLOTLY_VERTICAL_MARGIN_PX = 180;
+
+/** The fraction of the world's 360° of longitude a map of this width opens on. */
+function default_view_longitude_fraction(map_width_px: number): number {
+    return Math.min(1, map_width_px / WORLD_VIEW_WIDTH_PX);
+}
+
+/**
+ * The view the choropleth — a MapLibre `map` subplot, which zooms in powers of
+ * two over a 512 px world tile — opens on at the given map width.
+ *
+ * @param map_width_px - Width of the map's container element.
+ * @returns The MapLibre `center`, `zoom` and `minzoom` of the default view.
+ *          The minimum sits just below the default so the view can always be
+ *          restored by zooming out, without letting the map be pulled back so
+ *          far that the world no longer fills it.
+ */
+export function default_choropleth_view(map_width_px: number): {
+    center: { lat: number; lon: number };
+    zoom: number;
+    min_zoom: number;
+} {
+    const zoom = Math.log2(map_width_px / (512 * default_view_longitude_fraction(map_width_px)));
+    return {
+        center: { lat: MAP_DEFAULT_CENTER.latitude, lon: MAP_DEFAULT_CENTER.longitude },
+        zoom: zoom,
+        min_zoom: zoom - 0.15,
+    };
+}
+
+/**
+ * The same view for the points map — a `geo` subplot, which is framed by the
+ * window of latitude and longitude it is drawn to rather than by a tile zoom.
+ *
+ * @param map_width_px - Width of the map's container element.
+ * @param map_height_px - Height of the map's container element.
+ * @returns The `geo.lonaxis.range` and `geo.lataxis.range` of the default view.
+ */
+export function default_points_view(map_width_px: number, map_height_px: number): {
+    longitude_range: [number, number];
+    latitude_range: [number, number];
+} {
+    const longitude_span = 360 * default_view_longitude_fraction(map_width_px);
+    // The window is given the shape of the map it is drawn into, so that it
+    // fills the map rather than being letterboxed inside it: a `geo` subplot
+    // is drawn to the whole of the window it is given and clipped to it, so
+    // one of a shape the map does not have leaves a band of empty paper along
+    // whichever pair of sides is over-long.
+    const drawn_width = Math.max(1, map_width_px - PLOTLY_HORIZONTAL_MARGIN_PX);
+    const drawn_height = Math.max(1, map_height_px - PLOTLY_VERTICAL_MARGIN_PX);
+    const latitude_span = Math.min(180, (longitude_span * drawn_height) / drawn_width);
+
+    // A `geo` subplot does not repeat the world to either side the way a tiled
+    // map does, so a window that would carry the view off the end of it is
+    // pulled back to where the world still fills it — which, on a map opening
+    // on the whole world, leaves it centered on the middle of it.
+    const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
+    const longitude = clamp(MAP_DEFAULT_CENTER.longitude, 180 - longitude_span / 2);
+    const latitude = clamp(MAP_DEFAULT_CENTER.latitude, 90 - latitude_span / 2);
+    return {
+        longitude_range: [longitude - longitude_span / 2, longitude + longitude_span / 2],
+        latitude_range: [latitude - latitude_span / 2, latitude + latitude_span / 2],
+    };
+}
+
 // ── View-mode helpers ─────────────────────────────────────────────────────────
 
 /**

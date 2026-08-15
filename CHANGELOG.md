@@ -12,6 +12,9 @@
 
 #### 🚀 Enhancement
 
+- Opened both geographic map views on the United States rather than on longitude 0, which put a narrow map over Europe. ([#252](https://github.com/dandi/usage-page/pull/252))
+- Opened the points map on the same window on the world as the choropleth of the same width, instead of always on the whole of it, so a phone-width map is not the entire world drawn into a few hundred pixels. The window is also given the shape of the map it is drawn into, which it was not before: on a phone the world had been letterboxed into a band across the middle. ([#252](https://github.com/dandi/usage-page/pull/252))
+
 - Added a screenshot-comparison suite (`npm run test:visual`) covering the geographic choropleth against PNG baselines committed beside it, plus an assertion on the regions MapLibre reports having painted. Chromatic archives the DOM, which carries a canvas element but none of its pixels, so a map that failed to draw was indistinguishable there from one that drew perfectly. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Added tablet and phone viewports, portrait and landscape both, to the Chromatic Playwright snapshots, which until now only covered a desktop width, and made the run fail outright on a plot that did not render, a page that scrolls sideways, or a plot title run over by its mode bar. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Put the map into the Chromatic snapshots, which until now showed the geography section as an empty rectangle: a serialized DOM carries a canvas element but none of its pixels, so the section is captured as an image and stood in for the canvas before the archive is taken. ([#251](https://github.com/dandi/usage-page/pull/251))
