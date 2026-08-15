@@ -1234,16 +1234,7 @@ function update_totals(dandiset_id: string) {
     try {
         const format_metric = (value: number | string | undefined) =>
             typeof value === "number" ? value.toLocaleString() : String(value ?? "--");
-        const selection =
-            dandiset_id === "archive" ? "the entire archive"
-            : dandiset_id === "undetermined" ? "undetermined usage"
-            : `Dandiset ${dandiset_id}`;
         render_totals_summary(totals_element_id, {
-            caption: `Totals for ${selection}`,
-            caption_tooltip:
-                "Dandiset source determination is heuristic and may change over time. " +
-                "Activity that cannot be confidently attributed to a Dandiset or any other field " +
-                "is reported as 'undetermined'.",
             // Ordered as the table views are: views, then downloads.
             metrics: [
                 { label: "Transferred", value: format_bytes(totals.total_bytes_sent) },

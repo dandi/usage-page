@@ -662,17 +662,6 @@ export interface TotalsMetric {
 }
 
 export interface TotalsSummary {
-    /**
-     * Names what the totals cover.  Not displayed: it is only the accessible
-     * name of the summary-wide caveat icon, so that the caveat is read out
-     * against the selection it belongs to.
-     */
-    caption: string;
-    /**
-     * Caveats that apply to the summary as a whole, shown behind an info icon
-     * below the table.
-     */
-    caption_tooltip?: string;
     metrics: TotalsMetric[];
     /** Optional line below the table, for a selection-specific remark. */
     note?: string;
@@ -695,9 +684,10 @@ function info_icon_html(label: string, tooltip: string): string {
 /**
  * Renders the scalar totals of the current selection as a table of one metric
  * per row — laid out by the stylesheet as a row of labelled columns — instead
- * of a sentence.  Caveats that used to trail the sentence as footnotes are
- * attached to the metric they qualify as info icons; those qualifying the
- * summary as a whole stay a footnote, below the table.
+ * of a sentence.  Caveats that used to trail the sentence are attached to the
+ * metric they qualify as info icons; the ones about how the totals are
+ * attributed at all qualify every section of the page, not just this one, and
+ * are spelled out in the footnote at the foot of the page instead.
  *
  * Each metric is its own row so that the layout can wrap to as many lines as
  * the viewport needs, rather than overflowing a single row of columns; the
@@ -721,9 +711,6 @@ export function render_totals_summary(container_id: string, summary: TotalsSumma
     if (summary.note) {
         const note_icon = summary.note_tooltip ? " " + info_icon_html(summary.note, summary.note_tooltip) : "";
         html += `<div class="totals-note">${escape_html(summary.note)}${note_icon}</div>`;
-    }
-    if (summary.caption_tooltip) {
-        html += `<div class="totals-footnote">${info_icon_html(summary.caption, summary.caption_tooltip)}</div>`;
     }
 
     container.innerHTML = html;

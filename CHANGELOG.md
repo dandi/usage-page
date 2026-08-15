@@ -12,7 +12,7 @@
 
 #### 🚀 Enhancement
 
-- Dropped the "Totals for ..." caption above the totals summary, leaving the metrics themselves at the top of the block; the caveat that had sat behind the caption's info icon is now a footnote icon below the table. ([#254](https://github.com/dandi/usage-page/pull/254))
+- Dropped the "Totals for ..." caption above the totals summary, leaving the metrics themselves at the top of the block, and spelled the caveat it carried about how usage is attributed to a Dandiset out as a footnote at the foot of the page: it qualifies every figure on the page, not just the totals. ([#254](https://github.com/dandi/usage-page/pull/254))
 - Removed the "Web requests" metric, and its caveat, from the totals summary. ([#254](https://github.com/dandi/usage-page/pull/254))
 - Laid the usage-over-time controls out for a phone in portrait, where the four aggregation periods had wrapped 3 + 1 and the metric and group-by drop-downs each took a row of their own: the periods are now an even 2x2 grid and the two drop-downs share the row below it, each under its own label. ([#253](https://github.com/dandi/usage-page/pull/253))
 - Kept the usage-over-time metric and group-by drop-downs together as one block of its control bar, so a bar too narrow for all of it — a phone held in landscape, or a tablet in portrait — carries the pair onto a row of its own instead of leaving the metric beside the aggregation periods and stranding the group-by below. ([#253](https://github.com/dandi/usage-page/pull/253))

@@ -182,8 +182,7 @@ h1 {
 /* ── Totals summary ──
    The scalar totals of the current selection, as a table of one metric per
    row, laid out here as a row of labelled columns with each metric's caveats
-   behind an info icon rather than spelled out as a footnote; the caveats about
-   the summary as a whole sit behind one more icon below the table.
+   behind an info icon rather than spelled out as a footnote.
 
    The DOM rows are turned into the columns of a wrapping flex row, so that a
    viewport too narrow for all of them breaks the summary over as many lines as
@@ -206,7 +205,6 @@ h1 {
     overflow-x: clip;
 }
 
-.totals-footnote,
 .totals-note {
     font-size: 0.95em;
     max-width: 640px;
@@ -1178,6 +1176,20 @@ input[type="number"]:focus {
 }
 
 /* ── Site footer ── */
+/* The page-wide caveat, kept quiet at the foot of the page: smaller and
+   dimmer than the body text so it reads as a footnote to everything above it
+   rather than as another line of the last section. */
+.page-footnote {
+    max-width: 720px;
+    margin: 32px auto 0;
+    padding: 0 20px;
+    color: var(--color-text-secondary);
+    font-size: 0.8em;
+    font-weight: 300;
+    line-height: 1.5;
+    text-align: center;
+}
+
 .site-footer {
     display: flex;
     align-items: flex-end;
