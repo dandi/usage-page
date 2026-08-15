@@ -179,21 +179,26 @@
                 <label for="aggregation_yearly">Yearly</label>
             </div>
         </div>
-        <div class="SubControllerContainer" id="over_time_metric_container">
-            <label for="over_time_metric">Metric:</label>
-            <select id="over_time_metric">
-                <option value="bytes">Bytes</option>
-                <option value="views">Views</option>
-                <option value="downloads">Downloads</option>
-            </select>
-        </div>
-        <div class="SubControllerContainer" id="over_time_group_by_container">
-            <label for="over_time_group_by">Group by:</label>
-            <select id="over_time_group_by">
-                <option value="none">None</option>
-                <option value="dandisets">Dandisets</option>
-                <option value="asset_type">Asset type</option>
-            </select>
+        <!-- One item of the bar rather than two, so that a bar too narrow for
+             all of it puts the pair on a row of its own instead of leaving the
+             metric beside the periods above and stranding the group-by. -->
+        <div class="SubControllerPair" id="over_time_metric_group">
+            <div class="SubControllerContainer" id="over_time_metric_container">
+                <label for="over_time_metric">Metric:</label>
+                <select id="over_time_metric">
+                    <option value="bytes">Bytes</option>
+                    <option value="views">Views</option>
+                    <option value="downloads">Downloads</option>
+                </select>
+            </div>
+            <div class="SubControllerContainer" id="over_time_group_by_container">
+                <label for="over_time_group_by">Group by:</label>
+                <select id="over_time_group_by">
+                    <option value="none">None</option>
+                    <option value="dandisets">Dandisets</option>
+                    <option value="asset_type">Asset type</option>
+                </select>
+            </div>
         </div>
         <div id="ot_settings_container" style="display:contents">
         <div class="separator"></div>

@@ -302,6 +302,21 @@ h1 {
     min-width: 0;
 }
 
+/* Two controls that belong together, laid out as a single item of the bar
+   around them: the bar wraps by its items, so a pair inside one of them is
+   carried onto a row of its own whole rather than split across the break, one
+   control left on the row above and the other stranded below it. */
+.SubControllerPair {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    /* Never wider than the row it is carried onto; the controls inside give up
+       the width instead, which for a <select> is what the cap below clips. */
+    min-width: 0;
+    max-width: 100%;
+}
+
 label {
     font-size: 0.85em;
     font-weight: 600;
@@ -1117,6 +1132,48 @@ input[type="number"]:focus {
         padding-top: 10px;
         padding-bottom: 10px;
         padding-left: 12px;
+    }
+}
+
+/* ── Phone-portrait layout of the usage-over-time controls ──
+   Below about 430 px neither the four aggregation periods nor the pair of
+   drop-downs below them fits across a row, so the card falls apart into five
+   short rows over most of which its width sits unused: the periods wrap 3 + 1,
+   and each drop-down is squeezed onto a row of its own.
+
+   Here the periods are laid out as a 2x2 grid and the drop-downs share their
+   row in halves, each under its own label, which fills the card's width and
+   takes two rows out of its height. */
+@media (max-width: 430px) {
+    /* An even 2x2 rather than the 3 + 1 the row wraps into, which reads as a
+       control that ran out of room rather than as one laid out; the cells are
+       also a good deal easier to hit with a thumb. */
+    #over_time_aggregate_controls .radio-toggle {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+    }
+
+    /* Half the row each, rather than the width of what is in them. */
+    #over_time_metric_container,
+    #over_time_group_by_container {
+        flex: 1 1 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 3px;
+    }
+
+    /* Each label goes above the control it names rather than beside it: half a
+       phone's width does not fit both, and this way the drop-down is left wide
+       enough to show its longest option ("Downloads", "Asset type") in full. */
+    #over_time_metric_container label,
+    #over_time_group_by_container label {
+        text-align: center;
+    }
+
+    #over_time_metric_container select,
+    #over_time_group_by_container select {
+        width: 100%;
     }
 }
 
