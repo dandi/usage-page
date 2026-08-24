@@ -711,6 +711,15 @@ input[type="number"]:focus {
     gap: 2px;
 }
 
+/* A pair of options laid out as one item of the toggle, so that a toggle too
+   narrow for all of its options wraps the pair onto the next row together
+   rather than stranding the second of them there alone. */
+.radio-toggle-pair {
+    display: inline-flex;
+    justify-content: center;
+    gap: 2px;
+}
+
 /* Hide the native radio circle, but keep it accessible */
 .radio-toggle input[type="radio"] {
     position: absolute;
@@ -942,14 +951,16 @@ input[type="number"]:focus {
 }
 
 #top_regions_table,
-#aws_histogram {
+#aws_histogram,
+#gcp_histogram {
     flex: 1;
     min-width: 300px;
     max-width: 500px;
 }
 
 #top_regions_table h3,
-#aws_histogram h3 {
+#aws_histogram h3,
+#gcp_histogram h3 {
     font-weight: 300;
     font-size: 1.1em;
     color: var(--color-text-secondary);
@@ -957,14 +968,16 @@ input[type="number"]:focus {
 }
 
 #top_regions_table table,
-#aws_histogram table {
+#aws_histogram table,
+#gcp_histogram table {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.85em;
 }
 
 #top_regions_table th,
-#aws_histogram th {
+#aws_histogram th,
+#gcp_histogram th {
     text-align: center;
     font-weight: 600;
     color: var(--color-text-secondary);
@@ -976,12 +989,14 @@ input[type="number"]:focus {
 }
 
 #top_regions_table th:last-child,
-#aws_histogram th:last-child {
+#aws_histogram th:last-child,
+#gcp_histogram th:last-child {
     text-align: center;
 }
 
 #top_regions_table td,
-#aws_histogram td {
+#aws_histogram td,
+#gcp_histogram td {
     padding: 5px 12px;
     border-bottom: 1px solid var(--color-border);
     color: var(--color-text);
@@ -989,13 +1004,15 @@ input[type="number"]:focus {
 }
 
 #top_regions_table td:last-child,
-#aws_histogram td:last-child {
+#aws_histogram td:last-child,
+#gcp_histogram td:last-child {
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
 #top_regions_table tr:hover td,
-#aws_histogram tr:hover td {
+#aws_histogram tr:hover td,
+#gcp_histogram tr:hover td {
     background: var(--color-accent-subtle);
 }
 

@@ -348,7 +348,7 @@ export function apply_view_mode(plot_id: string, table_id: string, use_table: bo
 
 /**
  * Shows/hides the geography map and its paired table panels according to the
- * selected geo view mode ("regions" | "points" | "table" | "aws").
+ * selected geo view mode ("regions" | "points" | "table" | "aws" | "gcp").
  */
 export function apply_geo_view_mode(view: string): void {
     const mapEl   = document.getElementById("geography_heatmap");
@@ -360,11 +360,13 @@ export function apply_geo_view_mode(view: string): void {
 
     if (mapEl)   mapEl.style.display   = showMap ? "" : "none";
     if (tableEl) tableEl.style.display = showMap ? "none" : "";
-    // When showing a table, hide the one that isn't selected
+    // When showing a table, hide the ones that aren't selected
     const regionsEl = document.getElementById("top_regions_table");
     const awsEl     = document.getElementById("aws_histogram");
+    const gcpEl     = document.getElementById("gcp_histogram");
     if (regionsEl) regionsEl.style.display = (view === "table") ? "" : "none";
     if (awsEl)     awsEl.style.display     = (view === "aws")   ? "" : "none";
+    if (gcpEl)     gcpEl.style.display     = (view === "gcp")   ? "" : "none";
 
     reserve_section_height(section_el, showMap ? mapEl : tableEl, outgoing_height);
 }

@@ -262,6 +262,7 @@ describe("apply_geo_view_mode", () => {
                 <div id="geo_table_section" style="display:none;">
                     <div id="top_regions_table" style="display:none;"></div>
                     <div id="aws_histogram" style="display:none;"></div>
+                    <div id="gcp_histogram" style="display:none;"></div>
                 </div>
             </div>
         `;
@@ -285,10 +286,11 @@ describe("apply_geo_view_mode", () => {
         expect(document.getElementById("geo_table_section")!.style.display).toBe("");
     });
 
-    it('shows the top-regions table and hides the aws panel in "table" view', () => {
+    it('shows the top-regions table and hides the cloud panels in "table" view', () => {
         apply_geo_view_mode("table");
         expect(document.getElementById("top_regions_table")!.style.display).toBe("");
         expect(document.getElementById("aws_histogram")!.style.display).toBe("none");
+        expect(document.getElementById("gcp_histogram")!.style.display).toBe("none");
     });
 
     it('hides the map and shows the table section for "aws" view', () => {
@@ -297,10 +299,24 @@ describe("apply_geo_view_mode", () => {
         expect(document.getElementById("geo_table_section")!.style.display).toBe("");
     });
 
-    it('shows the aws histogram and hides the top-regions table in "aws" view', () => {
+    it('shows the aws histogram and hides the other panels in "aws" view', () => {
         apply_geo_view_mode("aws");
         expect(document.getElementById("aws_histogram")!.style.display).toBe("");
         expect(document.getElementById("top_regions_table")!.style.display).toBe("none");
+        expect(document.getElementById("gcp_histogram")!.style.display).toBe("none");
+    });
+
+    it('hides the map and shows the table section for "gcp" view', () => {
+        apply_geo_view_mode("gcp");
+        expect(document.getElementById("geography_heatmap")!.style.display).toBe("none");
+        expect(document.getElementById("geo_table_section")!.style.display).toBe("");
+    });
+
+    it('shows the gcp histogram and hides the other panels in "gcp" view', () => {
+        apply_geo_view_mode("gcp");
+        expect(document.getElementById("gcp_histogram")!.style.display).toBe("");
+        expect(document.getElementById("top_regions_table")!.style.display).toBe("none");
+        expect(document.getElementById("aws_histogram")!.style.display).toBe("none");
     });
 
     it("reserves the height of the map it replaces while the table is still empty", () => {
