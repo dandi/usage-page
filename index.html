@@ -87,8 +87,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
 
-  <script type="module" crossorigin src="./assets/index-J46LyxYZ.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CxcuGFTo.css">
+  <script type="module" crossorigin src="./assets/index-ZlNQZAFh.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Bt4svGLo.css">
 </head>
 <body>
     <header class="site-header">
@@ -308,8 +308,15 @@
                 <label for="geo_view_points">Points</label>
                 <input type="radio" id="geo_view_table" name="geo_view" value="table" />
                 <label for="geo_view_table">Table</label>
-                <input type="radio" id="geo_view_aws" name="geo_view" value="aws" />
-                <label for="geo_view_aws">AWS</label>
+                <!-- One flex item rather than two, so a bar too narrow for
+                     every view wraps the cloud pair onto a row together
+                     instead of stranding the last of them alone. -->
+                <span class="radio-toggle-pair">
+                    <input type="radio" id="geo_view_aws" name="geo_view" value="aws" />
+                    <label for="geo_view_aws">AWS</label>
+                    <input type="radio" id="geo_view_gcp" name="geo_view" value="gcp" />
+                    <label for="geo_view_gcp">GCP</label>
+                </span>
             </div>
         </div>
     </div>
@@ -318,6 +325,7 @@
         <div class="tables-row" id="geo_table_section" style="display:none;">
             <div id="top_regions_table"></div>
             <div id="aws_histogram"></div>
+            <div id="gcp_histogram"></div>
         </div>
     </div>
     </div>
