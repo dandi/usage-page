@@ -212,7 +212,7 @@ function toggleTheme() {
         const id = selector.value;
         load_over_time_plot(id);
         load_histogram(id);
-        load_aws_histogram(id);
+        load_cloud_histograms(id);
         load_geographic_heatmap(id);
     }
 }
@@ -477,7 +477,7 @@ let USE_OT_LINE_PLOT = false;
 let USE_HIST_LINE_PLOT = false;
 let USE_BINARY = false;
 let USE_STACKED = true;
-let GEO_VIEW = "regions";  // "regions" | "points" | "table" | "aws"
+let GEO_VIEW = "regions";  // "regions" | "points" | "table" | "aws" | "gcp"
 let TIME_AGGREGATION = "daily";  // "daily" | "weekly" | "monthly" | "yearly"
 let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 // The metric each of the first two plots is drawn in.  The over-time plot has
@@ -582,7 +582,7 @@ function syncFromUrl() {
 
     // Geo view
     const urlMap = params.get("map");
-    const validGeoViews = ["regions", "points", "table", "aws"];
+    const validGeoViews = ["regions", "points", "table", "aws", "gcp"];
     GEO_VIEW = urlMap !== null && validGeoViews.includes(urlMap) ? urlMap : "regions";
     const geoRadio = document.querySelector(`input[name="geo_view"][value="${GEO_VIEW}"]`) as HTMLInputElement | null;
     if (geoRadio) geoRadio.checked = true;
@@ -729,7 +729,7 @@ window.addEventListener("load", () => {
             // Reload plots with the current dandiset ID
             load_over_time_plot(selected_dandiset);
             load_histogram(selected_dandiset);
-            load_aws_histogram(selected_dandiset);
+            load_cloud_histograms(selected_dandiset);
             load_geographic_heatmap(selected_dandiset);
         });
     }
@@ -757,7 +757,7 @@ window.addEventListener("load", () => {
             // Reload plots with the current dandiset ID
             load_over_time_plot(selected_dandiset);
             load_histogram(selected_dandiset);
-            load_aws_histogram(selected_dandiset);
+            load_cloud_histograms(selected_dandiset);
             load_geographic_heatmap(selected_dandiset);
         });
     }
@@ -829,7 +829,7 @@ window.addEventListener("load", () => {
             update_totals(selected_dandiset);
             load_over_time_plot(selected_dandiset);
             load_histogram(selected_dandiset);
-            load_aws_histogram(selected_dandiset);
+            load_cloud_histograms(selected_dandiset);
             load_geographic_heatmap(selected_dandiset);
         });
     }
@@ -933,7 +933,7 @@ window.addEventListener("load", () => {
         });
     });
 
-    // Add event listener for the single geo view toggle (Regions / Dots / Table / AWS)
+    // Add event listener for the single geo view toggle (Regions / Points / Table / AWS / GCP)
     const geoViewRadios = document.querySelectorAll('input[name="geo_view"]');
     geoViewRadios.forEach((radio) => {
         radio.addEventListener("change", () => {
@@ -1154,7 +1154,7 @@ Promise.all([
             return [
                 load_over_time_plot(id),
                 load_histogram(id),
-                load_aws_histogram(id),
+                load_cloud_histograms(id),
                 load_geographic_heatmap(id),
             ];
         };
@@ -2205,9 +2205,9 @@ function load_per_asset_histogram(by_asset_summary_tsv_url: string): Promise<voi
         });
 }
 
-// Function to fetch and render AWS regions as a table
-function load_aws_histogram(dandiset_id: string): Promise<void> {
-    const element = document.getElementById("aws_histogram");
+// Function to fetch and render one cloud provider's regions as a table
+function load_cloud_histogram(dandiset_id: string, provider: "AWS" | "GCP", element_id: string): Promise<void> {
+    const element = document.getElementById(element_id);
     if (!element) return Promise.resolve();
 
     const by_region_summary_tsv_url = `${BASE_TSV_URL}/${dandiset_id}/by_region.tsv`;
@@ -2231,8 +2231,8 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
 
             data.forEach((row) => {
                 const region = row[0];
-                if (!region.startsWith("AWS/")) return;
-                const region_clipped = region.replace("AWS/", "");
+                if (!region.startsWith(`${provider}/`)) return;
+                const region_clipped = region.replace(`${provider}/`, "");
                 const bytes = parseInt(row[1], 10);
                 const requests = parseInt(row[2] || "0", 10);
                 const downloads = parseInt(row[3] || "0", 10);
@@ -2250,8 +2250,8 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
             const total_bytes = subregion_data.reduce((acc, item) => acc + item.bytes, 0);
             const count_format = (n: number) => n.toLocaleString();
 
-            render_sortable_table("aws_histogram", `${format_bytes(total_bytes)} sent to AWS data centers`, [
-                { label: "AWS Region", key: "name", numeric: false },
+            render_sortable_table(element_id, `${format_bytes(total_bytes)} sent to ${provider} data centers`, [
+                { label: `${provider} Region`, key: "name", numeric: false },
                 { label: "Bytes", key: "bytes", numeric: true },
                 { label: "Views", key: "views", numeric: true, format_fn: count_format },
                 { label: "Downloads", key: "downloads", numeric: true, format_fn: count_format },
@@ -2262,6 +2262,14 @@ function load_aws_histogram(dandiset_id: string): Promise<void> {
             console.error("Error:", error);
             if (element) element.innerHTML = "";
         });
+}
+
+// Function to fetch and render the per-provider cloud region tables (AWS and GCP)
+function load_cloud_histograms(dandiset_id: string): Promise<void[]> {
+    return Promise.all([
+        load_cloud_histogram(dandiset_id, "AWS", "aws_histogram"),
+        load_cloud_histogram(dandiset_id, "GCP", "gcp_histogram"),
+    ]);
 }
 
 // Normalize a subdivision name for matching against GeoJSON features
@@ -2481,7 +2489,7 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
         ]);
     }
 
-    // Table / AWS view: tables already populated above, nothing more to render
+    // Table / AWS / GCP view: tables already populated above, nothing more to render
     if (GEO_VIEW !== "points") return topRegionsPromise;
 
     if (!REGION_CODES_TO_LATITUDE_LONGITUDE) {

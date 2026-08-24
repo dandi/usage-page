@@ -31,7 +31,7 @@ import { setupDataMocks, waitForMapToSettle, waitForPlotsToRender } from "../fix
 const MASKED_TEXT = [".gtitle", ".annotation"];
 
 // The fixture data carries three mappable regions — US/California, DE/Bavaria
-// and GB/England (AWS/us-east-1 is not a place) — but how many of them the map
+// and GB/England (the AWS and GCP rows are not places) — but how many of them the map
 // opens on depends on its width: the view is centered on the United States and
 // zoomed to the map's width, so a phone-width map does not reach Europe.  Each
 // viewport therefore states what it should be showing.

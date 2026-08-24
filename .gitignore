@@ -6,5 +6,6 @@ dist/
 storybook-static/
 playwright-report/
 playwright-report-chromatic/
+playwright-report-visual/
 test-results/
 coverage/
