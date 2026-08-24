@@ -12,7 +12,7 @@
 
 #### 🚀 Enhancement
 
-- Added a GCP tab to the geographic section, listing usage per GCP data-center region the same way the AWS tab does. ([#255](https://github.com/dandi/usage-page/pull/255))
+- Added a GCP tab to the geographic section, listing usage per GCP data-center region the same way the AWS tab does; on a viewport too narrow for every view, the AWS and GCP tabs wrap onto a second row together. ([#255](https://github.com/dandi/usage-page/pull/255))
 - Dropped the "Totals for ..." caption above the totals summary, leaving the metrics themselves at the top of the block, and spelled the caveat it carried about how usage is attributed to a Dandiset out as a footnote at the foot of the page: it qualifies every figure on the page, not just the totals. ([#254](https://github.com/dandi/usage-page/pull/254))
 - Removed the "Web requests" metric, and its caveat, from the totals summary. ([#254](https://github.com/dandi/usage-page/pull/254))
 - Broke the multi-line tooltips at their own clause boundaries and sized their boxes to the longest line, which before were wrapped to a fixed width and so drawn in a box wider than the text inside it. ([#254](https://github.com/dandi/usage-page/pull/254))

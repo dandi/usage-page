@@ -711,6 +711,15 @@ input[type="number"]:focus {
     gap: 2px;
 }
 
+/* A pair of options laid out as one item of the toggle, so that a toggle too
+   narrow for all of its options wraps the pair onto the next row together
+   rather than stranding the second of them there alone. */
+.radio-toggle-pair {
+    display: inline-flex;
+    justify-content: center;
+    gap: 2px;
+}
+
 /* Hide the native radio circle, but keep it accessible */
 .radio-toggle input[type="radio"] {
     position: absolute;
