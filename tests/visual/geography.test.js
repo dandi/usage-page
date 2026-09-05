@@ -107,7 +107,6 @@ test.describe("Geography choropleth", () => {
                 await setupDataMocks(page);
                 await page.addInitScript((theme) => {
                     localStorage.setItem("theme", theme);
-                    localStorage.setItem("analytics_consent", "declined");
                 }, theme);
                 await page.goto("/");
                 await waitForPlotsToRender(page);
