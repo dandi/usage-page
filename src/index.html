@@ -6,68 +6,6 @@
 
     <title>Dandiset Usage Summaries</title>
 
-    <script>
-      const GA_MEASUREMENT_ID = 'G-25PBWE3SLK';
-      const ANALYTICS_CONSENT_KEY = 'analytics_consent';
-
-      function getAnalyticsConsent() {
-          try {
-              return localStorage.getItem(ANALYTICS_CONSENT_KEY);
-          } catch {
-              return null;
-          }
-      }
-
-      function setAnalyticsConsent(value) {
-          try {
-              localStorage.setItem(ANALYTICS_CONSENT_KEY, value);
-          } catch {}
-      }
-
-      function loadGoogleAnalytics() {
-          if (window.gtag) return;
-
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){ window.dataLayer.push(arguments); }
-          window.gtag = gtag;
-          window.gtag('js', new Date());
-          window.gtag('config', GA_MEASUREMENT_ID);
-
-          const gtagScript = document.createElement('script');
-          gtagScript.async = true;
-          gtagScript.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
-          document.head.appendChild(gtagScript);
-      }
-
-      document.addEventListener('DOMContentLoaded', () => {
-          const banner = document.getElementById('analytics_consent_banner');
-          const acceptBtn = document.getElementById('analytics_accept_btn');
-          const declineBtn = document.getElementById('analytics_decline_btn');
-          if (!banner || !acceptBtn || !declineBtn) return;
-
-          const consent = getAnalyticsConsent();
-          if (consent === 'accepted') {
-              loadGoogleAnalytics();
-              banner.hidden = true;
-          } else if (consent === 'declined') {
-              banner.hidden = true;
-          } else {
-              banner.hidden = false;
-          }
-
-          acceptBtn.addEventListener('click', () => {
-              setAnalyticsConsent('accepted');
-              loadGoogleAnalytics();
-              banner.hidden = true;
-          });
-
-          declineBtn.addEventListener('click', () => {
-              setAnalyticsConsent('declined');
-              banner.hidden = true;
-          });
-      });
-    </script>
-
     <link rel="icon" href="./assets/dandi-usage-favicon.ico" type="image/x-icon">
 
     <!-- Anti-FOUC: apply the saved theme and suppress transitions before the
@@ -343,12 +281,5 @@
             <img src="./assets/con-logo.png" alt="Center for Open Neuroscience" class="con-logo">
         </a>
     </footer>
-    <div id="analytics_consent_banner" class="consent-banner" hidden role="region" aria-label="Analytics consent">
-        <p class="consent-banner-text">We use analytics tracking to understand how this page is used. No tracking is enabled unless you accept.</p>
-        <div class="consent-banner-actions">
-            <button type="button" id="analytics_accept_btn" class="consent-btn consent-btn-accept">Accept</button>
-            <button type="button" id="analytics_decline_btn" class="consent-btn">Decline</button>
-        </div>
-    </div>
 </body>
 </html>
