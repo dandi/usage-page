@@ -41,3 +41,16 @@ const BASE_URL = "https://raw.githubusercontent.com/myorg/myrepo/main";
 npm install
 npm run dev
 ```
+
+### Region codes
+
+The geographic section reads `by_region.tsv`, whose regions are ISO 3166-1
+alpha-3 country codes and ISO 3166-2 subdivision codes (`USA/CA`, `DNK/84`).
+`src/configs/iso_region_codes.json` is what turns those into place names and
+into the GADM boundaries the choropleth draws.  It is generated, so regenerate
+it rather than editing it — after the boundaries change, or when new codes
+appear upstream:
+
+```bash
+npm run build:iso-region-codes
+```

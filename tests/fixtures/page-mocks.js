@@ -24,11 +24,51 @@ const ARCHIVE_TOTALS = JSON.stringify({
 });
 
 const ALL_DANDISET_TOTALS = JSON.stringify({
-    "000001": { total_bytes_sent: 5000000000, total_number_of_downloads: 900, total_number_of_requests: 6400, total_number_of_views: 540, number_of_requesters: 320, number_of_unique_regions: 10, number_of_unique_countries: 5 },
-    "000002": { total_bytes_sent: 3000000000, total_number_of_downloads: 450, total_number_of_requests: 4100, total_number_of_views: 310, number_of_requesters: 210, number_of_unique_regions: 8, number_of_unique_countries: 4 },
-    "000003": { total_bytes_sent: 1000000000, total_number_of_downloads: 120, total_number_of_requests: 1200, total_number_of_views: 95, number_of_requesters: "<50", number_of_unique_regions: 5, number_of_unique_countries: 3 },
-    "000004": { total_bytes_sent: 800000000, total_number_of_downloads: 90, total_number_of_requests: 900, total_number_of_views: 70, number_of_requesters: 60, number_of_unique_regions: 6, number_of_unique_countries: 3 },
-    undetermined: { total_bytes_sent: 250000000, total_number_of_downloads: 60, total_number_of_requests: 300, total_number_of_views: 40, number_of_requesters: 75, number_of_unique_regions: 4, number_of_unique_countries: 2 },
+    "000001": {
+        total_bytes_sent: 5000000000,
+        total_number_of_downloads: 900,
+        total_number_of_requests: 6400,
+        total_number_of_views: 540,
+        number_of_requesters: 320,
+        number_of_unique_regions: 10,
+        number_of_unique_countries: 5,
+    },
+    "000002": {
+        total_bytes_sent: 3000000000,
+        total_number_of_downloads: 450,
+        total_number_of_requests: 4100,
+        total_number_of_views: 310,
+        number_of_requesters: 210,
+        number_of_unique_regions: 8,
+        number_of_unique_countries: 4,
+    },
+    "000003": {
+        total_bytes_sent: 1000000000,
+        total_number_of_downloads: 120,
+        total_number_of_requests: 1200,
+        total_number_of_views: 95,
+        number_of_requesters: "<50",
+        number_of_unique_regions: 5,
+        number_of_unique_countries: 3,
+    },
+    "000004": {
+        total_bytes_sent: 800000000,
+        total_number_of_downloads: 90,
+        total_number_of_requests: 900,
+        total_number_of_views: 70,
+        number_of_requesters: 60,
+        number_of_unique_regions: 6,
+        number_of_unique_countries: 3,
+    },
+    undetermined: {
+        total_bytes_sent: 250000000,
+        total_number_of_downloads: 60,
+        total_number_of_requests: 300,
+        total_number_of_views: 40,
+        number_of_requesters: 75,
+        number_of_unique_regions: 4,
+        number_of_unique_countries: 2,
+    },
 });
 
 // Titles for the mock Dandisets.  "000003" is deliberately left out so the
@@ -56,10 +96,10 @@ const TOTAL_SIZE_JSONL = `\
 `;
 
 const REGION_COORDS_YAML = `\
-US/California:
+USA/CA:
   latitude: 36.7783
   longitude: -119.4179
-DE/Bavaria:
+DEU/BY:
   latitude: 48.7904
   longitude: 11.4979
 GB/England:
@@ -78,10 +118,14 @@ date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views
 2024-01-07\t220000000\t630\t190\t55
 `;
 
+// Two of the three places are keyed the way the reprocessed summaries key
+// them, by ISO 3166-1 alpha-3 and ISO 3166-2 code, and the third the way the
+// summaries yet to be reprocessed still do, by alpha-2 code and subdivision
+// name.  All three have to reach the same boundaries either way.
 const BY_REGION_TSV = `\
 region\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views
-US/California\t5000000000\t3200\t900\t260
-DE/Bavaria\t2000000000\t1400\t380\t110
+USA/CA\t5000000000\t3200\t900\t260
+DEU/BY\t2000000000\t1400\t380\t110
 GB/England\t1500000000\t1050\t290\t85
 AWS/us-east-1\t8000000000\t5100\t1500\t420
 GCP/us-central1\t6000000000\t4200\t1100\t310
@@ -128,10 +172,10 @@ function basemap_style_for(url) {
  */
 export async function setupDataMocks(page) {
     await page.route(/basemaps\.cartocdn\.com/, (route) =>
-        route.fulfill({ status: 200, contentType: "application/json", body: basemap_style_for(route.request().url()) }),
+        route.fulfill({ status: 200, contentType: "application/json", body: basemap_style_for(route.request().url()) })
     );
     await page.route("**/dandiset_id_to_title.jsonl", (route) =>
-        route.fulfill({ status: 200, contentType: "text/plain", body: DANDISET_TITLES_JSONL }),
+        route.fulfill({ status: 200, contentType: "text/plain", body: DANDISET_TITLES_JSONL })
     );
     // Served gzipped, exactly as the real derivatives are, so the page's
     // client-side decompression is exercised by the snapshot run too.
@@ -140,39 +184,39 @@ export async function setupDataMocks(page) {
             status: 200,
             contentType: "application/octet-stream",
             body: gzipSync(Buffer.from(NUMBER_OF_ASSETS_JSONL)),
-        }),
+        })
     );
     await page.route("**/dandiset_id_to_total_size.jsonl.gz", (route) =>
         route.fulfill({
             status: 200,
             contentType: "application/octet-stream",
             body: gzipSync(Buffer.from(TOTAL_SIZE_JSONL)),
-        }),
+        })
     );
     await page.route(`${BASE_URL}/content/archive_totals.json`, (route) =>
-        route.fulfill({ status: 200, contentType: "application/json", body: ARCHIVE_TOTALS }),
+        route.fulfill({ status: 200, contentType: "application/json", body: ARCHIVE_TOTALS })
     );
     await page.route(`${BASE_URL}/content/totals.json`, (route) =>
-        route.fulfill({ status: 200, contentType: "application/json", body: ALL_DANDISET_TOTALS }),
+        route.fulfill({ status: 200, contentType: "application/json", body: ALL_DANDISET_TOTALS })
     );
     await page.route(`${BASE_URL}/content/region_codes_to_coordinates.yaml`, (route) =>
-        route.fulfill({ status: 200, contentType: "text/plain", body: REGION_COORDS_YAML }),
+        route.fulfill({ status: 200, contentType: "text/plain", body: REGION_COORDS_YAML })
     );
     await page.route(`${BASE_TSV_URL}/*/by_day.tsv`, (route) =>
-        route.fulfill({ status: 200, contentType: "text/tab-separated-values", body: BY_DAY_TSV }),
+        route.fulfill({ status: 200, contentType: "text/tab-separated-values", body: BY_DAY_TSV })
     );
     await page.route(`${BASE_TSV_URL}/*/by_region.tsv`, (route) =>
-        route.fulfill({ status: 200, contentType: "text/tab-separated-values", body: BY_REGION_TSV }),
+        route.fulfill({ status: 200, contentType: "text/tab-separated-values", body: BY_REGION_TSV })
     );
     await page.route(`${BASE_TSV_URL}/*/by_asset.tsv`, (route) =>
-        route.fulfill({ status: 200, contentType: "text/tab-separated-values", body: BY_ASSET_TSV }),
+        route.fulfill({ status: 200, contentType: "text/tab-separated-values", body: BY_ASSET_TSV })
     );
     await page.route(`${BASE_TSV_URL}/*/by_asset_type_per_week.tsv`, (route) =>
         route.fulfill({
             status: 200,
             contentType: "text/tab-separated-values",
             body: BY_ASSET_TYPE_PER_WEEK_TSV,
-        }),
+        })
     );
 }
 
@@ -214,7 +258,7 @@ export async function waitForPlotsToRender(page) {
             return failed || drawn;
         },
         [PLOT_IDS, PLOT_FAILURE_TEXT],
-        { timeout: 30000 },
+        { timeout: 30000 }
     );
 }
 
@@ -227,7 +271,7 @@ export async function waitForMapToSettle(page) {
     await page.waitForFunction(
         () => Boolean(document.getElementById("geography_heatmap")?._fullLayout?.map?._subplot?.map?.loaded?.()),
         undefined,
-        { timeout: 30000 },
+        { timeout: 30000 }
     );
     // MapLibre reports itself loaded a frame or two before the last paint.
     await page.waitForTimeout(500);
@@ -307,19 +351,22 @@ export async function inlineMapCanvas(page) {
         });
     }, overlaySelector);
 
-    await page.evaluate((dataUri) => {
-        const canvasEl = document.querySelector("#geography_heatmap canvas.maplibregl-canvas");
-        if (!canvasEl) return;
-        const image = document.createElement("img");
-        image.src = dataUri;
-        // The canvas is laid out by MapLibre through inline styles; the image
-        // takes them over so that it lands exactly where the canvas was.
-        image.style.cssText = canvasEl.style.cssText;
-        image.setAttribute("data-testid", "map-canvas-image");
-        image.alt = "";
-        canvasEl.parentNode.insertBefore(image, canvasEl);
-        canvasEl.style.display = "none";
-    }, `data:image/png;base64,${png.toString("base64")}`);
+    await page.evaluate(
+        (dataUri) => {
+            const canvasEl = document.querySelector("#geography_heatmap canvas.maplibregl-canvas");
+            if (!canvasEl) return;
+            const image = document.createElement("img");
+            image.src = dataUri;
+            // The canvas is laid out by MapLibre through inline styles; the image
+            // takes them over so that it lands exactly where the canvas was.
+            image.style.cssText = canvasEl.style.cssText;
+            image.setAttribute("data-testid", "map-canvas-image");
+            image.alt = "";
+            canvasEl.parentNode.insertBefore(image, canvasEl);
+            canvasEl.style.display = "none";
+        },
+        `data:image/png;base64,${png.toString("base64")}`
+    );
 }
 
 /**
@@ -330,8 +377,9 @@ export async function inlineMapCanvas(page) {
  */
 export async function expectPlotsRendered(page) {
     const failed = await page.evaluate(
-        ([ids, failureText]) => ids.filter((id) => (document.getElementById(id)?.innerText ?? "").includes(failureText)),
-        [PLOT_IDS, PLOT_FAILURE_TEXT],
+        ([ids, failureText]) =>
+            ids.filter((id) => (document.getElementById(id)?.innerText ?? "").includes(failureText)),
+        [PLOT_IDS, PLOT_FAILURE_TEXT]
     );
     expect(failed, "Plots showing a load-failure message instead of a plot").toEqual([]);
 }
@@ -359,7 +407,10 @@ export async function expectModeBarClearOfTitles(page) {
             if (b.width === 0 || b.height === 0) continue;
             checked += 1;
             const clears = t.top >= b.bottom || t.bottom <= b.top || t.left >= b.right || t.right <= b.left;
-            if (!clears) collisions.push(`${id} (title ${Math.round(t.top)}-${Math.round(t.bottom)}, mode bar ${Math.round(b.top)}-${Math.round(b.bottom)})`);
+            if (!clears)
+                collisions.push(
+                    `${id} (title ${Math.round(t.top)}-${Math.round(t.bottom)}, mode bar ${Math.round(b.top)}-${Math.round(b.bottom)})`
+                );
         }
         return { collisions, checked };
     }, PLOT_IDS);
