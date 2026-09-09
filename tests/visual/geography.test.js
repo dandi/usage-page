@@ -108,9 +108,9 @@ test.describe("Geography choropleth", () => {
                 await page.addInitScript((theme) => {
                     localStorage.setItem("theme", theme);
                 }, theme);
-                // Pinned to the subregion map, which is what these baselines
+                // Pinned to the subdivision map, which is what these baselines
                 // were drawn from; the map opens on countries by default.
-                await page.goto("/?detail=subregions");
+                await page.goto("/?detail=subdivisions");
                 await waitForPlotsToRender(page);
                 await waitForMapToSettle(page);
                 await pinToViewportCorner(page);
@@ -136,7 +136,7 @@ test.describe("Geography choropleth", () => {
 
     // The default view, which has no committed baseline of its own: a country
     // is painted across every boundary it is made of, so it covers strictly
-    // more of the map than the three subregions the fixture locates.
+    // more of the map than the three subdivisions the fixture locates.
     test("paints whole countries in the default view", async ({ page }) => {
         await page.setViewportSize({ width: 1280, height: 720 });
         await setupDataMocks(page);

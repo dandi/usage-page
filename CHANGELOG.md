@@ -4,6 +4,8 @@
 
 #### 🐛 Bug Fix
 
+- Stopped dropping a whole region from the choropleth when any one of its islands crosses the antimeridian, which had left Alaska unpainted — and a hole in the United States — for the sake of the Aleutians. ([#257](https://github.com/dandi/usage-page/pull/257))
+
 - Stopped the Dandiset selector from stretching the bar above it off the side of a narrow viewport: a drop-down is laid out as wide as the widest option in it, and the options carry full Dandiset titles. The selected title is now clipped to the width available, the drop-down itself still opening as wide as its options need. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the geographic choropleth failing to load below a viewport width of about 400 px, where the map — sized as a fraction of the viewport — collapsed to less height than Plotly's own margins and threw out of the plot call, leaving the section's error message in place of the map. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Stopped the control bars above each plot from running off the side of a narrow viewport and taking the whole page into a sideways scroll; they now wrap onto as many rows as they need. ([#251](https://github.com/dandi/usage-page/pull/251))
@@ -12,7 +14,7 @@
 
 #### 🚀 Enhancement
 
-- Added a Countries/Subregions toggle to the region map and opened it on Countries, which is the only granularity that draws every located byte: traffic resolved no further than a country has no subregion to be painted in, and that is a sixth of the archive's bytes. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Added a Countries/Subdivisions toggle to the region map and opened it on Countries, which is the only granularity that draws every located byte: traffic resolved no further than a country has no subdivision to be painted in, and that is a sixth of the archive's bytes. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Read the ISO 3166-1 alpha-3 and ISO 3166-2 region codes the summaries are moving to, resolving each code to its place name and to the boundary the choropleth draws it as; the older alpha-2 keys are still read while the archive is reprocessed. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Labeled regions by name rather than by code in the region table and in both maps' hover text, summing the rows that resolve to the same place. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Stopped filing a whole country's regions under one of them where the upstream coordinates give every subdivision of that country the same point, which had put all sixteen Polish voivodeships in Łódzkie and all fourteen Czech regions in Středočeský; those codes are matched by name instead. ([#257](https://github.com/dandi/usage-page/pull/257))

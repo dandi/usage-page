@@ -488,7 +488,7 @@ let GEO_VIEW = "regions";  // "regions" | "points" | "table" | "aws" | "gcp"
 // because it is the only granularity at which every located byte is drawn:
 // traffic that resolves no further than a country has no subdivision to be
 // painted in, and that is a sixth of the archive's bytes.
-let GEO_DETAIL = "countries";  // "countries" | "subregions"
+let GEO_DETAIL = "countries";  // "countries" | "subdivisions"
 let TIME_AGGREGATION = "daily";  // "daily" | "weekly" | "monthly" | "yearly"
 let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 // The metric each of the first two plots is drawn in.  The over-time plot has
@@ -599,7 +599,7 @@ function syncFromUrl() {
     const validGeoViews = ["regions", "points", "table", "aws", "gcp"];
     GEO_VIEW = urlMap !== null && validGeoViews.includes(urlMap) ? urlMap : "regions";
     const urlDetail = params.get("detail");
-    GEO_DETAIL = urlDetail === "subregions" ? "subregions" : "countries";
+    GEO_DETAIL = urlDetail === "subdivisions" ? "subdivisions" : "countries";
     const geoDetailRadio = document.querySelector(`input[name="geo_detail"][value="${GEO_DETAIL}"]`) as HTMLInputElement | null;
     if (geoDetailRadio) geoDetailRadio.checked = true;
     const geoRadio = document.querySelector(`input[name="geo_view"][value="${GEO_VIEW}"]`) as HTMLInputElement | null;
@@ -972,7 +972,7 @@ window.addEventListener("load", () => {
         });
     });
 
-    // Add event listener for the map's detail toggle (Countries / Subregions)
+    // Add event listener for the map's detail toggle (Countries / Subdivisions)
     document.querySelectorAll('input[name="geo_detail"]').forEach((radio) => {
         radio.addEventListener("change", () => {
             GEO_DETAIL = (radio as HTMLInputElement).value;
@@ -2704,15 +2704,12 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         }
 
         // Build a filtered GeoJSON with only features that have data
-        // Skip features that cross the dateline (lon span > 300°) as they
-        // cause Plotly to fill the entire map width
         const filtered_features: any[] = [];
         const z_values: number[] = [];
         const hover_texts: string[] = [];
 
-        // Skip features that cross the antimeridian (have both very
-        // negative and very positive longitudes) as they render incorrectly
-        function hasWideLonSpan(feature: any) {
+        // How far around the globe one polygon's vertices reach.
+        function lon_span(polygon: any) {
             let minLon = Infinity, maxLon = -Infinity;
             function scanCoords(coords: any) {
                 if (typeof coords[0] === "number") {
@@ -2722,14 +2719,33 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     for (const c of coords) scanCoords(c);
                 }
             }
-            scanCoords(feature.geometry.coordinates);
-            return (maxLon - minLon) > 180;
+            scanCoords(polygon);
+            return maxLon - minLon;
+        }
+
+        // A polygon reaching more than half way around the globe is one that
+        // crosses the antimeridian, which Plotly fills across the whole width
+        // of the map rather than across the strait it really spans.  Only such
+        // polygons are dropped: measuring a whole feature instead took Alaska
+        // off the map for the sake of its Aleutian islands, mainland and all,
+        // and left a hole in the United States.
+        function without_antimeridian_polygons(feature: any) {
+            const geometry = feature.geometry;
+            if (!geometry) return null;
+            if (geometry.type === "Polygon") {
+                return lon_span(geometry.coordinates) > 180 ? null : feature;
+            }
+            if (geometry.type !== "MultiPolygon") return feature;
+            const kept = geometry.coordinates.filter((polygon: any) => lon_span(polygon) <= 180);
+            if (kept.length === 0) return null;
+            if (kept.length === geometry.coordinates.length) return feature;
+            return { ...feature, geometry: { ...geometry, coordinates: kept } };
         }
 
         feature_bytes.forEach((bytes, idx) => {
             if (bytes > 0) {
-                const feature = GEOJSON_DATA!.features[idx];
-                if (hasWideLonSpan(feature)) return;
+                const feature = without_antimeridian_polygons(GEOJSON_DATA!.features[idx]);
+                if (!feature) return;
                 const name = feature.properties.name;
                 const iso2 = feature.properties.iso2;
                 filtered_features.push(feature);
@@ -2790,7 +2806,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     marker: {
                         line: {
                             color: "white",
-                            // Borders are drawn between subregions but not
+                            // Borders are drawn between subdivisions but not
                             // between the boundaries making up one country,
                             // which would otherwise show through its fill.
                             width: GEO_DETAIL === "countries" ? 0 : 0.5,

@@ -359,7 +359,12 @@ export function apply_geo_view_mode(view: string): void {
     const showMap = (view === "regions" || view === "points");
 
     const detailEl = document.getElementById("geo_detail_control");
-    if (detailEl) detailEl.style.display = (view === "regions") ? "" : "none";
+    const detailSeparatorEl = document.getElementById("geo_detail_separator");
+    const showDetail = (view === "regions");
+    if (detailEl) detailEl.style.display = showDetail ? "" : "none";
+    // The rule between the two groups goes with the group it divides off,
+    // rather than being left dangling after "View:".
+    if (detailSeparatorEl) detailSeparatorEl.style.display = showDetail ? "" : "none";
 
     const section_el = (mapEl && mapEl.closest('.view-section')) as HTMLElement | null;
     const outgoing_height = tallest_view_height([mapEl, tableEl]);
