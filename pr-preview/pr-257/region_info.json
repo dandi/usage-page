@@ -3863,7 +3863,7 @@
       ],
       "SAP": [
         "San Andrés & Providencia",
-        "San Andrés y Providencia"
+        null
       ],
       "SUC": [
         "Sucre",
@@ -5815,7 +5815,7 @@
       ],
       "CN": [
         "Canary Islands",
-        "Islas Canarias"
+        null
       ],
       "CO": [
         "Córdoba",
@@ -7981,7 +7981,7 @@
       ],
       "C": [
         "Conakry",
-        "Conakry"
+        null
       ],
       "CO": [
         "Coyah",
@@ -9275,7 +9275,7 @@
       ],
       "U": [
         "Ulster",
-        "Cavan"
+        null
       ],
       "WD": [
         "Waterford",
@@ -9331,7 +9331,7 @@
       ],
       "AR": [
         "Arunachal Pradesh",
-        "Arunachal Pradesh"
+        null
       ],
       "AS": [
         "Assam",
@@ -9391,7 +9391,7 @@
       ],
       "JK": [
         "Jammu and Kashmir",
-        "Himachal Pradesh"
+        null
       ],
       "KA": [
         "Karnataka",
@@ -10063,7 +10063,7 @@
       ],
       "42": [
         "Liguria",
-        "Liguria"
+        null
       ],
       "45": [
         "Emilia-Romagna",
@@ -14507,7 +14507,7 @@
       ],
       "34": [
         "Msida",
-        "Ċentrali"
+        null
       ],
       "35": [
         "Imtarfa",
@@ -14603,7 +14603,7 @@
       ],
       "58": [
         "Ta’ Xbiex",
-        "Ċentrali"
+        null
       ],
       "59": [
         "Tarxien",
@@ -16263,11 +16263,11 @@
     "PH": {
       "10": [
         "Northern Mindanao",
-        "Misamis Oriental"
+        null
       ],
       "11": [
         "Davao",
-        "Davao del Sur"
+        null
       ],
       "12": [
         "Soccsksargen",
@@ -16291,7 +16291,7 @@
       ],
       "41": [
         "Mimaropa",
-        "Antique"
+        null
       ],
       "00": [
         "Metro Manila",
@@ -16319,7 +16319,7 @@
       ],
       "07": [
         "Central Visayas",
-        "Bohol"
+        null
       ],
       "08": [
         "Eastern Visayas",
@@ -16327,7 +16327,7 @@
       ],
       "09": [
         "Zamboanga Peninsula",
-        "Zamboanga del Sur"
+        null
       ],
       "ABR": [
         "Abra",
@@ -16677,7 +16677,7 @@
       ],
       "JK": [
         "Azad Kashmir",
-        "Islamabad"
+        null
       ],
       "KP": [
         "Khyber Pakhtunkhwa",
@@ -19301,7 +19301,7 @@
     "ST": {
       "01": [
         "Água Grande",
-        "Príncipe"
+        null
       ],
       "02": [
         "Cantagalo",
@@ -20509,7 +20509,7 @@
     "TV": {
       "FUN": [
         "Funafuti",
-        "Funafuti"
+        null
       ],
       "NIT": [
         "Niutao",
@@ -21785,7 +21785,7 @@
       ],
       "SI": [
         "Sirdaryo",
-        "Sirdaryo"
+        null
       ],
       "SU": [
         "Surxondaryo",
