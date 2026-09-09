@@ -349,11 +349,17 @@ export function apply_view_mode(plot_id: string, table_id: string, use_table: bo
 /**
  * Shows/hides the geography map and its paired table panels according to the
  * selected geo view mode ("regions" | "points" | "table" | "aws" | "gcp").
+ *
+ * The detail toggle rides along: only the region map is drawn from boundaries,
+ * so the choice between countries and subregions means nothing anywhere else.
  */
 export function apply_geo_view_mode(view: string): void {
     const mapEl   = document.getElementById("geography_heatmap");
     const tableEl = document.getElementById("geo_table_section");
     const showMap = (view === "regions" || view === "points");
+
+    const detailEl = document.getElementById("geo_detail_control");
+    if (detailEl) detailEl.style.display = (view === "regions") ? "" : "none";
 
     const section_el = (mapEl && mapEl.closest('.view-section')) as HTMLElement | null;
     const outgoing_height = tallest_view_height([mapEl, tableEl]);

@@ -257,6 +257,17 @@
                 </span>
             </div>
         </div>
+        <!-- How finely the choropleth divides the world.  Only the region map
+             is drawn from boundaries, so this is shown for that view alone. -->
+        <div class="SubControllerContainer" id="geo_detail_control">
+            <span class="radio-label">Detail:</span>
+            <div class="radio-toggle">
+                <input type="radio" id="geo_detail_countries" name="geo_detail" value="countries" checked />
+                <label for="geo_detail_countries">Countries</label>
+                <input type="radio" id="geo_detail_subregions" name="geo_detail" value="subregions" />
+                <label for="geo_detail_subregions">Subregions</label>
+            </div>
+        </div>
     </div>
     <div class="view-section">
         <div id="geography_heatmap"></div>

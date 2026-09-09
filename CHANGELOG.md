@@ -12,6 +12,7 @@
 
 #### 🚀 Enhancement
 
+- Added a Countries/Subregions toggle to the region map and opened it on Countries, which is the only granularity that draws every located byte: traffic resolved no further than a country has no subregion to be painted in, and that is a sixth of the archive's bytes. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Read the ISO 3166-1 alpha-3 and ISO 3166-2 region codes the summaries are moving to, resolving each code to its place name and to the boundary the choropleth draws it as; the older alpha-2 keys are still read while the archive is reprocessed. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Labeled regions by name rather than by code in the region table and in both maps' hover text, summing the rows that resolve to the same place. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Stopped filing a whole country's regions under one of them where the upstream coordinates give every subdivision of that country the same point, which had put all sixteen Polish voivodeships in Łódzkie and all fourteen Czech regions in Středočeský; those codes are matched by name instead. ([#257](https://github.com/dandi/usage-page/pull/257))

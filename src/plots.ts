@@ -484,6 +484,11 @@ let USE_HIST_LINE_PLOT = false;
 let USE_BINARY = false;
 let USE_STACKED = true;
 let GEO_VIEW = "regions";  // "regions" | "points" | "table" | "aws" | "gcp"
+// How finely the region map divides the world.  Countries is the default
+// because it is the only granularity at which every located byte is drawn:
+// traffic that resolves no further than a country has no subdivision to be
+// painted in, and that is a sixth of the archive's bytes.
+let GEO_DETAIL = "countries";  // "countries" | "subregions"
 let TIME_AGGREGATION = "daily";  // "daily" | "weekly" | "monthly" | "yearly"
 let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 // The metric each of the first two plots is drawn in.  The over-time plot has
@@ -593,6 +598,10 @@ function syncFromUrl() {
     const urlMap = params.get("map");
     const validGeoViews = ["regions", "points", "table", "aws", "gcp"];
     GEO_VIEW = urlMap !== null && validGeoViews.includes(urlMap) ? urlMap : "regions";
+    const urlDetail = params.get("detail");
+    GEO_DETAIL = urlDetail === "subregions" ? "subregions" : "countries";
+    const geoDetailRadio = document.querySelector(`input[name="geo_detail"][value="${GEO_DETAIL}"]`) as HTMLInputElement | null;
+    if (geoDetailRadio) geoDetailRadio.checked = true;
     const geoRadio = document.querySelector(`input[name="geo_view"][value="${GEO_VIEW}"]`) as HTMLInputElement | null;
     if (geoRadio) geoRadio.checked = true;
     apply_geo_view_mode(GEO_VIEW);
@@ -960,6 +969,21 @@ window.addEventListener("load", () => {
             if (GEO_VIEW === "regions" || GEO_VIEW === "points") {
                 load_geographic_heatmap(selected_dandiset);
             }
+        });
+    });
+
+    // Add event listener for the map's detail toggle (Countries / Subregions)
+    document.querySelectorAll('input[name="geo_detail"]').forEach((radio) => {
+        radio.addEventListener("change", () => {
+            GEO_DETAIL = (radio as HTMLInputElement).value;
+
+            const params = new URLSearchParams(window.location.search);
+            setUrlParam(params, "detail", GEO_DETAIL, "countries");
+            const query = params.toString();
+            window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
+
+            const selected_dandiset = (document.getElementById("dandiset_selector") as HTMLSelectElement | null)?.value ?? "";
+            if (GEO_VIEW === "regions") load_geographic_heatmap(selected_dandiset);
         });
     });
 
@@ -2643,20 +2667,41 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         const feature_requests = new Array(GEOJSON_DATA.features.length).fill(0);
         const feature_downloads = new Array(GEOJSON_DATA.features.length).fill(0);
         const feature_views = new Array(GEOJSON_DATA.features.length).fill(0);
-        data.forEach((row) => {
-            const region = row[0];
-            const bytes = parseInt(row[1], 10);
-            const requests = parseInt(row[2] || "0", 10);
-            const downloads = parseInt(row[3] || "0", 10);
-            const views = parseInt(row[4] || "0", 10);
-            const idx = match_region_to_feature(region, lookup, country_lookup);
-            if (idx >= 0) {
-                feature_bytes[idx] += bytes;
-                feature_requests[idx] += requests;
-                feature_downloads[idx] += downloads;
-                feature_views[idx] += views;
-            }
-        });
+        const add_to_feature = (idx: number, row: string[]) => {
+            feature_bytes[idx] += parseInt(row[1], 10) || 0;
+            feature_requests[idx] += parseInt(row[2] || "0", 10) || 0;
+            feature_downloads[idx] += parseInt(row[3] || "0", 10) || 0;
+            feature_views[idx] += parseInt(row[4] || "0", 10) || 0;
+        };
+
+        if (GEO_DETAIL === "countries") {
+            // Every boundary of a country is painted with that country's whole
+            // total, and the borders between them are not drawn, so the country
+            // reads as one shape.  Merging the boundaries into one instead
+            // would be the obvious way round and is a trap: a merged Russia or
+            // United States spans the antimeridian, which the filter below
+            // drops, and the largest sources would vanish from the map.
+            const rows_by_country = new Map<string, string[][]>();
+            data.forEach((row) => {
+                const parsed = parse_region(row[0]);
+                const country_code = parsed.country_code;
+                // Cloud regions and the placeless keys have no country to paint.
+                if (!country_code) return;
+                // GADM files these under China rather than as countries.
+                const painted_as = country_code === "HK" || country_code === "MO" ? "CN" : country_code;
+                const rows = rows_by_country.get(painted_as) ?? [];
+                rows.push(row);
+                rows_by_country.set(painted_as, rows);
+            });
+            GEOJSON_DATA.features.forEach((feature, idx) => {
+                for (const row of rows_by_country.get(feature.properties.iso2) ?? []) add_to_feature(idx, row);
+            });
+        } else {
+            data.forEach((row) => {
+                const idx = match_region_to_feature(row[0], lookup, country_lookup);
+                if (idx >= 0) add_to_feature(idx, row);
+            });
+        }
 
         // Build a filtered GeoJSON with only features that have data
         // Skip features that cross the dateline (lon span > 300°) as they
@@ -2690,8 +2735,11 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 filtered_features.push(feature);
                 z_values.push(Math.log10(bytes));
                 const country_name = REGION_INFO?.alpha2_to_country_name[iso2] ?? iso2;
+                // In the country view every boundary of a country carries that
+                // country's total, so naming the boundary would misreport it.
+                const place = GEO_DETAIL === "countries" ? country_name : `${name}, ${country_name}`;
                 hover_texts.push(
-                    `${name}, ${country_name}<br>${format_bytes(bytes)}` +
+                    `${place}<br>${format_bytes(bytes)}` +
                     hover_metric("Requests", feature_requests[idx]) +
                     hover_metric("Downloads", feature_downloads[idx]) +
                     hover_metric("Views", feature_views[idx])
@@ -2742,9 +2790,16 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     marker: {
                         line: {
                             color: "white",
-                            width: 0.5,
+                            // Borders are drawn between subregions but not
+                            // between the boundaries making up one country,
+                            // which would otherwise show through its fill.
+                            width: GEO_DETAIL === "countries" ? 0 : 0.5,
                         },
-                        opacity: 0.8,
+                        // Whole countries are drawn opaque: at 0.8 the fills of
+                        // two adjacent boundaries blend at their shared edge and
+                        // leave a seam, which subdivides a country that is meant
+                        // to read as one shape.
+                        opacity: GEO_DETAIL === "countries" ? 1 : 0.8,
                     },
                 },
             ];
