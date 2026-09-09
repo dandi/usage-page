@@ -143,7 +143,14 @@ export function parse_region_key(region: string, info: RegionInfo | null): Parse
 
     const country_code = is_alpha3 ? (alpha2 as string) : head;
     const country_name = info?.alpha2_to_country_name[country_code] ?? country_code;
-    if (tail === null) return { kind: "country", country_code, label: country_name };
+    // A key with no subdivision is not the country's total: it is the traffic
+    // located no further than the country, sitting alongside rows for that
+    // country's regions rather than summing them.  The label says so, because
+    // a bare "United States" next to "California, United States" reads as a
+    // total and is a fraction of one.
+    if (tail === null) {
+        return { kind: "country", country_code, label: `${country_name} (unspecified region)` };
+    }
 
     // An alpha-3 country code marks a key from the reprocessed summaries, whose
     // subdivision is an ISO 3166-2 code to be looked up.  An alpha-2 one marks

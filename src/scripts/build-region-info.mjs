@@ -55,13 +55,6 @@ const CLDR_SUBDIVISIONS_PATH = new URL(
 // user-assigned code the rest of the world settled on for it.
 const USER_ASSIGNED_COUNTRIES = [{ alpha2: "XK", alpha3: "XKX" }];
 
-// A subdivision whose coordinates fall outside every one of its country's
-// boundaries — an island a simplified coastline dropped, or a point placed just
-// off the shore — is assigned the nearest boundary of that country instead, but
-// only if it is close enough for "nearest" to mean anything.  Squared degrees,
-// so this is a little under three degrees away.
-const MAXIMUM_SQUARED_DEGREES_TO_NEAREST = 8;
-
 function read_json(path) {
     return JSON.parse(readFileSync(path, "utf8"));
 }
@@ -103,25 +96,6 @@ function feature_contains(feature, longitude, latitude) {
     return false;
 }
 
-// The mean of a feature's vertices: crude as centroids go, but it is only ever
-// used to rank one boundary of a country against another.
-function vertex_mean(feature) {
-    let sum_longitude = 0;
-    let sum_latitude = 0;
-    let count = 0;
-    const scan = (coordinates) => {
-        if (typeof coordinates[0] === "number") {
-            sum_longitude += coordinates[0];
-            sum_latitude += coordinates[1];
-            count += 1;
-        } else {
-            coordinates.forEach(scan);
-        }
-    };
-    scan(feature.geometry.coordinates);
-    return [sum_longitude / count, sum_latitude / count];
-}
-
 const topojson = read_json(TOPOJSON_PATH);
 const features = topojsonFeature(topojson, topojson.objects[Object.keys(topojson.objects)[0]]).features;
 
@@ -130,7 +104,6 @@ features.forEach((feature, index) => {
     const iso2 = feature.properties.iso2;
     if (iso2) (features_by_country[iso2] ??= []).push(index);
 });
-const vertex_means = features.map(vertex_mean);
 
 const cldr_subdivisions = read_json(CLDR_SUBDIVISIONS_PATH).subdivisions.localeDisplayNames.subdivisions;
 
@@ -149,27 +122,18 @@ for (const entry of [...iso31661, ...USER_ASSIGNED_COUNTRIES]) {
 const coordinates = await read_coordinates(process.argv[2]);
 
 // The GADM feature a subdivision's coordinates fall in, as that feature's
-// English name, or undefined when the country has no boundaries here or the
-// point lands too far from all of them.
+// English name, or undefined when no boundary of that country contains it.
+//
+// Containment is the only test.  Assigning the *nearest* boundary instead was
+// tried and dropped: it is right for an island the simplified coastline lost,
+// but it also put Jammu and Kashmir in Himachal Pradesh and Azad Kashmir in
+// Islamabad, and a region painted in the wrong place is worse than one left
+// unpainted — the page falls back to matching such a code by name, which is a
+// comparison rather than a guess.
 function gadm_name_for(alpha2, longitude, latitude) {
     const candidates = features_by_country[alpha2] ?? [];
     const containing = candidates.find((index) => feature_contains(features[index], longitude, latitude));
-    if (containing !== undefined) return features[containing].properties.name;
-
-    let nearest;
-    let nearest_distance = Infinity;
-    for (const index of candidates) {
-        const [mean_longitude, mean_latitude] = vertex_means[index];
-        const distance = (mean_longitude - longitude) ** 2 + (mean_latitude - latitude) ** 2;
-        if (distance < nearest_distance) {
-            nearest_distance = distance;
-            nearest = index;
-        }
-    }
-    if (nearest !== undefined && nearest_distance <= MAXIMUM_SQUARED_DEGREES_TO_NEAREST) {
-        return features[nearest].properties.name;
-    }
-    return undefined;
+    return containing === undefined ? undefined : features[containing].properties.name;
 }
 
 // Every ISO 3166-2 code CLDR names, plus the boundary each one sits in where
@@ -212,6 +176,6 @@ const unnamed = all_subdivisions.filter(([name]) => name === null).length;
 console.log(
     `Wrote ${fileURLToPath(OUTPUT_PATH)}: ` +
         `${Object.keys(alpha2_to_country_name).length} countries, ${all_subdivisions.length} subdivisions ` +
-        `(${unnamed} of them unnamed by CLDR), ${placed} placed on a GADM boundary, ` +
-        `${unplaced} with coordinates but no boundary.`
+        `(${unnamed} of them unnamed by CLDR), ${placed} placed inside a GADM boundary, ` +
+        `${unplaced} with coordinates that fall inside none.`
 );

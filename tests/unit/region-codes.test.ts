@@ -64,11 +64,13 @@ describe("parse_region_key", () => {
         });
     });
 
-    it("reads a country code on its own as the country", () => {
+    it("marks a country code on its own as located no further than the country", () => {
+        // These rows sit alongside that country's regions rather than summing
+        // them, so the label must not read as a country total.
         expect(parse_region_key("NLD", REGION_INFO)).toEqual({
             kind: "country",
             country_code: "NL",
-            label: "Netherlands",
+            label: "Netherlands (unspecified region)",
         });
     });
 
