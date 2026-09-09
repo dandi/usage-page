@@ -79,10 +79,20 @@ datasets dividing a country differently: ISO 3166-2 lists nineteen regions of
 Finland where GADM draws five, and each of the nineteen falls inside one of the
 five.
 
-Containment is the only test.  Falling back to the *nearest* boundary when a
-point lands outside them all was tried and dropped: it rescued a few islands off
-a simplified coastline, but it also placed Jammu and Kashmir in Himachal Pradesh
-and Azad Kashmir in Islamabad.  A code left without a boundary is matched by
-name at runtime instead, against `src/configs/name_aliases.json` — a comparison
-rather than a guess — and a code that matches nothing simply goes unpainted,
-which is the honest outcome.
+Containment is the only test, and two kinds of coordinate are refused outright:
+
+- **A point outside every boundary of its country.**  Falling back to the
+  *nearest* boundary was tried and dropped: it rescued a few islands off a
+  simplified coastline, but it also placed Jammu and Kashmir in Himachal Pradesh
+  and Azad Kashmir in Islamabad.
+- **A point several of a country's subdivisions share.**  That is not a
+  subdivision's position but the fallback the upstream geocoder reaches for when
+  it cannot place a code, usually the middle of the country.  All sixteen Polish
+  voivodeships carry one such point, as do all fourteen Czech regions; taken at
+  face value they would file a whole country's traffic under whichever region
+  happens to cover its centre.
+
+A code left without a boundary is matched by name at runtime instead, against
+`src/configs/name_aliases.json` — a comparison rather than a guess — and a code
+that matches nothing simply goes unpainted, which is the honest outcome.  Of the
+160 codes the second rule refuses, 115 land on the right region by name.

@@ -136,6 +136,28 @@ function gadm_name_for(alpha2, longitude, latitude) {
     return containing === undefined ? undefined : features[containing].properties.name;
 }
 
+// A coordinate that several of a country's subdivisions share is not a
+// subdivision's position at all: it is the fallback the upstream geocoder
+// reaches for when it cannot place a code, usually the middle of the country.
+// Taking it at face value would file every region of a country under whichever
+// one happens to cover that point — all sixteen Polish voivodeships under
+// Łódzkie, all fourteen Czech ones under Středočeský.  Such points are left
+// unplaced so that the page matches those codes by name instead.
+const codes_at_point = {};
+for (const [region_key, point] of Object.entries(coordinates)) {
+    const separator = region_key.indexOf("/");
+    if (separator < 0) continue;
+    const country = region_key.slice(0, separator);
+    if (!/^[A-Z]{3}$/.test(country)) continue;
+    ((codes_at_point[country] ??= {})[`${point.latitude},${point.longitude}`] ??= []).push(region_key);
+}
+const shared_with_a_sibling = new Set(
+    Object.values(codes_at_point)
+        .flatMap((points) => Object.values(points))
+        .filter((keys) => keys.length > 1)
+        .flat(),
+);
+
 // Every ISO 3166-2 code CLDR names, plus the boundary each one sits in where
 // the coordinates place it inside one.
 const subdivisions = {};
@@ -148,6 +170,7 @@ for (const [cldr_key, name] of Object.entries(cldr_subdivisions)) {
 
 let placed = 0;
 let unplaced = 0;
+let ambiguous = 0;
 for (const [region_key, point] of Object.entries(coordinates)) {
     const separator = region_key.indexOf("/");
     if (separator < 0) continue;
@@ -155,6 +178,10 @@ for (const [region_key, point] of Object.entries(coordinates)) {
     const subdivision_code = region_key.slice(separator + 1).toUpperCase();
     const alpha2 = alpha3_to_alpha2[alpha3];
     if (!alpha2 || !/^[A-Z]{3}$/.test(alpha3)) continue;
+    if (shared_with_a_sibling.has(region_key)) {
+        ambiguous += 1;
+        continue;
+    }
 
     const gadm_name = gadm_name_for(alpha2, point.longitude, point.latitude);
     if (!gadm_name) {
@@ -177,5 +204,6 @@ console.log(
     `Wrote ${fileURLToPath(OUTPUT_PATH)}: ` +
         `${Object.keys(alpha2_to_country_name).length} countries, ${all_subdivisions.length} subdivisions ` +
         `(${unnamed} of them unnamed by CLDR), ${placed} placed inside a GADM boundary, ` +
-        `${unplaced} with coordinates that fall inside none.`
+        `${unplaced} with coordinates that fall inside none, ` +
+        `${ambiguous} skipped for sharing a coordinate with a sibling.`
 );

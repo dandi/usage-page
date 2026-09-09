@@ -3059,7 +3059,7 @@
       ],
       "HK": [
         "Haut-Katanga",
-        "Tshuapa"
+        null
       ],
       "HL": [
         "Haut-Lomami",
@@ -3131,7 +3131,7 @@
       ],
       "NU": [
         "Nord-Ubangi",
-        "Tshuapa"
+        null
       ],
       "OR": [
         "Orientale",
@@ -3147,7 +3147,7 @@
       ],
       "SU": [
         "Sud-Ubangi",
-        "Tshuapa"
+        null
       ],
       "TA": [
         "Tanganyika",
@@ -3159,7 +3159,7 @@
       ],
       "TU": [
         "Tshuapa",
-        "Tshuapa"
+        null
       ]
     },
     "CF": {
@@ -3467,7 +3467,7 @@
       ],
       "AB": [
         "Abidjan",
-        "Vallée du Bandama"
+        null
       ],
       "BS": [
         "Bas-Sassandra²",
@@ -3475,7 +3475,7 @@
       ],
       "CM": [
         "Comoé",
-        "Vallée du Bandama"
+        null
       ],
       "DN": [
         "Denguélé²",
@@ -4109,59 +4109,59 @@
     "CZ": {
       "10": [
         "Prague, Hlavní mešto",
-        "Středočeský"
+        null
       ],
       "20": [
         "Středočeský",
-        "Středočeský"
+        null
       ],
       "31": [
         "Jihočeský",
-        "Středočeský"
+        null
       ],
       "32": [
         "Plzeňský",
-        "Středočeský"
+        null
       ],
       "41": [
         "Karlovarský",
-        "Středočeský"
+        null
       ],
       "42": [
         "Ústecký",
-        "Středočeský"
+        null
       ],
       "51": [
         "Liberecký",
-        "Středočeský"
+        null
       ],
       "52": [
         "Královéhradecký",
-        "Středočeský"
+        null
       ],
       "53": [
         "Pardubický",
-        "Středočeský"
+        null
       ],
       "63": [
         "Vysočina",
-        "Středočeský"
+        null
       ],
       "64": [
         "Jihomoravský",
-        "Středočeský"
+        null
       ],
       "71": [
         "Olomoucký",
-        "Středočeský"
+        null
       ],
       "72": [
         "Zlínský",
-        "Středočeský"
+        null
       ],
       "80": [
         "Moravskoslezský",
-        "Středočeský"
+        null
       ],
       "101": [
         "Prague 1",
@@ -5041,7 +5041,7 @@
       ],
       "49": [
         "Timimoun",
-        "Tamanghasset"
+        null
       ],
       "50": [
         "Bordj Badji Mokhtar",
@@ -5065,7 +5065,7 @@
       ],
       "55": [
         "Touggourt",
-        "Tamanghasset"
+        null
       ],
       "56": [
         "Djanet",
@@ -5229,7 +5229,7 @@
       ],
       "45": [
         "Ida-Virumaa",
-        "Jõgeva"
+        null
       ],
       "50": [
         "Jõgevamaa",
@@ -5257,11 +5257,11 @@
       ],
       "64": [
         "Põlvamaa",
-        "Jõgeva"
+        null
       ],
       "68": [
         "Pärnumaa",
-        "Jõgeva"
+        null
       ],
       "71": [
         "Raplamaa",
@@ -5273,7 +5273,7 @@
       ],
       "79": [
         "Tartumaa",
-        "Jõgeva"
+        null
       ],
       "81": [
         "Valgamaa",
@@ -8447,7 +8447,7 @@
       ],
       "13": [
         "Huehuetenango",
-        "Baja Verapaz"
+        null
       ],
       "14": [
         "Quiché",
@@ -8467,7 +8467,7 @@
       ],
       "18": [
         "Izabal",
-        "Baja Verapaz"
+        null
       ],
       "19": [
         "Zacapa",
@@ -8475,7 +8475,7 @@
       ],
       "20": [
         "Chiquimula",
-        "Baja Verapaz"
+        null
       ],
       "21": [
         "Jalapa",
@@ -8487,7 +8487,7 @@
       ],
       "01": [
         "Guatemala",
-        "Baja Verapaz"
+        null
       ],
       "02": [
         "El Progreso",
@@ -8511,7 +8511,7 @@
       ],
       "07": [
         "Sololá",
-        "Baja Verapaz"
+        null
       ],
       "08": [
         "Totonicapán",
@@ -8519,7 +8519,7 @@
       ],
       "09": [
         "Quetzaltenango",
-        "Baja Verapaz"
+        null
       ]
     },
     "GW": {
@@ -9065,7 +9065,7 @@
       ],
       "KU": [
         "North Kalimantan",
-        "Riau"
+        null
       ],
       "LA": [
         "Lampung",
@@ -9105,7 +9105,7 @@
       ],
       "PD": [
         "Papua Barat Daya",
-        "Riau"
+        null
       ],
       "PE": [
         "Papua Pengunungan",
@@ -9121,7 +9121,7 @@
       ],
       "PT": [
         "Papua Tengah",
-        "Riau"
+        null
       ],
       "RI": [
         "Riau",
@@ -9343,7 +9343,7 @@
       ],
       "CG": [
         "Chhattīsgarh",
-        "Madhya Pradesh"
+        null
       ],
       "CH": [
         "Chandigarh",
@@ -9435,7 +9435,7 @@
       ],
       "OD": [
         "Odisha",
-        "Madhya Pradesh"
+        null
       ],
       "PB": [
         "Punjab",
@@ -9467,11 +9467,11 @@
       ],
       "TS": [
         "Telangāna",
-        "Madhya Pradesh"
+        null
       ],
       "UK": [
         "Uttarākhand",
-        "Madhya Pradesh"
+        null
       ],
       "UP": [
         "Uttar Pradesh",
@@ -10875,7 +10875,7 @@
       ],
       "13": [
         "Kiambu",
-        "Meru"
+        null
       ],
       "14": [
         "Kilifi",
@@ -10883,7 +10883,7 @@
       ],
       "15": [
         "Kirinyaga",
-        "Meru"
+        null
       ],
       "16": [
         "Kisii",
@@ -10891,11 +10891,11 @@
       ],
       "17": [
         "Kisumu",
-        "Meru"
+        null
       ],
       "18": [
         "Kitui",
-        "Meru"
+        null
       ],
       "19": [
         "Kwale",
@@ -10903,7 +10903,7 @@
       ],
       "20": [
         "Laikipia",
-        "Meru"
+        null
       ],
       "21": [
         "Lamu",
@@ -10923,11 +10923,11 @@
       ],
       "25": [
         "Marsabit",
-        "Meru"
+        null
       ],
       "26": [
         "Meru",
-        "Meru"
+        null
       ],
       "27": [
         "Migori",
@@ -10935,19 +10935,19 @@
       ],
       "28": [
         "Mombasa",
-        "Meru"
+        null
       ],
       "29": [
         "Murang’a",
-        "Meru"
+        null
       ],
       "30": [
         "Nairobi County",
-        "Meru"
+        null
       ],
       "31": [
         "Nakuru",
-        "Meru"
+        null
       ],
       "32": [
         "Nandi",
@@ -10963,7 +10963,7 @@
       ],
       "35": [
         "Nyandarua",
-        "Meru"
+        null
       ],
       "36": [
         "Nyeri",
@@ -10987,7 +10987,7 @@
       ],
       "41": [
         "Tharaka-Nithi",
-        "Meru"
+        null
       ],
       "42": [
         "Trans Nzoia",
@@ -10999,7 +10999,7 @@
       ],
       "44": [
         "Uasin Gishu",
-        "Meru"
+        null
       ],
       "45": [
         "Vihiga",
@@ -11027,7 +11027,7 @@
       ],
       "04": [
         "Busia",
-        "Meru"
+        null
       ],
       "05": [
         "Elgeyo-Marakwet",
@@ -11047,7 +11047,7 @@
       ],
       "09": [
         "Isiolo",
-        "Meru"
+        null
       ]
     },
     "KG": {
@@ -11437,59 +11437,59 @@
     "KZ": {
       "10": [
         "Abay oblysy",
-        "Qaraghandy"
+        null
       ],
       "11": [
         "Aqmola oblysy",
-        "Qaraghandy"
+        null
       ],
       "15": [
         "Aqtöbe oblysy",
-        "Qaraghandy"
+        null
       ],
       "19": [
         "Almaty oblysy",
-        "Qaraghandy"
+        null
       ],
       "23": [
         "Atyraū oblysy",
-        "Qaraghandy"
+        null
       ],
       "27": [
         "Batys Qazaqstan oblysy",
-        "Qaraghandy"
+        null
       ],
       "31": [
         "Zhambyl oblysy",
-        "Qaraghandy"
+        null
       ],
       "33": [
         "Zhetisū oblysy",
-        "Qaraghandy"
+        null
       ],
       "35": [
         "Qaraghandy oblysy",
-        "Qaraghandy"
+        null
       ],
       "39": [
         "Qostanay oblysy",
-        "Qaraghandy"
+        null
       ],
       "43": [
         "Qyzylorda oblysy",
-        "Qaraghandy"
+        null
       ],
       "47": [
         "Mangghystaū oblysy",
-        "Qaraghandy"
+        null
       ],
       "55": [
         "Pavlodar oblysy",
-        "Qaraghandy"
+        null
       ],
       "59": [
         "Soltüstik Qazaqstan oblysy",
-        "Qaraghandy"
+        null
       ],
       "61": [
         "Türkistan oblysy",
@@ -11497,23 +11497,23 @@
       ],
       "62": [
         "Ulytaū oblysy",
-        "Qaraghandy"
+        null
       ],
       "63": [
         "Shyghys Qazaqstan oblysy",
-        "Qaraghandy"
+        null
       ],
       "71": [
         "Astana",
-        "Qaraghandy"
+        null
       ],
       "75": [
         "Almaty",
-        "Qaraghandy"
+        null
       ],
       "79": [
         "Shymkent",
-        "Qaraghandy"
+        null
       ],
       "AKM": [
         "Akmola",
@@ -11653,7 +11653,7 @@
     "LB": {
       "AK": [
         "Akkar",
-        "Mount Lebanon"
+        null
       ],
       "AS": [
         "North",
@@ -11665,7 +11665,7 @@
       ],
       "BH": [
         "Baalbek-Hermel",
-        "Mount Lebanon"
+        null
       ],
       "BI": [
         "Beqaa",
@@ -12315,7 +12315,7 @@
       ],
       "ES": [
         "Esch-sur-Alzette",
-        "Luxembourg"
+        null
       ],
       "GR": [
         "Grevenmacher",
@@ -12323,7 +12323,7 @@
       ],
       "LU": [
         "Luxembourg",
-        "Luxembourg"
+        null
       ],
       "ME": [
         "Mersch",
@@ -12335,7 +12335,7 @@
       ],
       "RM": [
         "Remich",
-        "Luxembourg"
+        null
       ],
       "VD": [
         "Vianden",
@@ -12847,7 +12847,7 @@
       ],
       "DR": [
         "Derna",
-        "Al Jufrah"
+        null
       ],
       "GT": [
         "Ghat",
@@ -12907,7 +12907,7 @@
       ],
       "TB": [
         "Tripoli",
-        "Al Jufrah"
+        null
       ],
       "WA": [
         "Al Wahat",
@@ -13821,7 +13821,7 @@
       ],
       "101": [
         "Veles",
-        "Čaška"
+        null
       ],
       "102": [
         "Gradsko",
@@ -13833,7 +13833,7 @@
       ],
       "104": [
         "Kavadarci",
-        "Čaška"
+        null
       ],
       "105": [
         "Lozovo",
@@ -13841,7 +13841,7 @@
       ],
       "106": [
         "Negotino",
-        "Čaška"
+        null
       ],
       "107": [
         "Rosoman",
@@ -13885,7 +13885,7 @@
       ],
       "208": [
         "Pehčevo",
-        "Čaška"
+        null
       ],
       "209": [
         "Probištip",
@@ -13897,7 +13897,7 @@
       ],
       "211": [
         "Štip",
-        "Čaška"
+        null
       ],
       "301": [
         "Vevčani",
@@ -13921,7 +13921,7 @@
       ],
       "310": [
         "Ohrid",
-        "Čaška"
+        null
       ],
       "311": [
         "Plasnica",
@@ -13965,7 +13965,7 @@
       ],
       "408": [
         "Novo Selo",
-        "Čaška"
+        null
       ],
       "409": [
         "Radoviš",
@@ -13973,11 +13973,11 @@
       ],
       "410": [
         "Strumica",
-        "Čaška"
+        null
       ],
       "501": [
         "Bitola",
-        "Čaška"
+        null
       ],
       "502": [
         "Demir Hisar",
@@ -14005,7 +14005,7 @@
       ],
       "508": [
         "Prilep",
-        "Čaška"
+        null
       ],
       "509": [
         "Resen",
@@ -14025,11 +14025,11 @@
       ],
       "604": [
         "Gostivar",
-        "Čaška"
+        null
       ],
       "605": [
         "Želino",
-        "Čaška"
+        null
       ],
       "606": [
         "Jegunovce",
@@ -14045,11 +14045,11 @@
       ],
       "609": [
         "Tetovo",
-        "Čaška"
+        null
       ],
       "701": [
         "Kratovo",
-        "Čaška"
+        null
       ],
       "702": [
         "Kriva Palanka",
@@ -14057,7 +14057,7 @@
       ],
       "703": [
         "Kumanovo",
-        "Čaška"
+        null
       ],
       "704": [
         "Lipkovo",
@@ -14085,7 +14085,7 @@
       ],
       "804": [
         "Gazi Baba †",
-        "Čaška"
+        null
       ],
       "805": [
         "Gjorče Petrov †",
@@ -14133,7 +14133,7 @@
       ],
       "816": [
         "Čučer-Sandevo",
-        "Čaška"
+        null
       ],
       "817": [
         "Šuto Orizari †",
@@ -14361,11 +14361,11 @@
       ],
       "13": [
         "Nouakchott Ouest",
-        "Tagant"
+        null
       ],
       "14": [
         "Nouakchott Nord",
-        "Tagant"
+        null
       ],
       "15": [
         "Nouakchott Sud",
@@ -15667,7 +15667,7 @@
       ],
       "34": [
         "Innlandet",
-        "Oppland"
+        null
       ],
       "38": [
         "Vestfold og Telemark",
@@ -15675,15 +15675,15 @@
       ],
       "42": [
         "Agder",
-        "Oppland"
+        null
       ],
       "46": [
         "Vestland",
-        "Oppland"
+        null
       ],
       "50": [
         "Trøndelag",
-        "Oppland"
+        null
       ],
       "54": [
         "Tromssan ja Finmarkun",
@@ -15793,31 +15793,31 @@
       ],
       "P1": [
         "Province 1",
-        "West"
+        null
       ],
       "P2": [
         "Province 2",
-        "West"
+        null
       ],
       "P3": [
         "Province 3",
-        "West"
+        null
       ],
       "P4": [
         "Gandaki²",
-        "West"
+        null
       ],
       "P5": [
         "Province 5",
-        "West"
+        null
       ],
       "P6": [
         "Karnali²",
-        "West"
+        null
       ],
       "P7": [
         "Province 7",
-        "West"
+        null
       ],
       "RA": [
         "Rapti",
@@ -15967,7 +15967,7 @@
       ],
       "BS": [
         "Shamal al Batinah",
-        "Ad Dakhliyah"
+        null
       ],
       "BU": [
         "Al Buraimi",
@@ -15987,7 +15987,7 @@
       ],
       "SJ": [
         "Janub ash Sharqiyah",
-        "Ad Dakhliyah"
+        null
       ],
       "SS": [
         "Shamal ash Sharqiyah",
@@ -16699,73 +16699,73 @@
     "PL": {
       "10": [
         "Łódź",
-        "Łódzkie"
+        null
       ],
       "12": [
         "Lesser Poland",
-        "Łódzkie"
+        null
       ],
       "14": [
         "Mazovia",
-        "Łódzkie"
+        null
       ],
       "16": [
         "Opole",
-        "Łódzkie"
+        null
       ],
       "18": [
         "Subcarpathia",
-        "Łódzkie"
+        null
       ],
       "20": [
         "Podlachia",
-        "Łódzkie"
+        null
       ],
       "22": [
         "Pomerania",
-        "Łódzkie"
+        null
       ],
       "24": [
         "Silesia",
-        "Łódzkie"
+        null
       ],
       "26": [
         "Holy Cross",
-        "Łódzkie"
+        null
       ],
       "28": [
         "Warmia-Masuria",
-        "Łódzkie"
+        null
       ],
       "30": [
         "Greater Poland",
-        "Łódzkie"
+        null
       ],
       "32": [
         "West Pomerania",
-        "Łódzkie"
+        null
       ],
       "02": [
         "Lower Silesia",
-        "Łódzkie"
+        null
       ],
       "04": [
         "Kuyavia-Pomerania",
-        "Łódzkie"
+        null
       ],
       "06": [
         "Lublin",
-        "Łódzkie"
+        null
       ],
       "08": [
         "Lubusz",
-        "Łódzkie"
+        null
       ]
     },
     "PS": {
       "BTH": [
         "Bethlehem",
-        "West Bank"
+        null
       ],
       "DEB": [
         "Deir al-Balah",
@@ -16773,23 +16773,23 @@
       ],
       "GZA": [
         "Gaza",
-        "West Bank"
+        null
       ],
       "HBN": [
         "Hebron",
-        "West Bank"
+        null
       ],
       "JEM": [
         "Jerusalem",
-        "West Bank"
+        null
       ],
       "JEN": [
         "Jenin",
-        "West Bank"
+        null
       ],
       "JRH": [
         "Jericho",
-        "West Bank"
+        null
       ],
       "KYS": [
         "Khan Yunis",
@@ -16797,11 +16797,11 @@
       ],
       "NBS": [
         "Nablus",
-        "West Bank"
+        null
       ],
       "NGZ": [
         "North Gaza",
-        "West Bank"
+        null
       ],
       "QQA": [
         "Qalqilya",
@@ -16809,7 +16809,7 @@
       ],
       "RBH": [
         "Ramallah and al-Bireh",
-        "West Bank"
+        null
       ],
       "RFH": [
         "Rafah",
@@ -16825,7 +16825,7 @@
       ],
       "TKM": [
         "Tulkarm",
-        "West Bank"
+        null
       ]
     },
     "PT": {
@@ -19143,7 +19143,7 @@
     "SO": {
       "AW": [
         "Awdal",
-        "Hiiraan"
+        null
       ],
       "BK": [
         "Bakool",
@@ -19211,7 +19211,7 @@
       ],
       "WO": [
         "Woqooyi Galbeed",
-        "Hiiraan"
+        null
       ]
     },
     "SR": {
@@ -22373,11 +22373,11 @@
       ],
       "GP": [
         "Gauteng",
-        "Northern Cape"
+        null
       ],
       "KZN": [
         "KwaZulu-Natal",
-        "Northern Cape"
+        null
       ],
       "LP": [
         "Limpopo",
