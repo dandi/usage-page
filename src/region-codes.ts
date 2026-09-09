@@ -5,7 +5,7 @@
 // Neither the choropleth nor the tables can use those as they stand — one needs
 // a GADM boundary and the other needs something a reader recognizes — so both
 // go through `parse_region_key`, which resolves a key against the table built
-// by `src/scripts/build-iso-region-codes.mjs`.
+// by `src/scripts/build-region-info.mjs`.
 //
 // Three other kinds of key share the column and are passed through as they are:
 // the cloud regions of `AWS/us-east-1` and `GCP/us-central1`, which are data
@@ -14,10 +14,18 @@
 // codes while it is reprocessed; and the handful of labels for traffic that has
 // no location at all, such as `VPN` and `unknown`.
 
-export interface IsoRegionCodes {
+/**
+ * One subdivision, as [English name, GADM boundary it sits in].  Either half is
+ * null where its source does not cover the code: CLDR names no subdivision of a
+ * handful of small territories, and a subdivision whose coordinates fall
+ * outside every boundary of its country has none to point at.
+ */
+export type SubdivisionInfo = [name: string | null, gadm_name: string | null];
+
+export interface RegionInfo {
     alpha3_to_alpha2: Record<string, string>;
-    countries: Record<string, string>;
-    subdivisions: Record<string, Record<string, { name: string; gadm?: string }>>;
+    alpha2_to_country_name: Record<string, string>;
+    subdivisions: Record<string, Record<string, SubdivisionInfo>>;
 }
 
 export type RegionKind = "cloud" | "subdivision" | "country" | "other";
@@ -111,10 +119,10 @@ export function normalize_region_name(name: string): string {
  * Splits a region key into the country and subdivision it names, the GADM
  * boundary that subdivision belongs to, and a label to show for it.
  *
- * `codes` is the generated ISO table, or null before it has loaded; without it
- * a key is still split and labeled, just with its codes left as codes.
+ * `info` is the generated region table, or null before it has loaded; without
+ * it a key is still split and labeled, just with its codes left as codes.
  */
-export function parse_region_key(region: string, codes: IsoRegionCodes | null): ParsedRegion {
+export function parse_region_key(region: string, info: RegionInfo | null): ParsedRegion {
     // Split on the first separator only: the older summaries carry subdivision
     // names that contain one themselves, such as "TT/Tunapuna/Piarco".
     const separator = region.indexOf("/");
@@ -128,26 +136,28 @@ export function parse_region_key(region: string, codes: IsoRegionCodes | null): 
     // An alpha-3 code is only recognizable through the table, but an alpha-2
     // one is its own country code, so the older keys keep working — labeled by
     // code rather than by name — even if the table failed to load.
-    const alpha2 = codes?.alpha3_to_alpha2[head];
+    const alpha2 = info?.alpha3_to_alpha2[head];
     const is_alpha3 = /^[A-Z]{3}$/.test(head) && alpha2 !== undefined;
-    const is_alpha2 = /^[A-Z]{2}$/.test(head) && (!codes || head in codes.countries);
+    const is_alpha2 = /^[A-Z]{2}$/.test(head) && (!info || head in info.alpha2_to_country_name);
     if (!is_alpha3 && !is_alpha2) return { kind: "other", label: region };
 
     const country_code = is_alpha3 ? (alpha2 as string) : head;
-    const country_name = codes?.countries[country_code] ?? country_code;
+    const country_name = info?.alpha2_to_country_name[country_code] ?? country_code;
     if (tail === null) return { kind: "country", country_code, label: country_name };
 
     // An alpha-3 country code marks a key from the reprocessed summaries, whose
     // subdivision is an ISO 3166-2 code to be looked up.  An alpha-2 one marks
     // an older key, whose subdivision is already a name.
-    const subdivision = is_alpha3 ? codes?.subdivisions[country_code]?.[tail.toUpperCase()] : undefined;
-    const subdivision_name = is_alpha3 ? (subdivision?.name ?? tail) : tail;
+    const subdivision = is_alpha3 ? info?.subdivisions[country_code]?.[tail.toUpperCase()] : undefined;
+    const [name, gadm_name] = subdivision ?? [null, null];
+    // A code the table carries no name for is shown as the code itself.
+    const subdivision_name = is_alpha3 ? (name ?? tail) : tail;
 
     return {
         kind: "subdivision",
         country_code,
         subdivision_name,
-        gadm_name: subdivision?.gadm,
+        gadm_name: gadm_name ?? undefined,
         label: `${subdivision_name}, ${country_name}`,
     };
 }

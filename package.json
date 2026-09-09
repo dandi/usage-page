@@ -1,6 +1,6 @@
 {
   "name": "access-page",
-  "version": "1.18.0",
+  "version": "1.18.1",
   "description": "Visualizations of data usage across the archive.",
   "private": true,
   "type": "module",
@@ -19,7 +19,7 @@
     "test:visual": "playwright test --config configs/playwright.visual.config.js",
     "test:e2e:coverage": "PW_COVERAGE=1 playwright test --config configs/playwright.config.js",
     "coverage:integration": "node src/scripts/build-integration-coverage.mjs",
-    "build:iso-region-codes": "node src/scripts/build-iso-region-codes.mjs",
+    "build:region-info": "node src/scripts/build-region-info.mjs",
     "storybook": "storybook dev -p 6006 --config-dir configs/storybook",
     "build-storybook": "storybook build --config-dir configs/storybook"
   },

@@ -1,7 +1,7 @@
-// Regenerates `src/configs/iso_region_codes.json`, the table the page uses to
-// turn the ISO 3166 codes of `by_region.tsv` into something it can draw and
-// label: a region there is written as an ISO 3166-1 alpha-3 country code,
-// optionally followed by an ISO 3166-2 subdivision code (`USA/CA`, `DNK/84`).
+// Regenerates `src/configs/region_info.json`, the table the page uses to turn
+// the ISO 3166 codes of `by_region.tsv` into something it can draw and label: a
+// region there is written as an ISO 3166-1 alpha-3 country code, optionally
+// followed by an ISO 3166-2 subdivision code (`USA/CA`, `DNK/84`).
 //
 // Neither half means anything to the choropleth on its own.  Its boundaries
 // come from GADM, which keys its features by alpha-2 country code and an
@@ -23,11 +23,16 @@
 //
 // Run it after the boundaries or the upstream region codes change:
 //
-//     node src/scripts/build-iso-region-codes.mjs
+//     node src/scripts/build-region-info.mjs
 //
 // It reads the coordinates over the network (pass a local path as the first
 // argument to use a copy instead) and rewrites the config in place, reporting
 // how many codes it resolved.
+//
+// Each subdivision is written as a [name, boundary] pair, either half of which
+// is null where the source it comes from does not cover that code: CLDR names
+// no subdivision of a handful of small territories, and a coordinate can fall
+// outside every boundary GADM draws for its country.
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -40,7 +45,7 @@ const COORDINATES_URL =
 
 const CONFIGS_DIR = new URL("../configs/", import.meta.url);
 const TOPOJSON_PATH = new URL("gadm_admin1_simplified.topojson", CONFIGS_DIR);
-const OUTPUT_PATH = new URL("iso_region_codes.json", CONFIGS_DIR);
+const OUTPUT_PATH = new URL("region_info.json", CONFIGS_DIR);
 
 const CLDR_SUBDIVISIONS_PATH = new URL(
     "../../node_modules/cldr-subdivisions-full/subdivisions/en/en.json",
@@ -135,10 +140,10 @@ const cldr_subdivisions = read_json(CLDR_SUBDIVISIONS_PATH).subdivisions.localeD
 const region_display_names = new Intl.DisplayNames(["en"], { type: "region" });
 
 const alpha3_to_alpha2 = {};
-const countries = {};
+const alpha2_to_country_name = {};
 for (const entry of [...iso31661, ...USER_ASSIGNED_COUNTRIES]) {
     alpha3_to_alpha2[entry.alpha3] = entry.alpha2;
-    countries[entry.alpha2] = region_display_names.of(entry.alpha2) ?? entry.name ?? entry.alpha2;
+    alpha2_to_country_name[entry.alpha2] = region_display_names.of(entry.alpha2) ?? entry.name ?? entry.alpha2;
 }
 
 const coordinates = await read_coordinates(process.argv[2]);
@@ -173,8 +178,8 @@ const subdivisions = {};
 for (const [cldr_key, name] of Object.entries(cldr_subdivisions)) {
     const alpha2 = cldr_key.slice(0, 2).toUpperCase();
     const subdivision_code = cldr_key.slice(2).toUpperCase();
-    if (!(alpha2 in countries)) continue;
-    (subdivisions[alpha2] ??= {})[subdivision_code] = { name };
+    if (!(alpha2 in alpha2_to_country_name)) continue;
+    (subdivisions[alpha2] ??= {})[subdivision_code] = [name, null];
 }
 
 let placed = 0;
@@ -192,18 +197,21 @@ for (const [region_key, point] of Object.entries(coordinates)) {
         unplaced += 1;
         continue;
     }
+    // A code CLDR does not name keeps a null name rather than the code echoed
+    // back as one; the page falls back to showing the code itself.
     const country_subdivisions = (subdivisions[alpha2] ??= {});
-    const subdivision = (country_subdivisions[subdivision_code] ??= { name: subdivision_code });
-    subdivision.gadm = gadm_name;
+    (country_subdivisions[subdivision_code] ??= [null, null])[1] = gadm_name;
     placed += 1;
 }
 
-const output = { alpha3_to_alpha2, countries, subdivisions };
-writeFileSync(fileURLToPath(OUTPUT_PATH), `${JSON.stringify(output, null, 0)}\n`);
+const output = { alpha3_to_alpha2, alpha2_to_country_name, subdivisions };
+writeFileSync(fileURLToPath(OUTPUT_PATH), `${JSON.stringify(output, null, 2)}\n`);
 
-const named = Object.values(subdivisions).reduce((total, entries) => total + Object.keys(entries).length, 0);
+const all_subdivisions = Object.values(subdivisions).flatMap((entries) => Object.values(entries));
+const unnamed = all_subdivisions.filter(([name]) => name === null).length;
 console.log(
     `Wrote ${fileURLToPath(OUTPUT_PATH)}: ` +
-        `${Object.keys(countries).length} countries, ${named} named subdivisions, ` +
-        `${placed} placed on a GADM boundary, ${unplaced} with coordinates but no boundary.`
+        `${Object.keys(alpha2_to_country_name).length} countries, ${all_subdivisions.length} subdivisions ` +
+        `(${unnamed} of them unnamed by CLDR), ${placed} placed on a GADM boundary, ` +
+        `${unplaced} with coordinates but no boundary.`
 );
