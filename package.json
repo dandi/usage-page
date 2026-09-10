@@ -1,6 +1,6 @@
 {
   "name": "access-page",
-  "version": "1.20.4",
+  "version": "1.20.5",
   "description": "Visualizations of data usage across the archive.",
   "private": true,
   "type": "module",
@@ -42,7 +42,7 @@
     "@types/node": "^26.1.1",
     "@types/plotly.js": "^3.0.10",
     "@types/topojson-client": "^3.1.5",
-    "@vitest/coverage-v8": "^4.1.9",
+    "@vitest/coverage-v8": "^4.1.11",
     "ast-v8-to-istanbul": "^1.0.5",
     "chromatic": "^17.8.0",
     "cldr-subdivisions-full": "^48.2.0",
@@ -55,7 +55,7 @@
     "storybook": "^10.3.6",
     "typescript": "^6.0.3",
     "vite": "^8.1.5",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "js-yaml": "^4.3.1",
