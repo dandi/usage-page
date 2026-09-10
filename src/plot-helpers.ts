@@ -229,23 +229,54 @@ function default_view_longitude_fraction(map_width_px: number): number {
 }
 
 /**
+ * The longitude both maps of this width open centered on: the middle of the
+ * United States, pulled back to where the world still fills the view.
+ *
+ * Neither map has anything to show past the ends of the world.  A `geo`
+ * subplot draws empty paper there; a tiled map repeats the world instead,
+ * which looks like more map but is the same places over again — and hovering
+ * one of those repeats pops its label at the far side of the map, where the
+ * place it names really is.  On a view wide enough to hold the whole world
+ * that leaves only one center that shows every place once, so a wide map
+ * opens on the middle of the world and a narrow one on the United States.
+ *
+ * @param map_width_px - Width of the map's container element.
+ * @returns The longitude of the center of the default view, in degrees.
+ */
+function default_view_longitude(map_width_px: number): number {
+    const half_span = 180 * default_view_longitude_fraction(map_width_px);
+    const limit = 180 - half_span;
+    return Math.max(-limit, Math.min(limit, MAP_DEFAULT_CENTER.longitude));
+}
+
+/**
  * The view the choropleth — a MapLibre `map` subplot, which zooms in powers of
  * two over a 512 px world tile — opens on at the given map width.
  *
- * @param map_width_px - Width of the map's container element.
+ * @param map_width_px - Width of the map's container element, which decides
+ *                       how much of the world the view opens on.
+ * @param drawn_width_px - Width of the map itself, inside the margins Plotly
+ *                         leaves around it, which is what that much of the
+ *                         world has to be zoomed to fit across.  Defaults to
+ *                         the container less Plotly's own margins.
  * @returns The MapLibre `center`, `zoom` and `minzoom` of the default view.
  *          The minimum sits just below the default so the view can always be
  *          restored by zooming out, without letting the map be pulled back so
  *          far that the world no longer fills it.
  */
-export function default_choropleth_view(map_width_px: number): {
+export function default_choropleth_view(map_width_px: number, drawn_width_px?: number): {
     center: { lat: number; lon: number };
     zoom: number;
     min_zoom: number;
 } {
-    const zoom = Math.log2(map_width_px / (512 * default_view_longitude_fraction(map_width_px)));
+    // Zoomed to the map rather than to the element holding it: measured
+    // against the container the world came up some 20° short at either end,
+    // which went unnoticed only while the repeats to either side stood in for
+    // the ends of it.
+    const drawn_width = Math.max(1, drawn_width_px ?? map_width_px - PLOTLY_HORIZONTAL_MARGIN_PX);
+    const zoom = Math.log2(drawn_width / (512 * default_view_longitude_fraction(map_width_px)));
     return {
-        center: { lat: MAP_DEFAULT_CENTER.latitude, lon: MAP_DEFAULT_CENTER.longitude },
+        center: { lat: MAP_DEFAULT_CENTER.latitude, lon: default_view_longitude(map_width_px) },
         zoom: zoom,
         min_zoom: zoom - 0.15,
     };
@@ -273,13 +304,15 @@ export function default_points_view(map_width_px: number, map_height_px: number)
     const drawn_height = Math.max(1, map_height_px - PLOTLY_VERTICAL_MARGIN_PX);
     const latitude_span = Math.min(180, (longitude_span * drawn_height) / drawn_width);
 
-    // A `geo` subplot does not repeat the world to either side the way a tiled
-    // map does, so a window that would carry the view off the end of it is
-    // pulled back to where the world still fills it — which, on a map opening
-    // on the whole world, leaves it centered on the middle of it.
-    const clamp = (value: number, limit: number) => Math.max(-limit, Math.min(limit, value));
-    const longitude = clamp(MAP_DEFAULT_CENTER.longitude, 180 - longitude_span / 2);
-    const latitude = clamp(MAP_DEFAULT_CENTER.latitude, 90 - latitude_span / 2);
+    // The window is pulled back inside the ends of the world in longitude the
+    // same way the choropleth's is, and in latitude too, which only this map
+    // needs: a tiled map is framed by a zoom rather than by a window and has
+    // no way to ask for more latitude than there is.
+    const longitude = default_view_longitude(map_width_px);
+    const latitude = Math.max(
+        -(90 - latitude_span / 2),
+        Math.min(90 - latitude_span / 2, MAP_DEFAULT_CENTER.latitude),
+    );
     return {
         longitude_range: [longitude - longitude_span / 2, longitude + longitude_span / 2],
         latitude_range: [latitude - latitude_span / 2, latitude + latitude_span / 2],
@@ -350,21 +383,17 @@ export function apply_view_mode(plot_id: string, table_id: string, use_table: bo
  * Shows/hides the geography map and its paired table panels according to the
  * selected geo view mode ("regions" | "points" | "table" | "aws" | "gcp").
  *
- * The detail toggle rides along: only the region map is drawn from boundaries,
- * so the choice between countries and subregions means nothing anywhere else.
+ * The resolution card rides along: only the region map is drawn from
+ * boundaries, so the choice between countries and subdivisions means nothing
+ * anywhere else.
  */
 export function apply_geo_view_mode(view: string): void {
     const mapEl   = document.getElementById("geography_heatmap");
     const tableEl = document.getElementById("geo_table_section");
     const showMap = (view === "regions" || view === "points");
 
-    const detailEl = document.getElementById("geo_detail_control");
-    const detailSeparatorEl = document.getElementById("geo_detail_separator");
-    const showDetail = (view === "regions");
-    if (detailEl) detailEl.style.display = showDetail ? "" : "none";
-    // The rule between the two groups goes with the group it divides off,
-    // rather than being left dangling after "View:".
-    if (detailSeparatorEl) detailSeparatorEl.style.display = showDetail ? "" : "none";
+    const resolutionEl = document.getElementById("geo_resolution_control");
+    if (resolutionEl) resolutionEl.style.display = view === "regions" ? "" : "none";
 
     const section_el = (mapEl && mapEl.closest('.view-section')) as HTMLElement | null;
     const outgoing_height = tallest_view_height([mapEl, tableEl]);

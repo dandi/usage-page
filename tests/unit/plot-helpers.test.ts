@@ -357,9 +357,14 @@ describe("apply_geo_view_mode", () => {
 
 // ── default_choropleth_view / default_points_view ─────────────────────────────
 
-/** The degrees of longitude a MapLibre map of this width shows at this zoom. */
-function tiled_map_longitude_span(map_width_px: number, zoom: number): number {
-    return (360 * map_width_px) / (512 * Math.pow(2, zoom));
+/** The degrees of longitude a MapLibre map of this drawn width shows at this zoom. */
+function tiled_map_longitude_span(drawn_width_px: number, zoom: number): number {
+    return (360 * drawn_width_px) / (512 * Math.pow(2, zoom));
+}
+
+/** The width of the map drawn inside a container of this width, less Plotly's margins. */
+function drawn_width(map_width_px: number): number {
+    return map_width_px - 160;
 }
 
 describe("default_choropleth_view", () => {
@@ -368,14 +373,35 @@ describe("default_choropleth_view", () => {
     });
 
     it("opens on the whole world once the map is wide enough to draw it", () => {
+        // Measured across the map itself rather than the element holding it:
+        // fitting the world to the container leaves it short of both ends.
         const view = default_choropleth_view(2048);
-        expect(view.zoom).toBeCloseTo(2);
-        expect(tiled_map_longitude_span(2048, view.zoom)).toBeCloseTo(360);
+        expect(tiled_map_longitude_span(drawn_width(2048), view.zoom)).toBeCloseTo(360);
+    });
+
+    it("fits the world across the map it is told it has, not the container", () => {
+        const view = default_choropleth_view(2048, 1000);
+        expect(tiled_map_longitude_span(1000, view.zoom)).toBeCloseTo(360);
+    });
+
+    it("pulls a view that would run off the end of the world back inside it", () => {
+        // A tiled map repeats the world to either side rather than leaving
+        // empty paper there, and hovering one of those repeats pops its label
+        // at the far side of the map, where the place it names really is.
+        expect(default_choropleth_view(2048).center.lon).toBeCloseTo(0);
+        expect(default_choropleth_view(800).center.lon).toBeCloseTo(-39.375);
+    });
+
+    it("opens on the same longitude as the points map of that width", () => {
+        for (const width of [400, 800, 2048]) {
+            const [west, east] = default_points_view(width, 600).longitude_range;
+            expect(default_choropleth_view(width).center.lon).toBeCloseTo((west + east) / 2);
+        }
     });
 
     it("opens on a proportionally narrower window on a narrower map", () => {
         const view = default_choropleth_view(400);
-        expect(tiled_map_longitude_span(400, view.zoom)).toBeCloseTo(360 * (400 / 1024));
+        expect(tiled_map_longitude_span(drawn_width(400), view.zoom)).toBeCloseTo(360 * (400 / 1024));
     });
 
     it("allows zooming a little further out than the default", () => {
@@ -387,7 +413,9 @@ describe("default_choropleth_view", () => {
 describe("default_points_view", () => {
     it("opens on the same window of longitude as the choropleth of that width", () => {
         const [west, east] = default_points_view(400, 320).longitude_range;
-        expect(east - west).toBeCloseTo(tiled_map_longitude_span(400, default_choropleth_view(400).zoom));
+        expect(east - west).toBeCloseTo(
+            tiled_map_longitude_span(drawn_width(400), default_choropleth_view(400).zoom),
+        );
     });
 
     it("centers the view on the United States", () => {

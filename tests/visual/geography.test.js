@@ -110,7 +110,7 @@ test.describe("Geography choropleth", () => {
                 }, theme);
                 // Pinned to the subdivision map, which is what these baselines
                 // were drawn from; the map opens on countries by default.
-                await page.goto("/?detail=subdivisions");
+                await page.goto("/?resolution=subdivisions");
                 await waitForPlotsToRender(page);
                 await waitForMapToSettle(page);
                 await pinToViewportCorner(page);

@@ -488,7 +488,7 @@ let GEO_VIEW = "regions";  // "regions" | "points" | "table" | "aws" | "gcp"
 // because it is the only granularity at which every located byte is drawn:
 // traffic that resolves no further than a country has no subdivision to be
 // painted in, and that is a sixth of the archive's bytes.
-let GEO_DETAIL = "countries";  // "countries" | "subdivisions"
+let GEO_RESOLUTION = "countries";  // "countries" | "subdivisions"
 let TIME_AGGREGATION = "daily";  // "daily" | "weekly" | "monthly" | "yearly"
 let OVER_TIME_GROUP_BY = "none";  // "none" | "dandisets"
 // The metric each of the first two plots is drawn in.  The over-time plot has
@@ -598,10 +598,10 @@ function syncFromUrl() {
     const urlMap = params.get("map");
     const validGeoViews = ["regions", "points", "table", "aws", "gcp"];
     GEO_VIEW = urlMap !== null && validGeoViews.includes(urlMap) ? urlMap : "regions";
-    const urlDetail = params.get("detail");
-    GEO_DETAIL = urlDetail === "subdivisions" ? "subdivisions" : "countries";
-    const geoDetailRadio = document.querySelector(`input[name="geo_detail"][value="${GEO_DETAIL}"]`) as HTMLInputElement | null;
-    if (geoDetailRadio) geoDetailRadio.checked = true;
+    const urlResolution = params.get("resolution");
+    GEO_RESOLUTION = urlResolution === "subdivisions" ? "subdivisions" : "countries";
+    const geoResolutionRadio = document.querySelector(`input[name="geo_resolution"][value="${GEO_RESOLUTION}"]`) as HTMLInputElement | null;
+    if (geoResolutionRadio) geoResolutionRadio.checked = true;
     const geoRadio = document.querySelector(`input[name="geo_view"][value="${GEO_VIEW}"]`) as HTMLInputElement | null;
     if (geoRadio) geoRadio.checked = true;
     apply_geo_view_mode(GEO_VIEW);
@@ -973,12 +973,12 @@ window.addEventListener("load", () => {
     });
 
     // Add event listener for the map's detail toggle (Countries / Subdivisions)
-    document.querySelectorAll('input[name="geo_detail"]').forEach((radio) => {
+    document.querySelectorAll('input[name="geo_resolution"]').forEach((radio) => {
         radio.addEventListener("change", () => {
-            GEO_DETAIL = (radio as HTMLInputElement).value;
+            GEO_RESOLUTION = (radio as HTMLInputElement).value;
 
             const params = new URLSearchParams(window.location.search);
-            setUrlParam(params, "detail", GEO_DETAIL, "countries");
+            setUrlParam(params, "resolution", GEO_RESOLUTION, "countries");
             const query = params.toString();
             window.history.pushState({}, "", window.location.pathname + (query ? "?" + query : ""));
 
@@ -2674,7 +2674,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             feature_views[idx] += parseInt(row[4] || "0", 10) || 0;
         };
 
-        if (GEO_DETAIL === "countries") {
+        if (GEO_RESOLUTION === "countries") {
             // Every boundary of a country is painted with that country's whole
             // total, and the borders between them are not drawn, so the country
             // reads as one shape.  Merging the boundaries into one instead
@@ -2753,7 +2753,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 const country_name = REGION_INFO?.alpha2_to_country_name[iso2] ?? iso2;
                 // In the country view every boundary of a country carries that
                 // country's total, so naming the boundary would misreport it.
-                const place = GEO_DETAIL === "countries" ? country_name : `${name}, ${country_name}`;
+                const place = GEO_RESOLUTION === "countries" ? country_name : `${name}, ${country_name}`;
                 hover_texts.push(
                     `${place}<br>${format_bytes(bytes)}` +
                     hover_metric("Requests", feature_requests[idx]) +
@@ -2809,20 +2809,19 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                             // Borders are drawn between subdivisions but not
                             // between the boundaries making up one country,
                             // which would otherwise show through its fill.
-                            width: GEO_DETAIL === "countries" ? 0 : 0.5,
+                            width: GEO_RESOLUTION === "countries" ? 0 : 0.5,
                         },
                         // Whole countries are drawn opaque: at 0.8 the fills of
                         // two adjacent boundaries blend at their shared edge and
                         // leave a seam, which subdivides a country that is meant
                         // to read as one shape.
-                        opacity: GEO_DETAIL === "countries" ? 1 : 0.8,
+                        opacity: GEO_RESOLUTION === "countries" ? 1 : 0.8,
                     },
                 },
             ];
 
             const mapEl = document.getElementById(plot_element_id);
             const mapWidth = mapEl ? mapEl.offsetWidth : 800;
-            const default_view = default_choropleth_view(mapWidth);
 
             // Plotly does not wrap annotation text, so on a map too narrow to
             // hold the attribution on one line it runs off the side of the
@@ -2849,6 +2848,15 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // mode bar drawn over the first row of the plot, which a touch
             // device shows for good rather than only while hovered.
             const narrow_map_margin = { l: 8, b: 8 };
+
+            // The map is drawn inside those margins, so it is narrower than
+            // the element holding it, and it is the map the default view has
+            // to fit the world across.
+            const PLOTLY_DEFAULT_SIDE_MARGIN_PX = 80;
+            const default_view = default_choropleth_view(
+                mapWidth,
+                mapWidth - (is_narrow_map ? narrow_map_margin.l : PLOTLY_DEFAULT_SIDE_MARGIN_PX) - PLOTLY_DEFAULT_SIDE_MARGIN_PX,
+            );
 
         const layout = applyTheme({
             title: {
@@ -2890,6 +2898,15 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 const map = (el as any)._fullLayout.map._subplot.map;
                 if (map) {
                     if (map.setMinZoom) map.setMinZoom(default_view.min_zoom);
+                    // MapLibre draws the world over and over to either side of
+                    // itself, so a place panned past the end of the map comes
+                    // back around as a copy of itself.  Hovering one of those
+                    // copies pops its label where the place really is, at the
+                    // far side of the map: eastern Russia hovered on the left
+                    // labels itself on the right.  The default view no longer
+                    // needs the repeats to fill itself, so they are turned off
+                    // and every place is drawn once, where it is.
+                    if (map.setRenderWorldCopies) map.setRenderWorldCopies(false);
                 }
             }
         });

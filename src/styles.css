@@ -288,6 +288,24 @@ h1 {
     max-width: 100%;
 }
 
+/* A row of control bars that belong to one plot, laid out as separate cards
+   so that each choice reads as its own rather than as more of the last one.
+   The row wraps like the bars themselves, and a card hidden for the current
+   view leaves no gap behind it. */
+.ControllerRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* The cards are spaced by the row's gap; an `auto` side margin inside a flex
+   row would absorb the free space and push them apart instead. */
+.ControllerRow > .ControllerContainer {
+    margin: 0;
+}
+
 .SubControllerContainer {
     display: flex;
     align-items: center;
