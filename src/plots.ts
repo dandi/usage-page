@@ -29,6 +29,7 @@ import {
     apply_geo_view_mode,
     default_choropleth_view,
     default_points_view,
+    hover_label_position,
     derive_data_source_urls,
     render_sortable_table,
     render_totals_summary,
@@ -2799,7 +2800,16 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     locations: locations,
                     z: z_values,
                     text: hover_texts,
-                    hoverinfo: "text",
+                    // Plotly draws a map's hover label where the region it
+                    // names is, in longitude and latitude.  That is the one
+                    // place it cannot always go: the map is a window onto a
+                    // world that carries on past both of its edges, so a
+                    // region reaching one of them — the eastern tip of Russia
+                    // — is labelled off the side of the map, or at the far
+                    // side of it.  "none" keeps the hover events and drops
+                    // only the label, which is drawn below in the map's own
+                    // pixels instead.
+                    hoverinfo: "none",
                     colorscale: "YlOrRd",
                     reversescale: true,
                     colorbar: colorbar_config,
@@ -2909,6 +2919,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     if (map.setRenderWorldCopies) map.setRenderWorldCopies(false);
                 }
             }
+            attach_map_hover_label(plot_element_id);
         });
     })
     .catch((error) => {
@@ -2918,6 +2929,98 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             plot_element.innerText = "Failed to load data for geographic choropleth.";
         }
     });
+}
+
+/**
+ * Draws the choropleth's hover label ourselves, beside the pointer.
+ *
+ * Plotly's own map label is anchored to the region it names, which on a map
+ * that is a window onto a larger world puts it off the side of the map for
+ * anything reaching an edge.  This one is placed in the map's pixels and kept
+ * inside them, so it always lands beside what is being pointed at.
+ */
+function attach_map_hover_label(plot_element_id: string) {
+    const plot_element = document.getElementById(plot_element_id) as HTMLElement | null;
+    if (!plot_element || !(plot_element as any).on) return;
+
+    // The label is drawn inside the plot, so the plot has to be what it is
+    // positioned against.
+    if (getComputedStyle(plot_element).position === "static") plot_element.style.position = "relative";
+
+    // Plotly's own hover event carries no pointer position for a map, so it is
+    // read from the mouse directly and remembered for the hover to place
+    // itself by.
+    const pointer = { x: 0, y: 0 };
+
+    const label_element = () => {
+        let label = plot_element.querySelector(".map-hover-label") as HTMLDivElement | null;
+        if (!label) {
+            // Redrawing the plot takes the label with it, so it is looked up
+            // rather than held on to.
+            label = document.createElement("div");
+            label.className = "map-hover-label";
+            plot_element.appendChild(label);
+        }
+        return label;
+    };
+
+    const hide = () => {
+        const label = plot_element.querySelector(".map-hover-label") as HTMLDivElement | null;
+        if (label) label.style.visibility = "hidden";
+    };
+
+    const show = (event: any) => {
+        const text = event?.points?.[0]?.text;
+        if (typeof text !== "string") return;
+        const label = label_element();
+
+        // The hover text is built with <br> between its lines, so it is split
+        // back apart and written as text rather than as markup.
+        const lines: Node[] = [];
+        text.split("<br>").forEach((line, index) => {
+            if (index > 0) lines.push(document.createElement("br"));
+            lines.push(document.createTextNode(line));
+        });
+        label.replaceChildren(...lines);
+
+        // Measured while still hidden, so that it is never shown at the last
+        // hover's position before being moved to this one.
+        label.style.visibility = "hidden";
+        const size = label.getBoundingClientRect();
+        const at = hover_label_position(pointer, size, drawn_map_bounds(plot_element));
+        const origin = plot_element.getBoundingClientRect();
+        label.style.left = `${at.left - origin.left}px`;
+        label.style.top = `${at.top - origin.top}px`;
+        label.style.visibility = "visible";
+    };
+
+    // Redrawing the plot — switching resolution, or changing theme — runs this
+    // again on the same element, so the handlers are replaced rather than
+    // stacked up.  The pointer listeners are attached once, since those the
+    // element keeps.
+    (plot_element as any).removeAllListeners?.("plotly_hover");
+    (plot_element as any).removeAllListeners?.("plotly_unhover");
+    (plot_element as any).on("plotly_hover", show);
+    (plot_element as any).on("plotly_unhover", hide);
+
+    if ((plot_element as any).__hover_label_pointer_tracked) return;
+    (plot_element as any).__hover_label_pointer_tracked = true;
+    plot_element.addEventListener("mousemove", (event) => {
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+    });
+    plot_element.addEventListener("mouseleave", hide);
+}
+
+/**
+ * The rectangle the map itself is drawn into, which is the plot less the
+ * margins Plotly leaves around it — the colorbar's column among them, which a
+ * label has no business being drawn over.
+ */
+function drawn_map_bounds(plot_element: HTMLElement): { left: number; top: number; width: number; height: number } {
+    const canvas = plot_element.querySelector(".maplibregl-canvas");
+    const box = (canvas ?? plot_element).getBoundingClientRect();
+    return { left: box.left, top: box.top, width: box.width, height: box.height };
 }
 
 // format_bytes delegates to the pure utility, passing the current binary/decimal setting.

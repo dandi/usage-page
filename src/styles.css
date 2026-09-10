@@ -787,6 +787,25 @@ input[type="number"]:focus {
     pointer-events: none;
 }
 
+/* The choropleth's hover label, drawn by the page rather than by Plotly so
+   that it can be placed beside the pointer and kept inside the map; see
+   attach_map_hover_label. */
+.map-hover-label {
+    position: absolute;
+    z-index: 5;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: nowrap;
+    padding: 5px 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text);
+    font-size: 12px;
+    line-height: 1.35;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
 .separator {
     width: 1px;
     height: 20px;

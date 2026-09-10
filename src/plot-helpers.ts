@@ -319,6 +319,59 @@ export function default_points_view(map_width_px: number, map_height_px: number)
     };
 }
 
+// ── Map hover labels ──────────────────────────────────────────────────────────
+
+/** A rectangle in the page's own pixels, as `getBoundingClientRect` gives it. */
+export interface PixelBox {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+}
+
+/** How far from the pointer a hover label is placed, in pixels. */
+const HOVER_LABEL_OFFSET_PX = 14;
+
+/**
+ * Where to put a map's hover label, in the pixels of the map rather than in
+ * the longitude and latitude of what it names.
+ *
+ * A tiled map is a window onto a world that carries on past both edges of it,
+ * so a label placed by where its subject *is* can be placed off the map
+ * altogether — or at the far side of it, once the map is repeating itself.
+ * Placing it by where the pointer is, and keeping it inside the map's own
+ * edges, is what makes a label always land beside the thing it labels.
+ *
+ * The label sits to the right of the pointer where there is room for it and to
+ * the left where there is not, so that it never covers what is being pointed
+ * at; a label too wide for either side is pinned to the map's left edge.
+ *
+ * @param pointer - Where the pointer is, in the same pixels as `bounds`.
+ * @param label - The size of the label to place.
+ * @param bounds - The map the label must stay inside.
+ * @returns The top-left corner to draw the label at.
+ */
+export function hover_label_position(
+    pointer: { x: number; y: number },
+    label: { width: number; height: number },
+    bounds: PixelBox,
+): { left: number; top: number } {
+    const right_edge = bounds.left + bounds.width;
+    const bottom_edge = bounds.top + bounds.height;
+
+    let left = pointer.x + HOVER_LABEL_OFFSET_PX;
+    if (left + label.width > right_edge) left = pointer.x - HOVER_LABEL_OFFSET_PX - label.width;
+    left = Math.min(Math.max(left, bounds.left), Math.max(bounds.left, right_edge - label.width));
+
+    // Centered on the pointer vertically, where a label is read as belonging
+    // to it without covering it; pulled back inside the map at the top and
+    // bottom the same way.
+    let top = pointer.y - label.height / 2;
+    top = Math.min(Math.max(top, bounds.top), Math.max(bounds.top, bottom_edge - label.height));
+
+    return { left, top };
+}
+
 // ── View-mode helpers ─────────────────────────────────────────────────────────
 
 /**

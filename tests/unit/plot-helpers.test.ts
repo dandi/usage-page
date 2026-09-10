@@ -8,6 +8,7 @@ import {
     apply_geo_view_mode,
     default_choropleth_view,
     default_points_view,
+    hover_label_position,
     derive_data_source_urls,
     render_sortable_table,
     render_totals_summary,
@@ -446,6 +447,48 @@ describe("default_points_view", () => {
         const view = default_points_view(800, 600);
         expect(view.longitude_range[0]).toBeCloseTo(-180);
         expect(view.longitude_range[1] - view.longitude_range[0]).toBeCloseTo(360 * (800 / 1024));
+    });
+});
+
+// ── hover_label_position ──────────────────────────────────────────────────────
+
+describe("hover_label_position", () => {
+    // A 1000 x 500 map with its top-left corner 100 px into the page.
+    const bounds = { left: 100, top: 50, width: 1000, height: 500 };
+    const label = { width: 160, height: 70 };
+
+    it("puts the label beside the pointer rather than where its subject is", () => {
+        const at = hover_label_position({ x: 400, y: 300 }, label, bounds);
+        expect(at.left).toBe(414);
+        expect(at.top).toBe(265);
+    });
+
+    it("flips the label to the other side of the pointer at the right edge", () => {
+        // A map's window carries on past its edges, so the region under the
+        // pointer there is the very one whose own position is off the map.
+        const at = hover_label_position({ x: 1090, y: 300 }, label, bounds);
+        expect(at.left).toBe(1090 - 14 - label.width);
+        expect(at.left + label.width).toBeLessThanOrEqual(bounds.left + bounds.width);
+    });
+
+    it("keeps the label inside the map on every side", () => {
+        for (const pointer of [
+            { x: 100, y: 50 },
+            { x: 1100, y: 50 },
+            { x: 100, y: 550 },
+            { x: 1100, y: 550 },
+        ]) {
+            const at = hover_label_position(pointer, label, bounds);
+            expect(at.left).toBeGreaterThanOrEqual(bounds.left);
+            expect(at.top).toBeGreaterThanOrEqual(bounds.top);
+            expect(at.left + label.width).toBeLessThanOrEqual(bounds.left + bounds.width);
+            expect(at.top + label.height).toBeLessThanOrEqual(bounds.top + bounds.height);
+        }
+    });
+
+    it("pins a label too wide for the map to its left edge", () => {
+        const at = hover_label_position({ x: 600, y: 300 }, { width: 1200, height: 70 }, bounds);
+        expect(at.left).toBe(bounds.left);
     });
 });
 
