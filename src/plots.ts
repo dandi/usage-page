@@ -2908,15 +2908,6 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 const map = (el as any)._fullLayout.map._subplot.map;
                 if (map) {
                     if (map.setMinZoom) map.setMinZoom(default_view.min_zoom);
-                    // MapLibre draws the world over and over to either side of
-                    // itself, so a place panned past the end of the map comes
-                    // back around as a copy of itself.  Hovering one of those
-                    // copies pops its label where the place really is, at the
-                    // far side of the map: eastern Russia hovered on the left
-                    // labels itself on the right.  The default view no longer
-                    // needs the repeats to fill itself, so they are turned off
-                    // and every place is drawn once, where it is.
-                    if (map.setRenderWorldCopies) map.setRenderWorldCopies(false);
                 }
             }
             attach_map_hover_label(plot_element_id);

@@ -234,11 +234,11 @@ function default_view_longitude_fraction(map_width_px: number): number {
  *
  * Neither map has anything to show past the ends of the world.  A `geo`
  * subplot draws empty paper there; a tiled map repeats the world instead,
- * which looks like more map but is the same places over again — and hovering
- * one of those repeats pops its label at the far side of the map, where the
- * place it names really is.  On a view wide enough to hold the whole world
- * that leaves only one center that shows every place once, so a wide map
- * opens on the middle of the world and a narrow one on the United States.
+ * which looks like more map but is the same places over again, so that a view
+ * wide enough to hold the whole world would open on some of it twice.  Only
+ * one center shows every place once at that width, so a wide map opens on the
+ * middle of the world and a narrow one on the United States.  Panning still
+ * carries on past either end, where the repeats are what the map is made of.
  *
  * @param map_width_px - Width of the map's container element.
  * @returns The longitude of the center of the default view, in degrees.

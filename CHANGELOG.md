@@ -5,7 +5,7 @@
 #### 🐛 Bug Fix
 
 - Drew the region map's hover label beside the pointer and inside the map, rather than over the region it names: a region reaching an edge of the map — the eastern tip of Russia — had labeled itself off the side of the map, or at the far side of it. ([#257](https://github.com/dandi/usage-page/pull/257))
-- Stopped the region map repeating the world to either side of itself, which had drawn the same places over again as copies. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Opened the region map on a view that shows the world once, where a whole-world view centered on the United States had shown some of it twice; panning still carries on past either end of it. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Fitted the region map's opening view to the map itself rather than to the element holding it, which had left the world some 20° short at either end. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Stopped dropping a whole region from the choropleth when any one of its islands crosses the antimeridian, which had left Alaska unpainted — and a hole in the United States — for the sake of the Aleutians. ([#257](https://github.com/dandi/usage-page/pull/257))
 
