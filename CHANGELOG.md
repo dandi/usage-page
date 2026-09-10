@@ -16,11 +16,6 @@
 - Stopped the tooltip of an info icon near the edge of a narrow viewport from scrolling the page sideways while hidden. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the "Undetermined file types" series of the over-time plot grouped by asset type, which weighed the archive total against the weekly asset-type breakdown only after binning and so reported the days around each month and year boundary as undetermined bytes. The series is now left out entirely when every byte is accounted for. ([#249](https://github.com/dandi/usage-page/pull/249))
 
-#### 🏠 Internal
-
-- Bumped `vitest` and `@vitest/coverage-v8` to 4.1.11, fixing a `@vitest/mocker` vulnerability that let a dev-server client register a redirect mock reading arbitrary local files. ([#258](https://github.com/dandi/usage-page/pull/258))
-- Bumped `js-yaml` to 4.3.2, hard-limiting merge sequence size to guard against excessive CPU usage. ([#259](https://github.com/dandi/usage-page/pull/259))
-
 #### 🚀 Enhancement
 
 - Added a Resolution control to the region map, on a card of its own beside the view selector, and opened the map on Countries: that is the only granularity that draws every located byte, since traffic resolved no further than a country has no subdivision to be painted in, and that is a sixth of the archive's bytes. ([#257](https://github.com/dandi/usage-page/pull/257))
