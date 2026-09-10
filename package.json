@@ -55,10 +55,10 @@
     "storybook": "^10.3.6",
     "typescript": "^6.0.3",
     "vite": "^8.1.5",
-    "vitest": "^4.1.6"
+    "vitest": "^5.0.0"
   },
   "dependencies": {
-    "js-yaml": "^4.3.1",
+    "js-yaml": "^4.3.2",
     "plotly.js-dist-min": "^3.6.0",
     "topojson-client": "^3.1.0"
   },
