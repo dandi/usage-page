@@ -2771,6 +2771,12 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
 
         const locations = filtered_features.map(f => f.properties.id);
 
+        // What the hover shows for each region, keyed by the id the map knows
+        // the region by, since the hover reads the region out of the map.
+        const hover_text_by_id = new Map<string, string>(
+            locations.map((id: string, index: number) => [String(id), hover_texts[index]]),
+        );
+
         // Compute colorbar ticks based on data range
         const colorbar_config = (function() {
             const allTicks = [3, 6, 9, 12, 15];
@@ -2806,10 +2812,9 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     // world that carries on past both of its edges, so a
                     // region reaching one of them — the eastern tip of Russia
                     // — is labelled off the side of the map, or at the far
-                    // side of it.  "none" keeps the hover events and drops
-                    // only the label, which is drawn below in the map's own
-                    // pixels instead.
-                    hoverinfo: "none",
+                    // side of it.  The hover is done by the page instead, in
+                    // the map's own pixels; "skip" leaves Plotly out of it.
+                    hoverinfo: "skip",
                     colorscale: "YlOrRd",
                     reversescale: true,
                     colorbar: colorbar_config,
@@ -2910,7 +2915,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     if (map.setMinZoom) map.setMinZoom(default_view.min_zoom);
                 }
             }
-            attach_map_hover_label(plot_element_id);
+            attach_map_hover_label(plot_element_id, hover_text_by_id);
         });
     })
     .catch((error) => {
@@ -2923,25 +2928,43 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
 }
 
 /**
- * Draws the choropleth's hover label ourselves, beside the pointer.
+ * Draws the choropleth's hover label, beside the pointer and inside the map.
  *
  * Plotly's own map label is anchored to the region it names, which on a map
  * that is a window onto a larger world puts it off the side of the map for
- * anything reaching an edge.  This one is placed in the map's pixels and kept
- * inside them, so it always lands beside what is being pointed at.
+ * anything reaching an edge — so the trace is drawn with `hoverinfo: "skip"`
+ * and the hover done here instead.
+ *
+ * It is done through MapLibre rather than through Plotly's hover events, which
+ * a redraw quietly stops delivering: after the plot is redrawn — switching
+ * resolution does that — `plotly_hover` stops reaching handlers registered on
+ * it, whether they were registered before the redraw or after it, and the map
+ * goes silent.  MapLibre's own events have no such lifecycle, and the map
+ * already knows which region is under the pointer.
+ *
+ * @param plot_element_id - The plot holding the map.
+ * @param hover_text_by_id - What to show for each region, by the id the map's
+ *                           features carry.  Replaced on every redraw.
  */
-function attach_map_hover_label(plot_element_id: string) {
+function attach_map_hover_label(plot_element_id: string, hover_text_by_id: Map<string, string>) {
     const plot_element = document.getElementById(plot_element_id) as HTMLElement | null;
-    if (!plot_element || !(plot_element as any).on) return;
+    const map = (plot_element as any)?._fullLayout?.map?._subplot?.map;
+    if (!plot_element || !map) return;
+
+    // The texts are the one thing a redraw changes, so they are handed over
+    // each time; everything else below is set up once.
+    const state = plot_element as any;
+    state.__hover_texts = hover_text_by_id;
 
     // The label is drawn inside the plot, so the plot has to be what it is
     // positioned against.
     if (getComputedStyle(plot_element).position === "static") plot_element.style.position = "relative";
 
-    // Plotly's own hover event carries no pointer position for a map, so it is
-    // read from the mouse directly and remembered for the hover to place
-    // itself by.
-    const pointer = { x: 0, y: 0 };
+    // Guarded on the map rather than on the plot: a redraw can leave a new
+    // MapLibre map behind, and handlers on the one it replaced are never
+    // called again.
+    if (map.__hover_label_attached) return;
+    map.__hover_label_attached = true;
 
     const label_element = () => {
         let label = plot_element.querySelector(".map-hover-label") as HTMLDivElement | null;
@@ -2960,11 +2983,24 @@ function attach_map_hover_label(plot_element_id: string) {
         if (label) label.style.visibility = "hidden";
     };
 
-    const show = (event: any) => {
-        const text = event?.points?.[0]?.text;
-        if (typeof text !== "string") return;
-        const label = label_element();
+    /** The map's fill layers for the choropleth, which a redraw renames. */
+    const region_layers = () =>
+        map
+            .getStyle()
+            .layers.filter((layer: any) => layer.type === "fill" && layer.id.includes("plotly-trace-layer"))
+            .map((layer: any) => layer.id);
 
+    map.on("mousemove", (event: any) => {
+        const layers = region_layers();
+        const under_pointer = layers.length > 0 ? map.queryRenderedFeatures(event.point, { layers }) : [];
+        const id = under_pointer[0]?.id ?? under_pointer[0]?.properties?.id;
+        const text = id === undefined ? undefined : (state.__hover_texts as Map<string, string>).get(String(id));
+        if (text === undefined) {
+            hide();
+            return;
+        }
+
+        const label = label_element();
         // The hover text is built with <br> between its lines, so it is split
         // back apart and written as text rather than as markup.
         const lines: Node[] = [];
@@ -2978,29 +3014,18 @@ function attach_map_hover_label(plot_element_id: string) {
         // hover's position before being moved to this one.
         label.style.visibility = "hidden";
         const size = label.getBoundingClientRect();
-        const at = hover_label_position(pointer, size, drawn_map_bounds(plot_element));
+        const at = hover_label_position(
+            { x: event.originalEvent.clientX, y: event.originalEvent.clientY },
+            size,
+            drawn_map_bounds(plot_element),
+        );
         const origin = plot_element.getBoundingClientRect();
         label.style.left = `${at.left - origin.left}px`;
         label.style.top = `${at.top - origin.top}px`;
         label.style.visibility = "visible";
-    };
-
-    // Redrawing the plot — switching resolution, or changing theme — runs this
-    // again on the same element, so the handlers are replaced rather than
-    // stacked up.  The pointer listeners are attached once, since those the
-    // element keeps.
-    (plot_element as any).removeAllListeners?.("plotly_hover");
-    (plot_element as any).removeAllListeners?.("plotly_unhover");
-    (plot_element as any).on("plotly_hover", show);
-    (plot_element as any).on("plotly_unhover", hide);
-
-    if ((plot_element as any).__hover_label_pointer_tracked) return;
-    (plot_element as any).__hover_label_pointer_tracked = true;
-    plot_element.addEventListener("mousemove", (event) => {
-        pointer.x = event.clientX;
-        pointer.y = event.clientY;
     });
-    plot_element.addEventListener("mouseleave", hide);
+
+    map.on("mouseout", hide);
 }
 
 /**
