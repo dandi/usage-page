@@ -25,8 +25,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
 
-  <script type="module" crossorigin src="./assets/index-Bw39tSlH.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CKNgkD5d.css">
+  <script type="module" crossorigin src="./assets/index-1rFlbzvX.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Bcu0-tS1.css">
 </head>
 <body>
     <header class="site-header">
@@ -235,26 +235,45 @@
         <div id="histogram_plot"></div>
         <div id="histogram_table" class="plot-table" style="display:none;"></div>
     </div>
-    <div class="ControllerContainer PlotViewControls" id="geo">
-        <a href="#geo" class="section-anchor" aria-label="Link to this section">#</a>
-        <div class="SubControllerContainer">
-            <span class="radio-label">View:</span>
-            <div class="radio-toggle">
-                <input type="radio" id="geo_view_regions" name="geo_view" value="regions" checked />
-                <label for="geo_view_regions">Regions</label>
-                <input type="radio" id="geo_view_points" name="geo_view" value="points" />
-                <label for="geo_view_points">Points</label>
-                <input type="radio" id="geo_view_table" name="geo_view" value="table" />
-                <label for="geo_view_table">Table</label>
-                <!-- One flex item rather than two, so a bar too narrow for
-                     every view wraps the cloud pair onto a row together
-                     instead of stranding the last of them alone. -->
-                <span class="radio-toggle-pair">
-                    <input type="radio" id="geo_view_aws" name="geo_view" value="aws" />
-                    <label for="geo_view_aws">AWS</label>
-                    <input type="radio" id="geo_view_gcp" name="geo_view" value="gcp" />
-                    <label for="geo_view_gcp">GCP</label>
-                </span>
+    <!-- Two cards rather than one: what the map draws and how finely it
+         draws it are separate choices, and the second is shown for one of the
+         views alone, so a card of its own can come and go without the first
+         one changing shape. -->
+    <div class="ControllerRow PlotViewControls" id="geo">
+        <div class="ControllerContainer">
+            <a href="#geo" class="section-anchor" aria-label="Link to this section">#</a>
+            <div class="SubControllerContainer">
+                <span class="radio-label">View:</span>
+                <div class="radio-toggle">
+                    <input type="radio" id="geo_view_regions" name="geo_view" value="regions" checked />
+                    <label for="geo_view_regions">Regions</label>
+                    <input type="radio" id="geo_view_points" name="geo_view" value="points" />
+                    <label for="geo_view_points">Points</label>
+                    <input type="radio" id="geo_view_table" name="geo_view" value="table" />
+                    <label for="geo_view_table">Table</label>
+                    <!-- One flex item rather than two, so a bar too narrow for
+                         every view wraps the cloud pair onto a row together
+                         instead of stranding the last of them alone. -->
+                    <span class="radio-toggle-pair">
+                        <input type="radio" id="geo_view_aws" name="geo_view" value="aws" />
+                        <label for="geo_view_aws">AWS</label>
+                        <input type="radio" id="geo_view_gcp" name="geo_view" value="gcp" />
+                        <label for="geo_view_gcp">GCP</label>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <!-- How finely the choropleth divides the world.  Only the region map
+             is drawn from boundaries, so this is shown for that view alone. -->
+        <div class="ControllerContainer" id="geo_resolution_control">
+            <div class="SubControllerContainer">
+                <span class="radio-label">Resolution:</span>
+                <div class="radio-toggle">
+                    <input type="radio" id="geo_resolution_countries" name="geo_resolution" value="countries" checked />
+                    <label for="geo_resolution_countries">Countries</label>
+                    <input type="radio" id="geo_resolution_subdivisions" name="geo_resolution" value="subdivisions" />
+                    <label for="geo_resolution_subdivisions">Subdivisions</label>
+                </div>
             </div>
         </div>
     </div>
