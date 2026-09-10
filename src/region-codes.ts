@@ -149,7 +149,7 @@ export function parse_region_key(region: string, info: RegionInfo | null): Parse
     // a bare "United States" next to "California, United States" reads as a
     // total and is a fraction of one.
     if (tail === null) {
-        return { kind: "country", country_code, label: `${country_name} (unspecified region)` };
+        return { kind: "country", country_code, label: `${country_name} (unspecified)` };
     }
 
     // An alpha-3 country code marks a key from the reprocessed summaries, whose

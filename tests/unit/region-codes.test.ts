@@ -70,7 +70,7 @@ describe("parse_region_key", () => {
         expect(parse_region_key("NLD", REGION_INFO)).toEqual({
             kind: "country",
             country_code: "NL",
-            label: "Netherlands (unspecified region)",
+            label: "Netherlands (unspecified)",
         });
     });
 
