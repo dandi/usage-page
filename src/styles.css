@@ -288,6 +288,24 @@ h1 {
     max-width: 100%;
 }
 
+/* A row of control bars that belong to one plot, laid out as separate cards
+   so that each choice reads as its own rather than as more of the last one.
+   The row wraps like the bars themselves, and a card hidden for the current
+   view leaves no gap behind it. */
+.ControllerRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* The cards are spaced by the row's gap; an `auto` side margin inside a flex
+   row would absorb the free space and push them apart instead. */
+.ControllerRow > .ControllerContainer {
+    margin: 0;
+}
+
 .SubControllerContainer {
     display: flex;
     align-items: center;
@@ -767,6 +785,25 @@ input[type="number"]:focus {
     opacity: 0.4;
     cursor: not-allowed;
     pointer-events: none;
+}
+
+/* The choropleth's hover label, drawn by the page rather than by Plotly so
+   that it can be placed beside the pointer and kept inside the map; see
+   attach_map_hover_label. */
+.map-hover-label {
+    position: absolute;
+    z-index: 5;
+    visibility: hidden;
+    pointer-events: none;
+    white-space: nowrap;
+    padding: 5px 8px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    color: var(--color-text);
+    font-size: 12px;
+    line-height: 1.35;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
 .separator {

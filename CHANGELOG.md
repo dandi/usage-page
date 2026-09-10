@@ -4,6 +4,12 @@
 
 #### 🐛 Bug Fix
 
+- Drew the region map's hover label beside the pointer and inside the map, rather than over the region it names: a region reaching an edge of the map — the eastern tip of Russia — had labeled itself off the side of the map, or at the far side of it. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Fixed the region map's hover label landing in the map's top-left corner, and then not appearing at all, after the resolution was changed. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Opened the region map on a view that shows the world once, where a whole-world view centered on the United States had shown some of it twice; panning still carries on past either end of it. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Fitted the region map's opening view to the map itself rather than to the element holding it, which had left the world some 20° short at either end. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Stopped dropping a whole region from the choropleth when any one of its islands crosses the antimeridian, which had left Alaska unpainted — and a hole in the United States — for the sake of the Aleutians. ([#257](https://github.com/dandi/usage-page/pull/257))
+
 - Stopped the Dandiset selector from stretching the bar above it off the side of a narrow viewport: a drop-down is laid out as wide as the widest option in it, and the options carry full Dandiset titles. The selected title is now clipped to the width available, the drop-down itself still opening as wide as its options need. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the geographic choropleth failing to load below a viewport width of about 400 px, where the map — sized as a fraction of the viewport — collapsed to less height than Plotly's own margins and threw out of the plot call, leaving the section's error message in place of the map. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Stopped the control bars above each plot from running off the side of a narrow viewport and taking the whole page into a sideways scroll; they now wrap onto as many rows as they need. ([#251](https://github.com/dandi/usage-page/pull/251))
@@ -12,6 +18,11 @@
 
 #### 🚀 Enhancement
 
+- Added a Resolution control to the region map, on a card of its own beside the view selector, and opened the map on Countries: that is the only granularity that draws every located byte, since traffic resolved no further than a country has no subdivision to be painted in, and that is a sixth of the archive's bytes. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Read the ISO 3166-1 alpha-3 and ISO 3166-2 region codes the summaries are moving to, resolving each code to its place name and to the boundary the choropleth draws it as; the older alpha-2 keys are still read while the archive is reprocessed. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Labeled regions by name rather than by code in the region table and in both maps' hover text, summing the rows that resolve to the same place. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Stopped filing a whole country's regions under one of them where the upstream coordinates give every subdivision of that country the same point, which had put all sixteen Polish voivodeships in Łódzkie and all fourteen Czech regions in Středočeský; those codes are matched by name instead. ([#257](https://github.com/dandi/usage-page/pull/257))
+- Labeled traffic located no further than a country as "<country> (unspecified)", which sits alongside that country's regions rather than summing them and had read as a country total. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Added a GCP tab to the geographic section, listing usage per GCP data-center region the same way the AWS tab does; on a viewport too narrow for every view, the AWS and GCP tabs wrap onto a second row together. ([#255](https://github.com/dandi/usage-page/pull/255))
 - Dropped the "Totals for ..." caption above the totals summary, leaving the metrics themselves at the top of the block, and spelled the caveat it carried about how usage is attributed to a Dandiset out as a footnote at the foot of the page: it qualifies every figure on the page, not just the totals. ([#254](https://github.com/dandi/usage-page/pull/254))
 - Removed the "Web requests" metric, and its caveat, from the totals summary. ([#254](https://github.com/dandi/usage-page/pull/254))

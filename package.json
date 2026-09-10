@@ -1,6 +1,6 @@
 {
   "name": "access-page",
-  "version": "1.17.0",
+  "version": "1.20.4",
   "description": "Visualizations of data usage across the archive.",
   "private": true,
   "type": "module",
@@ -19,6 +19,7 @@
     "test:visual": "playwright test --config configs/playwright.visual.config.js",
     "test:e2e:coverage": "PW_COVERAGE=1 playwright test --config configs/playwright.config.js",
     "coverage:integration": "node src/scripts/build-integration-coverage.mjs",
+    "build:region-info": "node src/scripts/build-region-info.mjs",
     "storybook": "storybook dev -p 6006 --config-dir configs/storybook",
     "build-storybook": "storybook build --config-dir configs/storybook"
   },
@@ -44,6 +45,8 @@
     "@vitest/coverage-v8": "^4.1.9",
     "ast-v8-to-istanbul": "^1.0.5",
     "chromatic": "^17.8.0",
+    "cldr-subdivisions-full": "^48.2.0",
+    "iso-3166": "^4.4.0",
     "istanbul-lib-coverage": "^3.2.2",
     "istanbul-lib-report": "^3.0.1",
     "istanbul-reports": "^3.2.0",

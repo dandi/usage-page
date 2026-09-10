@@ -41,3 +41,9 @@ const BASE_URL = "https://raw.githubusercontent.com/myorg/myrepo/main";
 npm install
 npm run dev
 ```
+
+## Documentation
+
+- [Region codes](docs/README.md) — how the geographic section reads the ISO
+  3166 codes of `by_region.tsv`, and how to regenerate the table it reads them
+  with.

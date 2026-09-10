@@ -111,11 +111,11 @@ const MOCK_COLUMNS = [
 ];
 
 const MOCK_ROWS = [
-    { region: "US/California", bytes: 1073741824, requests: 3200, downloads: 900, views: 260 },
-    { region: "DE/Bavaria", bytes: 536870912, requests: 1400, downloads: 380, views: 110 },
-    { region: "GB/England", bytes: 268435456, requests: 1050, downloads: 290, views: 85 },
-    { region: "FR/Île-de-France", bytes: 134217728, requests: 720, downloads: 195, views: 60 },
-    { region: "JP/Tokyo", bytes: 67108864, requests: 410, downloads: 105, views: 32 },
+    { region: "California, United States", bytes: 1073741824, requests: 3200, downloads: 900, views: 260 },
+    { region: "Bavaria, Germany", bytes: 536870912, requests: 1400, downloads: 380, views: 110 },
+    { region: "England, United Kingdom", bytes: 268435456, requests: 1050, downloads: 290, views: 85 },
+    { region: "Île-de-France, France", bytes: 134217728, requests: 720, downloads: 195, views: 60 },
+    { region: "Tokyo, Japan", bytes: 67108864, requests: 410, downloads: 105, views: 32 },
 ];
 
 function mockFormatFn(n) {
