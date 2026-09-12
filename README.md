@@ -42,6 +42,22 @@ npm install
 npm run dev
 ```
 
+### Tests
+
+```bash
+npm test                   # unit tests (Vitest, in jsdom)
+npm run test:coverage      # the same, with a coverage report
+npm run test:e2e           # integration tests (Playwright, in Chromium)
+npm run test:visual        # screenshot comparison of the map against committed baselines
+```
+
+The unit tests cover the page's entry module (`src/plots.ts`) as well as its
+helpers: `tests/unit/plots-harness.ts` loads the page's markup into jsdom,
+stands in for Plotly and for the network, and drives the page through its
+controls. Coverage from both the unit and the integration tests is reported
+to Codecov; to see what the integration tests exercise in the browser, run
+`npm run test:e2e:coverage` and then `npm run coverage:integration`.
+
 ## Documentation
 
 - [Region codes](docs/README.md) — how the geographic section reads the ISO
