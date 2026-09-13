@@ -4,6 +4,8 @@
 
 #### 🐛 Bug Fix
 
+- Reported the coordinates the points map plots from failing to load in place of the map, where the map had drawn itself with no markers at all; the map now waits on them rather than racing them. ([#264](https://github.com/dandi/usage-page/pull/264))
+- Reported a geographic choropleth that fails to draw in the section's own message, where the failure had been lost as an unhandled rejection. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Drew the region map's hover label beside the pointer and inside the map, rather than over the region it names: a region reaching an edge of the map — the eastern tip of Russia — had labeled itself off the side of the map, or at the far side of it. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Fixed the region map's hover label landing in the map's top-left corner, and then not appearing at all, after the resolution was changed. ([#257](https://github.com/dandi/usage-page/pull/257))
 - Opened the region map on a view that shows the world once, where a whole-world view centered on the United States had shown some of it twice; panning still carries on past either end of it. ([#257](https://github.com/dandi/usage-page/pull/257))
@@ -18,6 +20,7 @@
 
 #### 🏠 Internal
 
+- Removed the dead fallback for Plotly failing to load, along with `src/errors.ts` and its tests: Plotly is a module import now, and a failed import throws before any `load` handler could report it. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Added a jsdom test harness for `src/plots.ts`, the page's entry module, which had no unit coverage: it loads the page's markup, stands in for Plotly and the network, and drives the page through its controls, taking unit coverage of `src/` from 22% to 99% of lines. ([#262](https://github.com/dandi/usage-page/pull/262))
 - Fixed the integration coverage report, which dropped every TypeScript module the page loads and so never reported `src/plots.ts` to Codecov; the browser's coverage is now mapped back onto the sources through Vite's inline source maps. ([#262](https://github.com/dandi/usage-page/pull/262))
 - Bumped `vitest` and `@vitest/coverage-v8` to 4.1.11, fixing a `@vitest/mocker` vulnerability that let a dev-server client register a redirect mock reading arbitrary local files. ([#258](https://github.com/dandi/usage-page/pull/258))

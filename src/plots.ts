@@ -1,4 +1,3 @@
-import { handlePlotlyError } from "./errors.js";
 import {
     setUrlParam,
     color_with_alpha,
@@ -713,12 +712,7 @@ function setupSettingsPanel(btnId: string, panelId: string): void {
     });
 }
 
-// Check if Plotly is loaded after the window loads
 window.addEventListener("load", () => {
-    if (typeof Plotly === "undefined") {
-        handlePlotlyError();
-    }
-
     // Theme toggle button
     const themeToggleBtn = document.getElementById("theme_toggle_btn");
     if (themeToggleBtn) {
@@ -1062,10 +1056,15 @@ function resizePlots() {
 
 
 
-fetchWithRetry(REGION_CODES_TO_LATITUDE_LONGITUDE_URL)
+// Only the points map plots these, and it waits on this rather than racing it:
+// a map drawn before the coordinates arrive would drop every marker it has.
+const REGION_COORDINATES_PROMISE: Promise<void> = fetchWithRetry(REGION_CODES_TO_LATITUDE_LONGITUDE_URL)
     .then((response) => response.text())
     .then((data) => {
-        REGION_CODES_TO_LATITUDE_LONGITUDE = loadYaml(data) as Record<string, { latitude: number; longitude: number }>;
+        // An empty document parses to nothing at all; the lookup stays an object
+        // either way, so that reading a region from it is always safe.
+        REGION_CODES_TO_LATITUDE_LONGITUDE =
+            (loadYaml(data) as Record<string, { latitude: number; longitude: number }> | null | undefined) ?? {};
     })
     .catch((error) => {
         console.error("Error loading YAML file:", error);
@@ -2519,17 +2518,9 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
     // Table / AWS / GCP view: tables already populated above, nothing more to render
     if (GEO_VIEW !== "points") return topRegionsPromise;
 
-    if (!REGION_CODES_TO_LATITUDE_LONGITUDE) {
-        console.error("Region coordinates not loaded");
-        const plot_element = document.getElementById(plot_element_id);
-        if (plot_element) {
-            plot_element.innerText = "Failed to load data for geographic heatmap.";
-        }
-        return topRegionsPromise;
-    }
-
     const pointsPromise = Promise.all([
         load_region_info(),
+        REGION_COORDINATES_PROMISE,
         fetch(by_region_summary_tsv_url).then((response) => {
             if (!response.ok) {
                 throw new Error(`Failed to fetch TSV file: ${response.statusText}`);
@@ -2537,7 +2528,13 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
             return response.text();
         }),
     ])
-        .then(([, text]) => {
+        .then(([, , text]) => {
+            // Every marker on this map is placed by these coordinates, so a map
+            // drawn without them is an empty one; say so rather than show it.
+            if (Object.keys(REGION_CODES_TO_LATITUDE_LONGITUDE).length === 0) {
+                throw new Error("Region coordinates not loaded");
+            }
+
             const rows = text.split("\n").filter((row) => row.trim() !== "");
             if (rows.length < 2) {
                 throw new Error("TSV file does not contain enough data.");
@@ -2653,7 +2650,9 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         })
     ])
     .then(([, text]) => {
-        if (!GEOJSON_DATA) return;
+        // load_choropleth_data() either assigns the boundaries or rejects into
+        // the catch below, so by here there are always boundaries to paint.
+        const features = GEOJSON_DATA!.features;
 
         const rows = text.split("\n").filter((row) => row.trim() !== "");
         if (rows.length < 2) {
@@ -2664,10 +2663,10 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         const { lookup, country_lookup } = build_geojson_lookup();
 
         // Accumulate bytes, requests, and downloads per feature
-        const feature_bytes = new Array(GEOJSON_DATA.features.length).fill(0);
-        const feature_requests = new Array(GEOJSON_DATA.features.length).fill(0);
-        const feature_downloads = new Array(GEOJSON_DATA.features.length).fill(0);
-        const feature_views = new Array(GEOJSON_DATA.features.length).fill(0);
+        const feature_bytes = new Array(features.length).fill(0);
+        const feature_requests = new Array(features.length).fill(0);
+        const feature_downloads = new Array(features.length).fill(0);
+        const feature_views = new Array(features.length).fill(0);
         const add_to_feature = (idx: number, row: string[]) => {
             feature_bytes[idx] += parseInt(row[1], 10) || 0;
             feature_requests[idx] += parseInt(row[2] || "0", 10) || 0;
@@ -2694,7 +2693,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 rows.push(row);
                 rows_by_country.set(painted_as, rows);
             });
-            GEOJSON_DATA.features.forEach((feature, idx) => {
+            features.forEach((feature, idx) => {
                 for (const row of rows_by_country.get(feature.properties.iso2) ?? []) add_to_feature(idx, row);
             });
         } else {
@@ -2745,7 +2744,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
 
         feature_bytes.forEach((bytes, idx) => {
             if (bytes > 0) {
-                const feature = without_antimeridian_polygons(GEOJSON_DATA!.features[idx]);
+                const feature = without_antimeridian_polygons(features[idx]);
                 if (!feature) return;
                 const name = feature.properties.name;
                 const iso2 = feature.properties.iso2;
@@ -2906,7 +2905,10 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             minzoom: default_view.min_zoom,
         };
 
-        Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG).then(() => {
+        // Returned so that a draw that fails, or anything thrown while wiring
+        // up the map it drew, reaches the catch below rather than going
+        // unhandled.
+        return Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG).then(() => {
             set_plot_source_url(plot_element_id, by_region_summary_tsv_url);
             const el = document.getElementById(plot_element_id);
             if (el && (el as any)._fullLayout && (el as any)._fullLayout.map && (el as any)._fullLayout.map._subplot) {

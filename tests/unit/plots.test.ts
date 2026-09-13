@@ -1261,7 +1261,7 @@ describe("a page missing its elements", () => {
             body:
                 '<select id="dandiset_selector"></select>' +
                 '<select id="over_time_group_by"><option value="none"></option><option value="asset_type"></option></select>' +
-                '<div id="over_time_plot"></div><div id="histogram_plot"></div><div id="geography_heatmap"></div>',
+                '<div id="over_time_plot"></div>',
         });
         const { data, layout } = last_plot("over_time_plot");
         expect(data[0]).toMatchObject({ name: "Neurophysiology", x: ["2024-01-01", "2024-01-08"] });
