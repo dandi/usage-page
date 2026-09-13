@@ -4,6 +4,7 @@ import {
     before_each,
     by_id,
     choose,
+    draw_plot,
     fake_map,
     fetched_urls,
     install_environment,
@@ -365,6 +366,40 @@ describe("usage by region, as subdivisions", () => {
     });
 });
 
+// The draw and the map it hands back are as able to fail as the fetches before
+// them, and the section has one place to report any of it.
+describe("a choropleth that cannot be drawn", () => {
+    it("reports the draw itself failing", async () => {
+        plotly.newPlot.mockImplementation(async (target, data, layout, config) => {
+            if (target === "geography_heatmap") throw new Error("WebGL context lost");
+            await draw_plot(target, data as any[], layout, config);
+        });
+        await load_page();
+        expect(by_id("geography_heatmap").textContent).toBe("Failed to load data for geographic choropleth.");
+        expect(console.error).toHaveBeenCalledWith(
+            "Error:",
+            expect.objectContaining({ message: "WebGL context lost" })
+        );
+    });
+
+    it("reports the map it drew failing to answer", async () => {
+        plotly.newPlot.mockImplementation(async (target, data, layout, config) => {
+            await draw_plot(target, data as any[], layout, config);
+            if (target === "geography_heatmap") {
+                fake_map().setMinZoom.mockImplementation(() => {
+                    throw new Error("Map removed before it was set up");
+                });
+            }
+        });
+        await load_page();
+        expect(by_id("geography_heatmap").textContent).toBe("Failed to load data for geographic choropleth.");
+        expect(console.error).toHaveBeenCalledWith(
+            "Error:",
+            expect.objectContaining({ message: "Map removed before it was set up" })
+        );
+    });
+});
+
 describe("the map's hover label", () => {
     const hover = (x: number, y: number) =>
         fake_map().fire("mousemove", { point: [x, y], originalEvent: { clientX: x, clientY: y } });
@@ -499,6 +534,23 @@ describe("usage by region, as points", () => {
         await load_page({ url: "/?map=points" });
         expect(by_id("geography_heatmap").textContent).toBe("Failed to load data for geographic heatmap.");
         expect(plot_calls("geography_heatmap")).toHaveLength(0);
+    });
+
+    // Every marker is placed by these coordinates, so without them the map has
+    // nothing to draw; the section says so rather than show an empty world.
+    it.each([
+        ["that cannot be fetched", not_found],
+        ["that name no region", "{}\n"],
+        ["that are an empty document", ""],
+    ])("reports coordinates %s in place of the map", async (_what, body) => {
+        serve("/content/region_codes_to_coordinates.yaml", body);
+        await load_page({ url: "/?map=points" });
+        expect(by_id("geography_heatmap").textContent).toBe("Failed to load data for geographic heatmap.");
+        expect(plot_calls("geography_heatmap")).toHaveLength(0);
+        expect(console.error).toHaveBeenCalledWith(
+            "Error:",
+            expect.objectContaining({ message: "Region coordinates not loaded" })
+        );
     });
 });
 
