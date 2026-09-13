@@ -291,6 +291,10 @@ describe("undetermined_bytes_per_week", () => {
         const extended_bytes = [...daily_bytes, 999];
         expect(undetermined_bytes_per_week(week_starts, [70, 70], extended_dates, extended_bytes)).toEqual([0, 0]);
     });
+
+    it("treats a week the breakdown stops short of as accounting for nothing", () => {
+        expect(undetermined_bytes_per_week(week_starts, [30], daily_dates, daily_bytes)).toEqual([40, 70]);
+    });
 });
 
 // ── format_bytes ─────────────────────────────────────────────────────────────

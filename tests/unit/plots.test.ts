@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
     after_each,
     before_each,
+    BODY_HTML,
     by_id,
     change,
     check,
@@ -117,6 +118,24 @@ describe("page load", () => {
         expect(document.querySelector("#totals .totals-note")).toBeNull();
     });
 
+    it("shows a metric the summary leaves out as unavailable", async () => {
+        serve(
+            "/content/totals.json",
+            JSON.stringify({
+                "000001": { total_bytes_sent: 5000000000, total_number_of_views: 540 },
+            })
+        );
+        await load_page({ url: "/?dandiset=000001" });
+        expect(totals()).toEqual([
+            ["Transferred", "5 GB"],
+            ["Views", "540"],
+            ["Full downloads", "--"],
+            ["Unique visitors", "--"],
+            ["Regions", "--"],
+            ["Countries", "--"],
+        ]);
+    });
+
     it("explains the undetermined bucket below its totals", async () => {
         await load_page();
         change("dandiset_selector", "undetermined");
@@ -191,6 +210,13 @@ describe("theme", () => {
         media_query!.fire(false);
         expect(document.documentElement.getAttribute("data-theme")).toBe("light");
         expect(by_id("theme_toggle_btn").getAttribute("aria-label")).toBe("Switch to dark mode");
+
+        // And back again, in both directions
+        media_query!.fire(true);
+        expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+        expect(by_id("theme_toggle_btn").getAttribute("aria-label")).toBe("Switch to light mode");
+        media_query!.fire(false);
+        expect(document.documentElement.getAttribute("data-theme")).toBe("light");
 
         // Toggling stores a choice, which the browser no longer overrides.
         by_id("theme_toggle_btn").click();
@@ -277,6 +303,21 @@ describe("URL state", () => {
         expect(scrolled_to.mock.contexts).toContain(by_id("histogram"));
     });
 
+    it("leaves the scroll position alone for a hash naming no section", async () => {
+        await load_page({ url: "/#nowhere" });
+        expect(last_plot("over_time_plot").data[0].type).toBe("bar");
+        expect(scrolled_to).not.toHaveBeenCalled();
+    });
+
+    // The histogram section is suppressed outright for the undetermined bucket
+    // and so renders nothing to wait on, which must not hold up the scroll.
+    it("scrolls to the hash even where a section has nothing to render", async () => {
+        await load_page({ url: "/?dandiset=undetermined#geo" });
+        expect(by_id("histogram").style.display).toBe("none");
+        expect(scrolled_to).toHaveBeenCalledWith({ behavior: "instant" });
+        expect(scrolled_to.mock.contexts).toContain(by_id("geo"));
+    });
+
     it("ignores a Dandiset the archive does not have", async () => {
         await load_page({ url: "/?dandiset=999999" });
         expect(by_id<HTMLSelectElement>("dandiset_selector").value).toBe("archive");
@@ -291,6 +332,27 @@ describe("URL state", () => {
         change("dandiset_selector", "archive");
         await settle();
         expect(url_params().has("dandiset")).toBe(false);
+    });
+
+    // Every control writes the whole query string back, so the last parameter
+    // being dropped has to leave a bare path rather than a trailing "?".
+    it.each([
+        ["the log scale", "/?log=true", () => check("log_scale", false)],
+        ["the cumulative totals", "/?cumulative=true", () => check("cumulative", false)],
+        ["the bar layout", "/?stacked=false", () => change("ot_stacked", "stacked")],
+        ["the histogram plot type", "/?hist_plot_type=line", () => change("hist_plot_type", "bar")],
+        ["the unit prefix", "/?prefix=binary", () => change("prefix", "decimal")],
+        ["the testing filter", "/?ignore_testing=false", () => check("ignore_testing_dandisets", true)],
+        ["the aggregation", "/?aggregation=weekly", () => choose("time_aggregation", "daily")],
+        ["the geographic view", "/?map=table", () => choose("geo_view", "regions")],
+        ["the grouping", "/?group_by=dandisets", () => change("over_time_group_by", "none")],
+        ["the Dandiset count", "/?top_n=3", () => change("top_n_dandisets", "8")],
+    ])("leaves the address without a query string once %s is back at its default", async (_what, url, revert) => {
+        await load_page({ url });
+        revert();
+        await settle();
+        expect(window.location.search).toBe("");
+        expect(window.location.pathname).toBe("/");
     });
 
     it("restores the state of an address navigated back to", async () => {
@@ -335,6 +397,18 @@ describe("settings panels", () => {
         by_id("hist_settings_btn").click();
         by_id("hist_settings_btn").click();
         expect(by_id("hist_settings_panel").classList.contains("open")).toBe(false);
+    });
+
+    it("stay open on a click inside them or on a key other than Escape", async () => {
+        await load_page();
+        const panel = by_id("ot_settings_panel");
+        by_id("ot_settings_btn").click();
+
+        panel.click();
+        expect(panel.classList.contains("open")).toBe(true);
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+        expect(panel.classList.contains("open")).toBe(true);
+        expect(panel.getAttribute("aria-hidden")).toBe("false");
     });
 });
 
@@ -643,6 +717,26 @@ describe("usage over time grouped by Dandiset", () => {
         expect(last_plot("over_time_plot").data.map((trace: any) => trace.name)).not.toContain("Other");
     });
 
+    // Bars of differing date ranges drawn against their own axes would not line
+    // up, so every series is aligned to the union of the days any of them has.
+    it("gives a Dandiset zero for the days the others have and it does not", async () => {
+        serve(
+            "/000003/by_day.tsv",
+            "date\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views\n" +
+                "2024-01-03\t150000000\t500\t140\t41\n" +
+                "2024-01-09\t170000000\t520\t150\t44\n"
+        );
+        await load_page({ url: "/?group_by=dandisets" });
+        const { data } = last_plot("over_time_plot");
+        const days = [...DATES, "2024-01-09"];
+        expect(data[2].name).toBe("DANDI:000003");
+        expect(data[2].x).toEqual(days);
+        expect(data[2].y).toEqual([0, 0, 1.5e8, 0, 0, 0, 0, 1.7e8]);
+        // The days it added are on every other series' axis too, as zero
+        expect(data[0].x).toEqual(days);
+        expect(data[0].y).toEqual([...BYTES, 0]);
+    });
+
     it("reports a plot that fails to draw", async () => {
         // Thrown rather than rejected: the module does not wait on newPlot, so
         // only a throw reaches the handler that reports the failure.
@@ -801,6 +895,25 @@ describe("usage over time grouped by asset type", () => {
         expect(titles()).toEqual(["NWB files", "OME-Zarr, NIfTI, TIFF"]);
     });
 
+    it("counts a week an asset type reports nothing for as zero", async () => {
+        serve(
+            "/archive/by_asset_type_per_week.tsv",
+            "date\tNeurophysiology\tMicroscopy\n2024-01-01\t50000000\t\n2024-01-08\t60000000\t35000000\n"
+        );
+        await load_page({ url: "/?group_by=asset_type" });
+        const { data } = last_plot("over_time_plot");
+        expect(data[1]).toMatchObject({ name: "Microscopy", y: [0, 3.5e7] });
+        expect(data[1].text[0]).toBe("Microscopy<br>Week of 2024-01-01<br>0 Bytes");
+    });
+
+    it("draws an empty plot when the breakdown names no asset type at all", async () => {
+        serve("/archive/by_asset_type_per_week.tsv", "date\n2024-01-01\n2024-01-08\n");
+        serve("/archive/by_day.tsv", not_found);
+        await load_page({ url: "/?group_by=asset_type" });
+        expect(last_plot("over_time_plot").data).toEqual([]);
+        expect(last_plot("over_time_plot").layout.title.text).toBe("Bytes per week");
+    });
+
     it("reports a breakdown that cannot be fetched in place of the plot", async () => {
         serve("/archive/by_asset_type_per_week.tsv", not_found);
         await load_page({ url: "/?group_by=asset_type" });
@@ -862,6 +975,14 @@ describe("usage per Dandiset", () => {
         expect(link.href).toBe("https://dandiarchive.org/dandiset/000001");
         // Only the rows with a name to click on are linked
         expect(document.querySelectorAll("#histogram_table tbody a")).toHaveLength(3);
+    });
+
+    it("leaves a named bucket that is not a Dandiset unlinked", async () => {
+        serve("/dandiset_id_to_title.jsonl", '{"undetermined": "Unattributed usage"}\n');
+        await load_page();
+        const row = table_rows("histogram_table").find((cells) => cells[0] === "undetermined")!;
+        expect(row[1]).toBe("Unattributed usage");
+        expect(document.querySelectorAll("#histogram_table tbody a")).toHaveLength(0);
     });
 
     it("ranks by whichever metric is chosen, in that metric's units", async () => {
@@ -1049,6 +1170,25 @@ describe("usage per asset", () => {
         expect(by_id("hist_ignore_testing_container").style.display).toBe("");
     });
 
+    it("draws a filled line instead of bars when asked to", async () => {
+        await load_page({ url: "/?dandiset=000001&hist_plot_type=line" });
+        const { data } = last_plot("histogram_plot");
+        expect(data[0]).toMatchObject({ type: "scatter", mode: "lines", fill: "tozeroy" });
+        expect(data[0].x).toEqual(["sub-001_task-rest_bold.nwb", "sub-002_task-rest_bold.nwb"]);
+    });
+
+    it("leaves a metric the summary does not give a number for out of the hover text", async () => {
+        serve(
+            "/000001/by_asset.tsv",
+            "asset\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views\n" +
+                "derivatives/labels.json\t2000000\tn/a\t65\t19\n"
+        );
+        await load_page({ url: "/?dandiset=000001" });
+        expect(last_plot("histogram_plot").data[0].text[0]).toBe(
+            "derivatives/labels.json<br>Bytes: 2 MB<br>Views: 19<br>Downloads: 65"
+        );
+    });
+
     it("clears the plot when the per-asset summary cannot be fetched or is empty", async () => {
         serve("/000001/by_asset.tsv", not_found);
         serve("/000002/by_asset.tsv", "asset\tbytes_sent\n");
@@ -1110,6 +1250,141 @@ describe("a page missing its elements", () => {
         );
         // The rest of the page still renders for the archive
         expect(last_plot("over_time_plot").data[0].type).toBe("bar");
+    });
+
+    // The daily aggregation is switched to weekly by the radio that offers it,
+    // so a page without that radio reaches the asset-type plot still set to
+    // daily, and the title has to name the granularity the data really has.
+    it("titles the asset-type breakdown per week with no aggregation control to correct", async () => {
+        await load_page({
+            url: "/?group_by=asset_type",
+            body:
+                '<select id="dandiset_selector"></select>' +
+                '<select id="over_time_group_by"><option value="none"></option><option value="asset_type"></option></select>' +
+                '<div id="over_time_plot"></div><div id="histogram_plot"></div><div id="geography_heatmap"></div>',
+        });
+        const { data, layout } = last_plot("over_time_plot");
+        expect(data[0]).toMatchObject({ name: "Neurophysiology", x: ["2024-01-01", "2024-01-08"] });
+        expect(layout.title.text).toBe("GB per week");
+    });
+
+    // Without the selector there is no selection to reload for, but each control
+    // still has its own state to record, and the theme still has plots to redraw.
+    it("still answers every control on a page whose Dandiset selector is missing", async () => {
+        await load_page({ body: BODY_HTML.replace('<select id="dandiset_selector"></select>', "") });
+        expect(by_id("over_time_plot").textContent).toBe("Failed to load Dandiset IDs and populate default plots.");
+
+        by_id("theme_toggle_btn").click();
+        check("log_scale", true);
+        check("cumulative", true);
+        change("ot_plot_type", "line");
+        change("ot_stacked", "overlay");
+        change("hist_plot_type", "line");
+        change("prefix", "binary");
+        change("over_time_metric", "views");
+        change("histogram_metric", "views");
+        check("ignore_testing_dandisets", false);
+        choose("time_aggregation", "weekly");
+        choose("geo_view", "points");
+        choose("geo_resolution", "subdivisions");
+        change("over_time_group_by", "dandisets");
+        change("top_n_dandisets", "3");
+        await settle();
+
+        expect(document.documentElement.getAttribute("data-theme")).toBe("light");
+        expect(Object.fromEntries(url_params())).toEqual({
+            log: "true",
+            cumulative: "true",
+            ot_plot_type: "line",
+            stacked: "false",
+            hist_plot_type: "line",
+            prefix: "binary",
+            ot_metric: "views",
+            hist_metric: "views",
+            ignore_testing: "false",
+            aggregation: "weekly",
+            map: "points",
+            resolution: "subdivisions",
+            group_by: "dandisets",
+            top_n: "3",
+        });
+    });
+
+    // Every section, finding neither its data nor anywhere to say so, has to
+    // leave the page as it found it rather than throw.
+    it.each([
+        ["the archive's own sections", "/"],
+        ["the sections grouped by Dandiset", "/?group_by=dandisets"],
+        ["the sections grouped by asset type", "/?group_by=asset_type"],
+        ["a single Dandiset's sections", "/?dandiset=000001"],
+        ["the points map", "/?map=points"],
+    ])("reports nothing in place of %s, having nowhere to draw them", async (_what, url) => {
+        for (const file of ["by_day.tsv", "by_region.tsv", "by_asset.tsv", "by_asset_type_per_week.tsv"]) {
+            serve(file, not_found);
+        }
+        await load_page({
+            url,
+            body: '<select id="dandiset_selector"></select><select id="over_time_group_by"></select>',
+        });
+        expect(by_id<HTMLSelectElement>("dandiset_selector").options).toHaveLength(6);
+        expect(by_id("dandiset_selector").textContent).toContain("(All) - Archive");
+        expect(document.body.children).toHaveLength(2);
+    });
+
+    it("reports the Dandiset list failing to load nowhere when there is no first plot", async () => {
+        await load_page({ body: '<div id="totals"></div>' });
+        expect(by_id("totals").innerHTML).toBe("");
+        expect(console.error).toHaveBeenCalledWith(
+            "Error:",
+            expect.objectContaining({ message: "Dropdown element not found on main page." })
+        );
+    });
+
+    it("has nowhere to report the totals failing, and carries on regardless", async () => {
+        serve("/content/archive_totals.json", not_found);
+        await load_page({
+            body: '<select id="dandiset_selector"></select><div id="geography_heatmap"></div>',
+        });
+        expect(by_id<HTMLSelectElement>("dandiset_selector").options).toHaveLength(5);
+        expect(last_plot("geography_heatmap").data[0].type).toBe("choroplethmap");
+        expect(console.error).toHaveBeenCalledWith(
+            "Error:",
+            expect.objectContaining({ message: "HTTP error 404: Not Found" })
+        );
+    });
+
+    const BY_REGION_HEADER = "region\tbytes_sent\tnumber_of_requests\tnumber_of_downloads\tnumber_of_views\n";
+
+    it.each([
+        ["a section it suppresses outright", "/?dandiset=undetermined", null],
+        ["a region summary holding nothing", "/", BY_REGION_HEADER],
+        ["a region summary holding no place", "/", BY_REGION_HEADER + "AWS/us-east-1\t8000000000\t5100\t1500\t420\n"],
+    ])("has nothing to clear for %s either", async (_what, url, by_region) => {
+        if (by_region !== null) serve("/by_region.tsv", by_region);
+        await load_page({
+            url,
+            body: '<select id="dandiset_selector"></select><div id="geography_heatmap"></div>',
+        });
+        // Every section has run and found nothing of its own to clear
+        expect(by_id<HTMLSelectElement>("dandiset_selector").options).toHaveLength(6);
+        expect(document.getElementById("top_regions_table")).toBeNull();
+        expect(by_id("geography_heatmap").children).toHaveLength(0);
+    });
+
+    it("leaves the plots Plotly reports as drawn but which are not there alone", async () => {
+        // Plotly resolving for an element the page does not have is what the
+        // guards following every newPlot are there for.
+        plotly.newPlot.mockImplementation(async () => {});
+        await load_page({
+            url: "/?group_by=asset_type",
+            body: '<select id="dandiset_selector"></select><select id="over_time_group_by"></select>',
+        });
+        window.history.replaceState({}, "", "/?group_by=asset_type&map=points");
+        window.dispatchEvent(new PopStateEvent("popstate"));
+        await settle();
+
+        expect(document.body.children).toHaveLength(2);
+        expect(console.error).not.toHaveBeenCalled();
     });
 
     it("still draws the plots on a page stripped of every control", async () => {
