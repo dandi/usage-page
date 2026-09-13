@@ -784,6 +784,14 @@ describe("parse_dandiset_titles_jsonl", () => {
         });
     });
 
+    it("skips a line that is valid JSON but names no Dandiset", () => {
+        const text = '{"000003": "Alpha dataset"}\nnull\n42\n"Beta dataset"\n{"000004": "Beta dataset"}';
+        expect(parse_dandiset_titles_jsonl(text)).toEqual({
+            "000003": "Alpha dataset",
+            "000004": "Beta dataset",
+        });
+    });
+
     it("returns an empty object for empty input", () => {
         expect(parse_dandiset_titles_jsonl("")).toEqual({});
     });
@@ -857,6 +865,18 @@ describe("decode_maybe_gzipped_response", () => {
         // Valid gzip magic number followed by garbage
         const corrupt = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04]);
         await expect(decode_maybe_gzipped_response(new Response(corrupt))).rejects.toThrow();
+    });
+
+    it("rejects a gzipped body when the runtime cannot inflate one", async () => {
+        vi.stubGlobal("DecompressionStream", undefined);
+        try {
+            const response = new Response(new Uint8Array(gzipSync(Buffer.from(jsonl))));
+            await expect(decode_maybe_gzipped_response(response)).rejects.toThrow(
+                "Gzipped data cannot be decoded: DecompressionStream is unavailable."
+            );
+        } finally {
+            vi.unstubAllGlobals();
+        }
     });
 });
 
@@ -1023,6 +1043,26 @@ describe("render_sortable_table data menu", () => {
         expect(menu.classList.contains("open")).toBe(false);
     });
 
+    it("stays open on a key other than Escape", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const menu = document.querySelector("#my_table .table-data-menu")!;
+        const btn = menu.querySelector(".table-data-menu-btn") as HTMLElement;
+        btn.click();
+        menu.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        expect(menu.classList.contains("open")).toBe(true);
+        expect(btn.getAttribute("aria-expanded")).toBe("true");
+    });
+
+    it("closes again when its own button is clicked a second time", () => {
+        render_sortable_table("my_table", "Title", columns, rows, fmt, raw_url);
+        const menu = document.querySelector("#my_table .table-data-menu")!;
+        const btn = menu.querySelector(".table-data-menu-btn") as HTMLElement;
+        btn.click();
+        btn.click();
+        expect(menu.classList.contains("open")).toBe(false);
+        expect(btn.getAttribute("aria-expanded")).toBe("false");
+    });
+
     it("keeps a plain Data link for URLs that are not raw.githubusercontent.com", () => {
         render_sortable_table("my_table", "Title", columns, rows, fmt, "https://example.com/data.tsv");
         expect(document.querySelector("#my_table .table-data-menu")).toBeNull();
@@ -1068,6 +1108,21 @@ describe("render_sortable_table with missing numeric values", () => {
     it("renders the missing value through the column formatter", () => {
         const last_cell = document.querySelector("#my_table tbody tr:last-child td:last-child")!;
         expect(last_cell.textContent).toBe("--");
+    });
+
+    it("leaves two rows that both have no value in the order they arrived", () => {
+        render_sortable_table(
+            "my_table",
+            "Title",
+            columns,
+            [
+                { name: "beta", ratio: NaN },
+                { name: "delta", ratio: NaN },
+                { name: "alpha", ratio: 1 },
+            ],
+            (n) => String(n)
+        );
+        expect(rendered_names()).toEqual(["alpha", "beta", "delta"]);
     });
 });
 
@@ -1406,6 +1461,13 @@ describe("render_totals_summary", () => {
         expect(note.querySelector(".info-icon")!.getAttribute("data-tooltip")).toBe(
             "Typically caused by an asset leaving a 'draft' state."
         );
+    });
+
+    it("renders a note that carries no caveat of its own without an icon", () => {
+        render_totals_summary("totals", { ...summary, note: "No usage has been recorded yet." });
+        const note = document.querySelector("#totals .totals-note")!;
+        expect(note.textContent).toBe("No usage has been recorded yet.");
+        expect(note.querySelector(".info-icon")).toBeNull();
     });
 
     it("escapes values and tooltips rather than injecting markup", () => {
