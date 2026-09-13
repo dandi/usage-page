@@ -18,6 +18,7 @@
 
 #### 🏠 Internal
 
+- Covered the branches the unit suites were leaving out, taking branch coverage of `src/` from 89% to 97% and every module but `src/plots.ts` to 100%; what remains there is unreachable as written or needs two elements missing at once. ([#263](https://github.com/dandi/usage-page/pull/263))
 - Added a jsdom test harness for `src/plots.ts`, the page's entry module, which had no unit coverage: it loads the page's markup, stands in for Plotly and the network, and drives the page through its controls, taking unit coverage of `src/` from 22% to 99% of lines. ([#262](https://github.com/dandi/usage-page/pull/262))
 - Fixed the integration coverage report, which dropped every TypeScript module the page loads and so never reported `src/plots.ts` to Codecov; the browser's coverage is now mapped back onto the sources through Vite's inline source maps. ([#262](https://github.com/dandi/usage-page/pull/262))
 - Bumped `vitest` and `@vitest/coverage-v8` to 4.1.11, fixing a `@vitest/mocker` vulnerability that let a dev-server client register a redirect mock reading arbitrary local files. ([#258](https://github.com/dandi/usage-page/pull/258))

@@ -52,6 +52,43 @@ const EVERY_KIND_OF_REGION =
     "AWS/us-east-1\t8000000000\t5100\t1500\t420\n" +
     "VPN\t50000000\t10\t2\t1\n";
 
+/** The ring of a box, west/south to east/north, closed on its first corner. */
+const box = (west: number, south: number, east: number, north: number) => [
+    [west, south],
+    [east, south],
+    [east, north],
+    [west, north],
+    [west, south],
+];
+
+/** A ring reaching from one side of the antimeridian to the other. */
+const across = (south: number) => box(170, south, -170, south + 4);
+
+// Two boundaries of the one country, each in two parts: one wholly across the
+// antimeridian, the other wholly clear of it.  The mock topology carries only
+// the case in between — a boundary one part of which crosses.
+const ANTIMERIDIAN_TOPOLOGY = {
+    type: "Topology",
+    objects: {
+        data: {
+            type: "GeometryCollection",
+            geometries: [
+                {
+                    type: "MultiPolygon",
+                    arcs: [[[0]], [[1]]],
+                    properties: { iso2: "US", name: "Farside", name_norm: "farside", id: 1 },
+                },
+                {
+                    type: "MultiPolygon",
+                    arcs: [[[2]], [[3]]],
+                    properties: { iso2: "US", name: "Nearside", name_norm: "nearside", id: 2 },
+                },
+            ],
+        },
+    },
+    arcs: [across(50), across(60), box(-124, 32, -114, 42), box(-100, 30, -90, 40)],
+};
+
 // ── Cloud tables ─────────────────────────────────────────────────────────────
 
 describe("cloud region tables", () => {
@@ -69,6 +106,16 @@ describe("cloud region tables", () => {
         await load_page();
         expect(by_id("aws_histogram").innerHTML).toBe("");
         expect(by_id("gcp_histogram").innerHTML).toBe("");
+    });
+
+    it("ranks a provider's regions by bytes, a row stopping short of its metrics counting as zero", async () => {
+        serve("/by_region.tsv", HEADER + "AWS/us-east-1\t1000000\t10\t2\t1\nAWS/eu-west-1\t8000000\n");
+        await load_page();
+        expect(table_title("aws_histogram")).toBe("9 MB sent to AWS data centers");
+        expect(table_rows("aws_histogram")).toEqual([
+            ["eu-west-1", "8 MB", "0", "0", "0"],
+            ["us-east-1", "1 MB", "1", "2", "10"],
+        ]);
     });
 
     it("shows nothing when the summary is empty or cannot be fetched", async () => {
@@ -113,6 +160,20 @@ describe("usage per region", () => {
         expect(rows.map((row) => row[0])).toContain("Netherlands (unspecified)");
         expect(rows.map((row) => row[0])).toContain("VPN");
         expect(rows.map((row) => row[0])).not.toContain("AWS us-east-1");
+    });
+
+    // A summary still being reprocessed can stop short of the later metrics, or
+    // carry a placeholder where a count should be; neither may poison a total.
+    it("counts a metric that is missing or is not a number as nothing", async () => {
+        serve("/by_region.tsv", HEADER + "USA/CA\tn/a\tn/a\tn/a\tn/a\nGB/England\t1500000000\n");
+        await load_page();
+        expect(table_rows("top_regions_table")).toEqual([
+            ["England, United Kingdom", "1.5 GB", "0", "0", "0"],
+            ["California, United States", "0 Bytes", "0", "0", "0"],
+        ]);
+        const { data } = last_plot("geography_heatmap");
+        expect(data[0].locations).toEqual([5]);
+        expect(data[0].text).toEqual(["United Kingdom<br>1.5 GB<br>Requests: 0<br>Downloads: 0<br>Views: 0"]);
     });
 
     it("falls back to the codes themselves when the region table cannot be fetched", async () => {
@@ -172,6 +233,18 @@ describe("usage by region, as countries", () => {
         expect(alaska.geometry.type).toBe("MultiPolygon");
         expect(alaska.geometry.coordinates).toHaveLength(1);
         expect(alaska.geometry.coordinates[0][0][0]).toEqual([-170, 55]);
+    });
+
+    it("drops a boundary every part of which crosses the antimeridian, and keeps one no part does", async () => {
+        serve("gadm_admin1_simplified.topojson", JSON.stringify(ANTIMERIDIAN_TOPOLOGY));
+        serve("/by_region.tsv", HEADER + "USA/CA\t5000000000\t3200\t900\t260\n");
+        await load_page();
+        const { data } = last_plot("geography_heatmap");
+        // Both boundaries are painted with the country's total; only one survives
+        expect(data[0].locations).toEqual([2]);
+        const kept = data[0].geojson.features[0];
+        expect(kept.properties.name).toBe("Nearside");
+        expect(kept.geometry.coordinates).toHaveLength(2);
     });
 
     it("files Hong Kong under China's boundaries and leaves out what has no boundary to paint", async () => {
@@ -273,6 +346,14 @@ describe("usage by region, as subdivisions", () => {
         await settle();
         expect(url_params().has("resolution")).toBe(false);
         expect(last_plot("geography_heatmap").data[0].locations).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    // The aliases cover the countries whose subdivisions the two datasets name
+    // differently; a country outside them has only its own boundaries to match.
+    it("paints nothing for a subdivision of a country with neither an alias nor a boundary of that name", async () => {
+        serve("/by_region.tsv", HEADER + "AQ/Somewhere Else\t100000000\t20\t3\t1\n");
+        await load_page({ url: "/?resolution=subdivisions" });
+        expect(last_plot("geography_heatmap").data[0].locations).toEqual([]);
     });
 
     it("keeps painting the regions of the older, alpha-2 keys when the region table cannot be fetched", async () => {
@@ -399,6 +480,17 @@ describe("usage by region, as points", () => {
         expect(by_id("geo_resolution_control").style.display).toBe("none");
     });
 
+    it("leaves a metric out of a marker's hover text when the summary gives no number for it", async () => {
+        serve("/by_region.tsv", HEADER + "USA/CA\t5000000000\nGB/England\t1500000000\tn/a\t290\t85\n");
+        await load_page({ url: "/?map=points" });
+        const { data } = last_plot("geography_heatmap");
+        // Ordered by bytes, least first, so England leads
+        expect(data[0].text).toEqual([
+            "England, United Kingdom<br>1.5 GB<br>Downloads: 290<br>Views: 85",
+            "California, United States<br>5 GB<br>Requests: 0<br>Downloads: 0<br>Views: 0",
+        ]);
+    });
+
     it.each([
         ["an empty summary", HEADER],
         ["a summary that cannot be fetched", not_found],
@@ -504,6 +596,8 @@ describe("the mode bar", () => {
         const nameless = document.createElement("div");
         png.click(nameless);
         expect(plotly.downloadImage).toHaveBeenLastCalledWith(nameless, { format: "png", filename: "dandi-plot" });
+        svg.click(nameless);
+        expect(plotly.downloadImage).toHaveBeenLastCalledWith(nameless, { format: "svg", filename: "dandi-plot" });
     });
 
     it("opens the plot's source data on GitHub, where it knows it", async () => {

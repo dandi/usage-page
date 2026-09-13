@@ -100,6 +100,14 @@ describe("parse_region_key", () => {
         expect(parse_region_key("GCP/us-central1", REGION_INFO).kind).toBe("cloud");
     });
 
+    it("labels a cloud key naming no region by the provider alone", () => {
+        expect(parse_region_key("AWS", REGION_INFO)).toEqual({
+            kind: "cloud",
+            provider: "AWS",
+            label: "AWS",
+        });
+    });
+
     it("passes through the labels for traffic that has no location", () => {
         for (const key of ["VPN", "GitHub", "unknown", "bogon"]) {
             expect(parse_region_key(key, REGION_INFO)).toEqual({ kind: "other", label: key });
