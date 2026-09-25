@@ -369,8 +369,8 @@ function drawn_width(map_width_px: number): number {
 }
 
 describe("default_choropleth_view", () => {
-    it("centers the view on the United States", () => {
-        expect(default_choropleth_view(400).center).toEqual({ lat: 40, lon: -98 });
+    it("centers the view on the longitude of the United States, south of it", () => {
+        expect(default_choropleth_view(300).center).toEqual({ lat: 20, lon: -98 });
     });
 
     it("opens on the whole world once the map is wide enough to draw it", () => {
@@ -389,12 +389,12 @@ describe("default_choropleth_view", () => {
         // A tiled map repeats the world to either side rather than leaving
         // empty paper there, and hovering one of those repeats pops its label
         // at the far side of the map, where the place it names really is.
-        expect(default_choropleth_view(2048).center.lon).toBeCloseTo(0);
-        expect(default_choropleth_view(800).center.lon).toBeCloseTo(-39.375);
+        expect(default_choropleth_view(2048).center.lon).toBeCloseTo(10);
+        expect(default_choropleth_view(800).center.lon).toBeCloseTo(-29.375);
     });
 
     it("opens on the same longitude as the points map of that width", () => {
-        for (const width of [400, 800, 2048]) {
+        for (const width of [300, 400, 800, 2048]) {
             const [west, east] = default_points_view(width, 600).longitude_range;
             expect(default_choropleth_view(width).center.lon).toBeCloseTo((west + east) / 2);
         }
@@ -424,7 +424,7 @@ describe("default_points_view", () => {
         const [west, east] = view.longitude_range;
         const [south, north] = view.latitude_range;
         expect((west + east) / 2).toBeCloseTo(-98);
-        expect((south + north) / 2).toBeCloseTo(40);
+        expect((south + north) / 2).toBeCloseTo(20);
     });
 
     it("gives the window the shape of the map it is drawn into", () => {
@@ -437,7 +437,7 @@ describe("default_points_view", () => {
 
     it("opens on the whole world once the map is wide enough to draw it", () => {
         const view = default_points_view(2048, 1200);
-        expect(view.longitude_range).toEqual([-180, 180]);
+        expect(view.longitude_range).toEqual([-170, 190]);
         expect(view.latitude_range).toEqual([-90, 90]);
     });
 
@@ -445,7 +445,7 @@ describe("default_points_view", () => {
         // A `geo` subplot does not repeat the world to either side, so a
         // US-centered window this wide would leave empty paper to the west.
         const view = default_points_view(800, 600);
-        expect(view.longitude_range[0]).toBeCloseTo(-180);
+        expect(view.longitude_range[0]).toBeCloseTo(-170);
         expect(view.longitude_range[1] - view.longitude_range[0]).toBeCloseTo(360 * (800 / 1024));
     });
 });
