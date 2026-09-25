@@ -307,7 +307,7 @@ describe("usage by region, as countries", () => {
         const narrow = last_plot("geography_heatmap").layout;
         expect(narrow.annotations[0].text).toContain("<br>");
         expect(narrow.annotations[0].text).not.toContain(" | ");
-        expect(narrow.margin).toEqual({ l: 8, b: 8 });
+        expect(narrow.margin).toEqual({ l: 8, b: 56 });
         expect(narrow.map.zoom).toBeLessThan(wide.map.zoom);
     });
 });
