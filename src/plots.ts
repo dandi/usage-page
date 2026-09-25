@@ -2816,7 +2816,17 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     hoverinfo: "skip",
                     colorscale: "YlOrRd",
                     reversescale: true,
-                    colorbar: colorbar_config,
+                    // Half the height of the map and centered
+                    colorbar: {
+                        ...colorbar_config,
+                        x: 1,
+                        xpad: 12,
+                        len: 0.5,
+                        y: 0.5,
+                        yanchor: "middle",
+                        thickness: 12,
+                        outlinewidth: 0,
+                    },
                     marker: {
                         line: {
                             color: "white",

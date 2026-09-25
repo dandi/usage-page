@@ -2,6 +2,10 @@
 
 ## Upcoming
 
+#### 🚀 Enhancement
+
+- Shortened and thinned the region map's colorbar, and moved it in next to the map. ([#269](https://github.com/dandi/usage-page/pull/269))
+
 #### 🐛 Bug Fix
 
 - Reported the coordinates the points map plots from failing to load in place of the map, where the map had drawn itself with no markers at all; the map now waits on them rather than racing them. ([#264](https://github.com/dandi/usage-page/pull/264))
