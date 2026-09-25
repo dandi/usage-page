@@ -2923,6 +2923,15 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                         map.setPaintProperty(layer.id, "text-halo-width", 1);
                         map.setPaintProperty(layer.id, "text-halo-blur", 0);
                     }
+                    // Remove the America label, since the basemap labels
+                    // North and South America.
+                    if (map.getLayer?.("place_continent")) {
+                        map.setFilter("place_continent", [
+                            "all",
+                            map.getFilter("place_continent"),
+                            ["!=", "name_en", "America"],
+                        ]);
+                    }
                 }
             }
             attach_map_hover_label(plot_element_id, hover_text_by_id);
