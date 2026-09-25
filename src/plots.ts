@@ -59,6 +59,7 @@ const DARK_THEME = {
     textSecondary: '#a0a0b0',
     accent:        '#53a8b6',
     mapStyle:      'carto-darkmatter',
+    mapStyleUrl:   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 };
 
 const LIGHT_THEME = {
@@ -69,6 +70,7 @@ const LIGHT_THEME = {
     textSecondary: '#5a6580',
     accent:        '#53a8b6',
     mapStyle:      'carto-positron',
+    mapStyleUrl:   'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
 };
 
 // Media query used to detect the OS / browser dark-mode preference.
@@ -2638,6 +2640,48 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
     return Promise.all([topRegionsPromise, pointsPromise]);
 }
 
+/**
+ * Returns a copy of a MapLibre basemap style with its labels made readable
+ * over the choropleth.
+ */
+function readable_basemap_style(style: any): any {
+    const layers = (style.layers ?? []).map((layer: any) => {
+        if (layer.type !== "symbol") return layer;
+        const readable = {
+            ...layer,
+            paint: {
+                ...layer.paint,
+                "text-color": "#000000",
+                "text-halo-color": "#ffffff",
+                "text-halo-width": 1,
+                "text-halo-blur": 0,
+            },
+        };
+        if (layer.id === "place_continent") {
+            const not_america = ["!=", "name_en", "America"];
+            readable.filter = layer.filter ? ["all", layer.filter, not_america] : not_america;
+        }
+        return readable;
+    });
+    return { ...style, layers };
+}
+
+/**
+ * Load the basemap style for the choropleth in the given theme.
+ */
+function load_basemap_style(theme: typeof DARK_THEME): Promise<object | string> {
+    return fetch(theme.mapStyleUrl)
+        .then((response) => {
+            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
+            return response.json();
+        })
+        .then(readable_basemap_style)
+        .catch((error) => {
+            console.warn("Failed to load the basemap style; drawing CARTO's own:", error);
+            return theme.mapStyle;
+        });
+}
+
 // Function to fetch and render choropleth over geography
 function load_geographic_choropleth(dandiset_id: string, plot_element_id: string, by_region_summary_tsv_url: string): Promise<void> {
     return Promise.all([
@@ -2645,9 +2689,10 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         fetch(by_region_summary_tsv_url).then(r => {
             if (!r.ok) throw new Error(`Failed to fetch TSV file: ${r.statusText}`);
             return r.text();
-        })
+        }),
+        load_basemap_style(getTheme()),
     ])
-    .then(([, text]) => {
+    .then(([, text, map_style]) => {
         // load_choropleth_data() either assigns the boundaries or rejects into
         // the catch below, so by here there are always boundaries to paint.
         const features = GEOJSON_DATA!.features;
@@ -2900,7 +2945,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             ],
         });
         (layout as any).map = {
-            style: getTheme().mapStyle,
+            style: map_style,
             center: default_view.center,
             zoom: default_view.zoom,
             minzoom: default_view.min_zoom,
@@ -2914,25 +2959,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             const el = document.getElementById(plot_element_id);
             if (el && (el as any)._fullLayout && (el as any)._fullLayout.map && (el as any)._fullLayout.map._subplot) {
                 const map = (el as any)._fullLayout.map._subplot.map;
-                if (map) {
-                    if (map.setMinZoom) map.setMinZoom(default_view.min_zoom);
-                    const label_layers = (map.getStyle?.()?.layers ?? []).filter((layer: any) => layer.type === "symbol");
-                    for (const layer of label_layers) {
-                        map.setPaintProperty(layer.id, "text-color", "#000000");
-                        map.setPaintProperty(layer.id, "text-halo-color", "#ffffff");
-                        map.setPaintProperty(layer.id, "text-halo-width", 1);
-                        map.setPaintProperty(layer.id, "text-halo-blur", 0);
-                    }
-                    // Remove the America label, since the basemap labels
-                    // North and South America.
-                    if (map.getLayer?.("place_continent")) {
-                        map.setFilter("place_continent", [
-                            "all",
-                            map.getFilter("place_continent"),
-                            ["!=", "name_en", "America"],
-                        ]);
-                    }
-                }
+                if (map && map.setMinZoom) map.setMinZoom(default_view.min_zoom);
             }
             attach_map_hover_label(plot_element_id, hover_text_by_id);
         });
