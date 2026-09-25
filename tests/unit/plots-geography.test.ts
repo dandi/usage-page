@@ -227,6 +227,24 @@ describe("usage by region, as countries", () => {
         expect(fake_map().setMinZoom).toHaveBeenCalledWith(layout.map.minzoom);
     });
 
+    it("draws over the theme's basemap with its labels made readable in the layout, where image downloads see them", async () => {
+        serve(
+            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
+            JSON.stringify({
+                version: 8,
+                layers: [
+                    { id: "background", type: "background" },
+                    { id: "place_continent", type: "symbol", filter: ["==", "class", "continent"] },
+                ],
+            })
+        );
+        await load_page();
+        const [background, continent] = last_plot("geography_heatmap").layout.map.style.layers;
+        expect(background).toEqual({ id: "background", type: "background" });
+        expect(continent.paint["text-color"]).toBe("#000000");
+        expect(continent.filter).toEqual(["all", ["==", "class", "continent"], ["!=", "name_en", "America"]]);
+    });
+
     it("drops the part of a boundary that crosses the antimeridian, and keeps the rest", async () => {
         await load_page();
         const features = last_plot("geography_heatmap").data[0].geojson.features;
