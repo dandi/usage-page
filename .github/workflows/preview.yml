@@ -1,34 +1,66 @@
 name: Preview
 
+# Builds the preview with a read-only token, so it is safe to run on pull
+# requests from forks. The build is handed to `preview-deploy.yml` as an
+# artifact, and that workflow — which runs from `main` with write access —
+# publishes it to `gh-pages`.
+
 on:
-  - pull_request
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
 
 concurrency: preview-${{ github.ref }}
 
 jobs:
-  deploy-preview:
+  build-preview:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
       - name: Checkout
+        if: github.event.action != 'closed'
         uses: actions/checkout@v7
 
       - name: Setup Node.js
+        if: github.event.action != 'closed'
         uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
 
       - name: Install dependencies
+        if: github.event.action != 'closed'
         run: npm ci
 
       - name: Build site
+        if: github.event.action != 'closed'
         run: npm run build
 
-      - name: Deploy preview
-        uses: rossjrw/pr-preview-action@v1
+      - name: Upload site
+        if: github.event.action != 'closed'
+        uses: actions/upload-artifact@v4
         with:
-          source-dir: dist
-          preview-branch: gh-pages
+          name: preview-site
+          path: dist/
+          include-hidden-files: true
+          retention-days: 1
+
+      - name: Record pull request
+        env:
+          PR_NUMBER: ${{ github.event.number }}
+          PREVIEW_ACTION: ${{ github.event.action == 'closed' && 'remove' || 'deploy' }}
+        run: |
+          mkdir -p preview-meta
+          echo "$PR_NUMBER" > preview-meta/pr-number
+          echo "$PREVIEW_ACTION" > preview-meta/action
+
+      - name: Upload pull request record
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-meta
+          path: preview-meta/
+          retention-days: 1
