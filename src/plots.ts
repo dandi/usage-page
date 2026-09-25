@@ -2915,6 +2915,13 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 const map = (el as any)._fullLayout.map._subplot.map;
                 if (map) {
                     if (map.setMinZoom) map.setMinZoom(default_view.min_zoom);
+                    const label_layers = (map.getStyle?.()?.layers ?? []).filter((layer: any) => layer.type === "symbol");
+                    for (const layer of label_layers) {
+                        map.setPaintProperty(layer.id, "text-color", "#000000");
+                        map.setPaintProperty(layer.id, "text-halo-color", "#ffffff");
+                        map.setPaintProperty(layer.id, "text-halo-width", 1);
+                        map.setPaintProperty(layer.id, "text-halo-blur", 0);
+                    }
                 }
             }
             attach_map_hover_label(plot_element_id, hover_text_by_id);
