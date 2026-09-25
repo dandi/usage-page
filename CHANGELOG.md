@@ -4,6 +4,7 @@
 
 #### 🐛 Bug Fix
 
+- Moved the region map's credits out from over the map to just below it, where they no longer cover any of it. ([#265](https://github.com/dandi/usage-page/pull/265))
 - Drew the region map's continent labels in black on a white halo, so they stay readable over the choropleth's fills. ([#267](https://github.com/dandi/usage-page/pull/267))
 - Reported the coordinates the points map plots from failing to load in place of the map, where the map had drawn itself with no markers at all; the map now waits on them rather than racing them. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Reported a geographic choropleth that fails to draw in the section's own message, where the failure had been lost as an unhandled rejection. ([#264](https://github.com/dandi/usage-page/pull/264))
@@ -21,6 +22,9 @@
 
 #### 🏠 Internal
 
+- Enabled the required Chromatic checks on pull requests from forks by building read-only and uploading from a separate `workflow_run` workflow, since a fork's own run has no project token. ([#268](https://github.com/dandi/usage-page/pull/268))
+- Enabled previews for pull requests from forks by building them read-only and deploying them from a separate `workflow_run` workflow, since a fork's own run cannot push to `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))
+- Stopped each deploy of `main` from wiping every open pull request's preview off `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))
 - Removed the dead fallback for Plotly failing to load, along with `src/errors.ts` and its tests: Plotly is a module import now, and a failed import throws before any `load` handler could report it. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Added a jsdom test harness for `src/plots.ts`, the page's entry module, which had no unit coverage: it loads the page's markup, stands in for Plotly and the network, and drives the page through its controls, taking unit coverage of `src/` from 22% to 99% of lines. ([#262](https://github.com/dandi/usage-page/pull/262))
 - Fixed the integration coverage report, which dropped every TypeScript module the page loads and so never reported `src/plots.ts` to Codecov; the browser's coverage is now mapped back onto the sources through Vite's inline source maps. ([#262](https://github.com/dandi/usage-page/pull/262))
