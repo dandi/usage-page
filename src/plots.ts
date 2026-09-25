@@ -59,7 +59,6 @@ const DARK_THEME = {
     textSecondary: '#a0a0b0',
     accent:        '#53a8b6',
     mapStyle:      'carto-darkmatter',
-    annotationBg:  'rgba(22, 33, 62, 0.7)',
 };
 
 const LIGHT_THEME = {
@@ -70,7 +69,6 @@ const LIGHT_THEME = {
     textSecondary: '#5a6580',
     accent:        '#53a8b6',
     mapStyle:      'carto-positron',
-    annotationBg:  'rgba(245, 247, 250, 0.85)',
 };
 
 // Media query used to detect the OS / browser dark-mode preference.
@@ -2866,12 +2864,14 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // Plotly's default margins leave room for the axis labels of a
             // cartesian plot, which a map has none of.  They cost nothing on a
             // wide map but eat most of a narrow one, so the side and bottom
-            // ones are trimmed back there.  The right and top margins are left
-            // at their defaults: the right is where the colorbar and its tick
-            // labels sit, and the top is what holds the title clear of the
-            // mode bar drawn over the first row of the plot, which a touch
-            // device shows for good rather than only while hovered.
-            const narrow_map_margin = { l: 8, b: 8 };
+            // ones are trimmed back there — the bottom only as far as the
+            // credits, a line each, drawn below the map in it.  The right and
+            // top margins are left at their defaults: the right is where the
+            // colorbar and its tick labels sit, and the top is what holds the
+            // title clear of the mode bar drawn over the first row of the
+            // plot, which a touch device shows for good rather than only while
+            // hovered.
+            const narrow_map_margin = { l: 8, b: 56 };
 
             // The map is drawn inside those margins, so it is narrower than
             // the element holding it, and it is the map the default view has
@@ -2888,23 +2888,24 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 font: { size: 24 },
             },
             ...(is_narrow_map ? { margin: narrow_map_margin } : {}),
+            // The credits are hung from the map's bottom-left corner into the
+            // margin below it, so that they cover none of the map.
             annotations: [
                 {
                     text: attribution_text,
                     showarrow: false,
                     xref: "paper",
                     yref: "paper",
-                    x: 0.01,
-                    y: 0.01,
+                    x: 0,
+                    y: 0,
                     xanchor: "left",
-                    yanchor: "bottom",
+                    yanchor: "top",
+                    yshift: -4,
                     align: "left",
                     font: {
                         size: 10,
                         color: getTheme().textSecondary,
                     },
-                    bgcolor: getTheme().annotationBg,
-                    borderpad: 3,
                 },
             ],
         });

@@ -8,6 +8,7 @@
 
 #### 🐛 Bug Fix
 
+- Moved the region map's credits out from over the map to just below it, where they no longer cover any of it. ([#265](https://github.com/dandi/usage-page/pull/265))
 - Reported the coordinates the points map plots from failing to load in place of the map, where the map had drawn itself with no markers at all; the map now waits on them rather than racing them. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Reported a geographic choropleth that fails to draw in the section's own message, where the failure had been lost as an unhandled rejection. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Drew the region map's hover label beside the pointer and inside the map, rather than over the region it names: a region reaching an edge of the map — the eastern tip of Russia — had labeled itself off the side of the map, or at the far side of it. ([#257](https://github.com/dandi/usage-page/pull/257))
@@ -24,6 +25,7 @@
 
 #### 🏠 Internal
 
+- Enabled the required Chromatic checks on pull requests from forks by building read-only and uploading from a separate `workflow_run` workflow, since a fork's own run has no project token. ([#268](https://github.com/dandi/usage-page/pull/268))
 - Enabled previews for pull requests from forks by building them read-only and deploying them from a separate `workflow_run` workflow, since a fork's own run cannot push to `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))
 - Stopped each deploy of `main` from wiping every open pull request's preview off `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))
 - Removed the dead fallback for Plotly failing to load, along with `src/errors.ts` and its tests: Plotly is a module import now, and a failed import throws before any `load` handler could report it. ([#264](https://github.com/dandi/usage-page/pull/264))
