@@ -15,9 +15,11 @@ on:
     types:
       - completed
 
-# Every preview is a push to the same branch; queue them rather than race.
+# Only one run per pull request branch waits here, so a newer build supersedes
+# an older one still queued. Pushes from different branches to `gh-pages` are
+# rebased onto each other by the deploy step rather than force-pushed.
 concurrency:
-  group: preview-deploy
+  group: preview-deploy-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
 
 jobs:
