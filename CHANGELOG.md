@@ -4,6 +4,7 @@
 
 #### 🐛 Bug Fix
 
+- Moved the region map's credits out from over the map to just below it, where they no longer cover any of it. ([#TBD](https://github.com/dandi/usage-page/pull/TBD))
 - Reported the coordinates the points map plots from failing to load in place of the map, where the map had drawn itself with no markers at all; the map now waits on them rather than racing them. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Reported a geographic choropleth that fails to draw in the section's own message, where the failure had been lost as an unhandled rejection. ([#264](https://github.com/dandi/usage-page/pull/264))
 - Drew the region map's hover label beside the pointer and inside the map, rather than over the region it names: a region reaching an edge of the map — the eastern tip of Russia — had labeled itself off the side of the map, or at the far side of it. ([#257](https://github.com/dandi/usage-page/pull/257))
