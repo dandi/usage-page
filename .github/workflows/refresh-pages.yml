@@ -28,8 +28,13 @@ jobs:
       - name: Build site
         run: npm run build
 
+      # Leaves `pr-preview/` alone, which holds the open pull requests'
+      # previews, and rebases rather than force-pushes so that a preview
+      # deployed meanwhile is not lost.
       - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: JamesIves/github-pages-deploy-action@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          folder: dist
+          branch: gh-pages
+          clean-exclude: pr-preview/
+          force: false
