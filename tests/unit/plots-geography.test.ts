@@ -222,7 +222,7 @@ describe("usage by region, as countries", () => {
         // No borders within a country, and no seams where its boundaries meet
         expect(data[0].marker).toEqual({ line: { color: "white", width: 0 }, opacity: 1 });
         expect(layout.title.text).toBe("Usage by region");
-        expect(layout.map).toMatchObject({ style: "carto-darkmatter", center: { lat: 40 } });
+        expect(layout.map).toMatchObject({ style: "carto-darkmatter", center: { lat: 20 } });
         expect(layout.map.minzoom).toBeCloseTo(layout.map.zoom - 0.15);
         expect(fake_map().setMinZoom).toHaveBeenCalledWith(layout.map.minzoom);
     });

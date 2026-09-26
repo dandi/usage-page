@@ -201,10 +201,12 @@ export function format_dandiset_label(id: string, titles: Record<string, string>
 // ── Default map view ──────────────────────────────────────────────────────────
 
 /**
- * Where both map views open, in degrees: the middle of the contiguous United
- * States, which is where most of the archive's traffic is served to.
+ * Where both map views open, in degrees: the longitude of the middle of the
+ * contiguous United States, which is where most of the archive's traffic is
+ * served to, and a latitude south of it, so that the view takes in Australia,
+ * New Zealand and the south of South America rather than the Arctic.
  */
-const MAP_DEFAULT_CENTER = { latitude: 40, longitude: -98 };
+const MAP_DEFAULT_CENTER = { latitude: 20, longitude: -98 };
 
 /**
  * The width, in CSS pixels, at which a map opens on the whole world.  A map
@@ -246,8 +248,10 @@ function default_view_longitude_fraction(map_width_px: number): number {
 function default_view_longitude(map_width_px: number): number {
     const half_span = 180 * default_view_longitude_fraction(map_width_px);
     const limit = 180 - half_span;
-    return Math.max(-limit, Math.min(limit, MAP_DEFAULT_CENTER.longitude));
+    return Math.max(WORLD_MIDDLE_LONGITUDE - limit, Math.min(WORLD_MIDDLE_LONGITUDE + limit, MAP_DEFAULT_CENTER.longitude));
 }
+
+const WORLD_MIDDLE_LONGITUDE = 10;
 
 /**
  * The view the choropleth — a MapLibre `map` subplot, which zooms in powers of
