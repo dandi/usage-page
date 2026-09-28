@@ -282,6 +282,8 @@ describe("usage by region, as countries", () => {
             title: "Bytes (log scale)",
             tickvals: [8, 10],
             ticktext: ["10^8", "10^10"],
+            ticks: "outside",
+            tickfont: { size: expect.any(Number) },
         });
     });
 
@@ -290,7 +292,9 @@ describe("usage by region, as countries", () => {
         expect(last_plot("geography_heatmap").data[0].colorbar).toEqual({
             title: "Bytes (log scale)",
             tickvals: [9, 10],
-            ticktext: ["GB", "10^10"],
+            ticktext: ["1 GB", "10^10"],
+            ticks: "outside",
+            tickfont: { size: expect.any(Number) },
         });
     });
 
@@ -300,7 +304,9 @@ describe("usage by region, as countries", () => {
         expect(last_plot("geography_heatmap").data[0].colorbar).toEqual({
             title: "Bytes (log scale)",
             tickvals: [9, 10],
-            ticktext: ["GB", "10^10"],
+            ticktext: ["1 GB", "10^10"],
+            ticks: "outside",
+            tickfont: { size: expect.any(Number) },
         });
     });
 
@@ -309,7 +315,11 @@ describe("usage by region, as countries", () => {
         await load_page();
         const { data } = last_plot("geography_heatmap");
         expect(data[0].locations).toEqual([]);
-        expect(data[0].colorbar).toEqual({ title: "Bytes (log scale)" });
+        expect(data[0].colorbar).toEqual({
+            title: "Bytes (log scale)",
+            ticks: "outside",
+            tickfont: { size: expect.any(Number) },
+        });
     });
 
     it("breaks the credits onto a line each, and trims the margins, on a map too narrow for one line", async () => {
