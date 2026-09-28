@@ -518,6 +518,11 @@ const hover_metric = (label: string, value: number): string =>
 /** The metrics a hover label lists, in the order they follow the plotted one. */
 const HOVER_METRIC_ORDER = ["bytes", "views", "downloads", "requests"];
 
+/** The maps' legend font, scaled to the window's width: 12px on a phone, up to 18px from 1440px wide. */
+function colorbar_font() {
+    return { size: Math.round(Math.min(18, Math.max(12, window.innerWidth / 80))) };
+}
+
 /**
  * Builds the value lines of a hover label: the plotted metric first, so the
  * first value read is always the one the bar's height shows, followed by the
@@ -2586,7 +2591,9 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
                         colorbar: {
                             title: "Bytes (log scale)",
                             tickvals: [3, 6, 9, 12],
-                            ticktext: ["KB", "MB", "GB", "TB"]
+                            ticktext: ["1 KB", "1 MB", "1 GB", "1 TB"],
+                            ticks: "outside",
+                            tickfont: colorbar_font(),
                         },
                         opacity: 0.9,
                     },
@@ -2822,8 +2829,8 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
         // Compute colorbar ticks based on data range
         const colorbar_config = (function() {
             const allTicks = [3, 6, 9, 12, 15];
-            const allLabels = ["KB", "MB", "GB", "TB", "PB"];
-            if (z_values.length === 0) return { title: "Bytes (log scale)" };
+            const allLabels = ["1 KB", "1 MB", "1 GB", "1 TB", "1 PB"];
+            if (z_values.length === 0) return { title: "Bytes (log scale)", ticks: "outside", tickfont: colorbar_font() };
             const zMin = Math.min(...z_values);
             const zMax = Math.max(...z_values);
             let vals = allTicks.filter(v => v >= zMin - 1 && v <= zMax + 1);
@@ -2837,7 +2844,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                     return tickIdx >= 0 ? allLabels[tickIdx] : "10^" + v;
                 });
             }
-            return { title: "Bytes (log scale)", tickvals: vals, ticktext: texts };
+            return { title: "Bytes (log scale)", tickvals: vals, ticktext: texts, ticks: "outside", tickfont: colorbar_font() };
         })();
 
         const plot_info = [
