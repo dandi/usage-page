@@ -43,7 +43,7 @@ jobs:
             - name: Build archive Storybook
               run: ./node_modules/.bin/build-archive-storybook --output-dir=storybook-static
             - name: Upload archive Storybook
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v7
               with:
                   name: chromatic-build
                   path: storybook-static/
