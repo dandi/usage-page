@@ -39,7 +39,7 @@
     "@playwright/test": "^1.61.1",
     "@storybook/html-vite": "^10.5.3",
     "@types/js-yaml": "^4.0.9",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.6.3",
     "@types/plotly.js": "^3.0.10",
     "@types/topojson-client": "^3.1.5",
     "@vitest/coverage-v8": "^4.1.11",
