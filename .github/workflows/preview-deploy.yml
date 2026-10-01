@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download pull request record
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: preview-meta
           path: ${{ runner.temp }}/preview-meta
@@ -77,7 +77,7 @@ jobs:
 
       - name: Download site
         if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.action == 'deploy'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: preview-site
           path: preview-site
