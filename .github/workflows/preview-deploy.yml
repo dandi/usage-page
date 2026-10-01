@@ -101,7 +101,7 @@ jobs:
 
       - name: Comment preview link
         if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.action == 'deploy'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: pr-preview
           number: ${{ steps.pr.outputs.number }}
@@ -112,7 +112,7 @@ jobs:
 
       - name: Comment preview removal
         if: steps.pr.outputs.skip != 'true' && steps.pr.outputs.action == 'remove'
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           header: pr-preview
           number: ${{ steps.pr.outputs.number }}
