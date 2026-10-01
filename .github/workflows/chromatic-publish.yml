@@ -58,7 +58,7 @@ jobs:
                   git checkout --quiet --detach "$HEAD_SHA"
 
             - name: Download build
-              uses: actions/download-artifact@v4
+              uses: actions/download-artifact@v8
               with:
                   name: chromatic-build
                   path: ${{ runner.temp }}/storybook-static
