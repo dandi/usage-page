@@ -26,6 +26,7 @@
 
 #### 🏠 Internal
 
+- Disabled Dependabot rebases, which force-push and so fail on protected branches. ([#285](https://github.com/dandi/usage-page/pull/285))
 - Enabled the required Chromatic checks on pull requests from forks by building read-only and uploading from a separate `workflow_run` workflow, since a fork's own run has no project token. ([#268](https://github.com/dandi/usage-page/pull/268))
 - Enabled previews for pull requests from forks by building them read-only and deploying them from a separate `workflow_run` workflow, since a fork's own run cannot push to `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))
 - Stopped each deploy of `main` from wiping every open pull request's preview off `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))
