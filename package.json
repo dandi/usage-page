@@ -44,7 +44,7 @@
     "@types/topojson-client": "^3.1.5",
     "@vitest/coverage-v8": "^5.0.2",
     "ast-v8-to-istanbul": "^1.0.7",
-    "chromatic": "^17.8.0",
+    "chromatic": "^18.10.1",
     "cldr-subdivisions-full": "^48.2.0",
     "iso-3166": "^4.4.0",
     "istanbul-lib-coverage": "^3.2.2",
