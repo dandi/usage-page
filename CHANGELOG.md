@@ -4,7 +4,7 @@
 
 #### 🚀 Enhancement
 
-- Added a "Neuroimaging" asset type to the over-time plot's legend tooltips, following its addition upstream in [dandi-s3-log-extraction#104](https://github.com/dandi/dandi-s3-log-extraction/pull/104). ([#293](https://github.com/dandi/usage-page/pull/293))
+- Added a "Neuroimaging" asset type to the over-time plot's legend tooltips, following its addition upstream in [dandi-s3-log-extraction#104](https://github.com/dandi/dandi-s3-log-extraction/pull/104). ([#294](https://github.com/dandi/usage-page/pull/294))
 
 #### 🐛 Bug Fix
 
