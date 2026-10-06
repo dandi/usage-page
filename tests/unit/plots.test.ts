@@ -883,16 +883,17 @@ describe("usage over time grouped by asset type", () => {
         plot.innerHTML =
             '<svg><g class="traces"><text class="legendtext">Neurophysiology</text></g>' +
             '<g class="traces"><text class="legendtext">Microscopy</text></g>' +
+            '<g class="traces"><text class="legendtext">Neuroimaging</text></g>' +
             '<g class="traces"><text class="legendtext">Undetermined file types</text></g>' +
             '<text class="legendtext">Video</text></svg>';
 
         plot.emit("plotly_afterplot");
         const titles = () => Array.from(plot.querySelectorAll(".traces title")).map((title: any) => title.textContent);
-        expect(titles()).toEqual(["NWB files", "OME-Zarr, NIfTI, TIFF"]);
+        expect(titles()).toEqual(["NWB files", "OME-Zarr, TIFF", "NIfTI, BVEC, BVAL, TRK"]);
 
         // A redraw keeps a single, current description per entry
         plot.emit("plotly_afterplot");
-        expect(titles()).toEqual(["NWB files", "OME-Zarr, NIfTI, TIFF"]);
+        expect(titles()).toEqual(["NWB files", "OME-Zarr, TIFF", "NIfTI, BVEC, BVAL, TRK"]);
     });
 
     it("counts a week an asset type reports nothing for as zero", async () => {
