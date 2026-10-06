@@ -1312,7 +1312,8 @@ function update_totals(dandiset_id: string) {
 // over-time plot is grouped by asset type.
 const ASSET_TYPE_DESCRIPTIONS: Record<string, string> = {
     Neurophysiology: "NWB files",
-    Microscopy:      "OME-Zarr, NIfTI, TIFF",
+    Microscopy:      "OME-Zarr, TIFF",
+    Neuroimaging:    "NIfTI, BVEC, BVAL, TRK",
     Video:          "AVI, MKV, MP4, MOV, WMV",
     Miscellaneous:      "TXT, TSV, JSON, code, etc.",
 };
