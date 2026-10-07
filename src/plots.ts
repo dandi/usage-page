@@ -1425,14 +1425,20 @@ function build_over_time_layout(dates: string[], peak_value: number): Partial<Pl
         bargap: 0,
         title: {
             text: USE_CUMULATIVE
-                ? `Total ${metric_unit_label(OVER_TIME_METRIC, peak_value, USE_BINARY)} to date`
+                ? `Total ${OVER_TIME_METRIC === "bytes" ? "data downloaded" : (METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC).toLowerCase()} to date`
                 : build_over_time_title(TIME_AGGREGATION, peak_value),
             font: { size: 24 }
         },
         xaxis: {
+            title: { text: "Date" },
             tickformat: tick_formats[TIME_AGGREGATION],
         },
-        yaxis: build_metric_yaxis(OVER_TIME_METRIC, "s"),
+        yaxis: {
+            ...build_metric_yaxis(OVER_TIME_METRIC, "s"),
+            title: {
+                text: OVER_TIME_METRIC === "bytes" ? "Data downloaded" : METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC,
+            },
+        },
     });
 
     // For cumulative views, remove range gaps so the display is continuous

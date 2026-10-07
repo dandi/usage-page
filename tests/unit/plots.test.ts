@@ -267,7 +267,7 @@ describe("URL state", () => {
         // The plots were still drawn from that state, ready for a switch back
         const over_time = last_plot("over_time_plot");
         expect(over_time.layout.yaxis.type).toBe("log");
-        expect(over_time.layout.title.text).toBe("Total Views to date");
+        expect(over_time.layout.title.text).toBe("Total views to date");
         expect(over_time.data.map((trace: any) => trace.name)).toEqual([
             "DANDI:000001",
             "DANDI:000002",
@@ -363,7 +363,7 @@ describe("URL state", () => {
 
         expect(by_id<HTMLSelectElement>("dandiset_selector").value).toBe("000001");
         expect(by_id<HTMLInputElement>("cumulative").checked).toBe(true);
-        expect(last_plot("over_time_plot").layout.title.text).toBe("Total GB to date");
+        expect(last_plot("over_time_plot").layout.title.text).toBe("Total data downloaded to date");
         expect(last_plot("histogram_plot").layout.title.text).toBe("MB per asset");
     });
 });
@@ -484,7 +484,7 @@ describe("usage over time", () => {
 
         const { data, layout } = last_plot("over_time_plot");
         expect(data[0].y).toEqual([100, 300, 700]);
-        expect(layout.title.text).toBe("Total Bytes to date");
+        expect(layout.title.text).toBe("Total data downloaded to date");
         expect(layout.xaxis.rangebreaks).toEqual([{ values: ["2024-01-03"] }]);
         expect(url_params().get("cumulative")).toBe("true");
 
@@ -693,7 +693,7 @@ describe("usage over time grouped by Dandiset", () => {
         expect(data[0].x).toEqual(["2024-01-01"]);
         expect(data[0].y).toEqual([381]);
         expect(data[0].text[0]).toContain("<br>Week of 2024-01-01<br>Views: 381<br>");
-        expect(layout.title.text).toBe("Total Views to date");
+        expect(layout.title.text).toBe("Total views to date");
     });
 
     it("skips a Dandiset whose summary cannot be fetched", async () => {
@@ -844,7 +844,8 @@ describe("usage over time grouped by asset type", () => {
         expect(data[0]).toMatchObject({ type: "scatter", mode: "lines", stackgroup: "one", y: [5e7, 1.1e8] });
         expect(data[4]).toMatchObject({ stackgroup: "one", y: [1.29e9, 1.29e9] });
         expect(layout.barmode).toBeUndefined();
-        expect(layout.title.text).toBe("Total GB to date");
+        expect(layout.title.text).toBe("Total data downloaded to date");
+        expect(layout.yaxis.title.text).toBe("Data downloaded");
 
         change("ot_stacked", "overlay");
         await settle();
