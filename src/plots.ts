@@ -1430,13 +1430,16 @@ function build_over_time_layout(dates: string[], peak_value: number): Partial<Pl
             font: { size: 24 }
         },
         xaxis: {
-            title: { text: "Date" },
+            automargin: true,
+            title: { text: "Date", standoff: 12 },
             tickformat: tick_formats[TIME_AGGREGATION],
         },
         yaxis: {
             ...build_metric_yaxis(OVER_TIME_METRIC, "s"),
+            automargin: true,
             title: {
                 text: OVER_TIME_METRIC === "bytes" ? "Data downloaded" : METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC,
+                standoff: 12,
             },
         },
     });
