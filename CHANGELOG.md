@@ -5,7 +5,7 @@
 #### 🚀 Enhancement
 
 - Added a "Neuroimaging" asset type to the over-time plot's legend tooltips, following its addition upstream in [dandi-s3-log-extraction#104](https://github.com/dandi/dandi-s3-log-extraction/pull/104). ([#293](https://github.com/dandi/usage-page/pull/293))
-- Added axis titles to the over-time plot, such as "Date" and "Data downloaded", and retitled its cumulative view from "Total PB to date" to "Total data downloaded to date". ([#296](https://github.com/dandi/usage-page/pull/296))
+- Added axis titles to the over-time plot, such as "Date", "Data transferred", "Download counts", and "Streaming views", and retitled its cumulative view from "Total PB to date" to "Total data transferred to date". ([#296](https://github.com/dandi/usage-page/pull/296))
 
 #### 🐛 Bug Fix
 
