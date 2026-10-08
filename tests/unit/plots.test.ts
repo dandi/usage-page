@@ -267,7 +267,8 @@ describe("URL state", () => {
         // The plots were still drawn from that state, ready for a switch back
         const over_time = last_plot("over_time_plot");
         expect(over_time.layout.yaxis.type).toBe("log");
-        expect(over_time.layout.title.text).toBe("Total Views to date");
+        expect(over_time.layout.title.text).toBe("Total views to date");
+        expect(over_time.layout.yaxis.title.text).toBe("Streaming views");
         expect(over_time.data.map((trace: any) => trace.name)).toEqual([
             "DANDI:000001",
             "DANDI:000002",
@@ -363,7 +364,7 @@ describe("URL state", () => {
 
         expect(by_id<HTMLSelectElement>("dandiset_selector").value).toBe("000001");
         expect(by_id<HTMLInputElement>("cumulative").checked).toBe(true);
-        expect(last_plot("over_time_plot").layout.title.text).toBe("Total GB to date");
+        expect(last_plot("over_time_plot").layout.title.text).toBe("Total data transferred to date");
         expect(last_plot("histogram_plot").layout.title.text).toBe("MB per asset");
     });
 });
@@ -442,6 +443,7 @@ describe("usage over time", () => {
         expect(data[0].text[0]).toBe("2024-01-01<br>Bytes: 100 MB<br>Views: 35<br>Downloads: 120<br>Requests: 400");
         expect(layout.title.text).toBe("MB per day");
         expect(layout.xaxis.tickformat).toBe("%Y-%m-%d");
+        expect(layout.xaxis.title.text).toBe("Date");
         expect(layout.yaxis).toMatchObject({ type: "linear", tickformat: "s", ticksuffix: "B" });
         expect(fetched_urls()).toContain(
             "https://raw.githubusercontent.com/dandi/access-summaries/main/content/summaries/archive/by_day.tsv"
@@ -457,10 +459,10 @@ describe("usage over time", () => {
     });
 
     it.each([
-        ["weekly", ["2024-01-01"], "GB per week", "Usage per week", "Week of", "%Y-%m-%d"],
-        ["monthly", ["2024-01"], "GB per month", "Usage per month", "Month", "%Y-%m"],
-        ["yearly", ["2024"], "GB per year", "Usage per year", "Year", "%Y"],
-    ])("bins the days by %s", async (aggregation, bins, title, table, date_column, tickformat) => {
+        ["weekly", ["2024-01-01"], "GB per week", "Usage per week", "Week of", "%Y-%m-%d", "Date"],
+        ["monthly", ["2024-01"], "GB per month", "Usage per month", "Month", "%Y-%m", "Month"],
+        ["yearly", ["2024"], "GB per year", "Usage per year", "Year", "%Y", "Year"],
+    ])("bins the days by %s", async (aggregation, bins, title, table, date_column, tickformat, xaxis_title) => {
         await load_page();
         choose("time_aggregation", aggregation);
         await settle();
@@ -471,6 +473,7 @@ describe("usage over time", () => {
         expect(data[0].text[0]).toContain("Bytes: 1.4 GB<br>Views: 381<br>Downloads: 1,330<br>Requests: 4,380");
         expect(layout.title.text).toBe(title);
         expect(layout.xaxis.tickformat).toBe(tickformat);
+        expect(layout.xaxis.title.text).toBe(xaxis_title);
         expect(table_title("over_time_table")).toBe(table);
         expect(table_headers("over_time_table")[0]).toBe(date_column);
         expect(url_params().get("aggregation")).toBe(aggregation);
@@ -484,7 +487,7 @@ describe("usage over time", () => {
 
         const { data, layout } = last_plot("over_time_plot");
         expect(data[0].y).toEqual([100, 300, 700]);
-        expect(layout.title.text).toBe("Total Bytes to date");
+        expect(layout.title.text).toBe("Total data transferred to date");
         expect(layout.xaxis.rangebreaks).toEqual([{ values: ["2024-01-03"] }]);
         expect(url_params().get("cumulative")).toBe("true");
 
@@ -693,7 +696,7 @@ describe("usage over time grouped by Dandiset", () => {
         expect(data[0].x).toEqual(["2024-01-01"]);
         expect(data[0].y).toEqual([381]);
         expect(data[0].text[0]).toContain("<br>Week of 2024-01-01<br>Views: 381<br>");
-        expect(layout.title.text).toBe("Total Views to date");
+        expect(layout.title.text).toBe("Total views to date");
     });
 
     it("skips a Dandiset whose summary cannot be fetched", async () => {
@@ -844,7 +847,8 @@ describe("usage over time grouped by asset type", () => {
         expect(data[0]).toMatchObject({ type: "scatter", mode: "lines", stackgroup: "one", y: [5e7, 1.1e8] });
         expect(data[4]).toMatchObject({ stackgroup: "one", y: [1.29e9, 1.29e9] });
         expect(layout.barmode).toBeUndefined();
-        expect(layout.title.text).toBe("Total GB to date");
+        expect(layout.title.text).toBe("Total data transferred to date");
+        expect(layout.yaxis.title.text).toBe("Data transferred");
 
         change("ot_stacked", "overlay");
         await settle();

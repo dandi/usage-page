@@ -1408,6 +1408,17 @@ function build_over_time_title(aggregation: string, peak_value: number): string 
     return `${metric_unit_label(OVER_TIME_METRIC, peak_value, USE_BINARY)} ${bin_suffixes[aggregation]}`;
 }
 
+const OVER_TIME_YAXIS_TITLES: Record<string, string> = {
+    bytes:     "Data transferred",
+    views:     "Streaming views",
+    downloads: "Download counts",
+};
+
+const OVER_TIME_XAXIS_TITLES: Record<string, string> = {
+    monthly: "Month",
+    yearly:  "Year",
+};
+
 /**
  * Builds the shared layout options used by both single-series and grouped
  * over-time plots.  `peak_value` is the largest plotted value; it names the
@@ -1425,14 +1436,23 @@ function build_over_time_layout(dates: string[], peak_value: number): Partial<Pl
         bargap: 0,
         title: {
             text: USE_CUMULATIVE
-                ? `Total ${metric_unit_label(OVER_TIME_METRIC, peak_value, USE_BINARY)} to date`
+                ? `Total ${OVER_TIME_METRIC === "bytes" ? "data transferred" : (METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC).toLowerCase()} to date`
                 : build_over_time_title(TIME_AGGREGATION, peak_value),
             font: { size: 24 }
         },
         xaxis: {
+            automargin: true,
+            title: { text: OVER_TIME_XAXIS_TITLES[TIME_AGGREGATION] ?? "Date", standoff: 12 },
             tickformat: tick_formats[TIME_AGGREGATION],
         },
-        yaxis: build_metric_yaxis(OVER_TIME_METRIC, "s"),
+        yaxis: {
+            ...build_metric_yaxis(OVER_TIME_METRIC, "s"),
+            automargin: true,
+            title: {
+                text: OVER_TIME_YAXIS_TITLES[OVER_TIME_METRIC] ?? METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC,
+                standoff: 12,
+            },
+        },
     });
 
     // For cumulative views, remove range gaps so the display is continuous
