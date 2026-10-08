@@ -443,6 +443,7 @@ describe("usage over time", () => {
         expect(data[0].text[0]).toBe("2024-01-01<br>Bytes: 100 MB<br>Views: 35<br>Downloads: 120<br>Requests: 400");
         expect(layout.title.text).toBe("MB per day");
         expect(layout.xaxis.tickformat).toBe("%Y-%m-%d");
+        expect(layout.xaxis.title.text).toBe("Date");
         expect(layout.yaxis).toMatchObject({ type: "linear", tickformat: "s", ticksuffix: "B" });
         expect(fetched_urls()).toContain(
             "https://raw.githubusercontent.com/dandi/access-summaries/main/content/summaries/archive/by_day.tsv"
@@ -458,10 +459,10 @@ describe("usage over time", () => {
     });
 
     it.each([
-        ["weekly", ["2024-01-01"], "GB per week", "Usage per week", "Week of", "%Y-%m-%d"],
-        ["monthly", ["2024-01"], "GB per month", "Usage per month", "Month", "%Y-%m"],
-        ["yearly", ["2024"], "GB per year", "Usage per year", "Year", "%Y"],
-    ])("bins the days by %s", async (aggregation, bins, title, table, date_column, tickformat) => {
+        ["weekly", ["2024-01-01"], "GB per week", "Usage per week", "Week of", "%Y-%m-%d", "Date"],
+        ["monthly", ["2024-01"], "GB per month", "Usage per month", "Month", "%Y-%m", "Month"],
+        ["yearly", ["2024"], "GB per year", "Usage per year", "Year", "%Y", "Year"],
+    ])("bins the days by %s", async (aggregation, bins, title, table, date_column, tickformat, xaxis_title) => {
         await load_page();
         choose("time_aggregation", aggregation);
         await settle();
@@ -472,6 +473,7 @@ describe("usage over time", () => {
         expect(data[0].text[0]).toContain("Bytes: 1.4 GB<br>Views: 381<br>Downloads: 1,330<br>Requests: 4,380");
         expect(layout.title.text).toBe(title);
         expect(layout.xaxis.tickformat).toBe(tickformat);
+        expect(layout.xaxis.title.text).toBe(xaxis_title);
         expect(table_title("over_time_table")).toBe(table);
         expect(table_headers("over_time_table")[0]).toBe(date_column);
         expect(url_params().get("aggregation")).toBe(aggregation);

@@ -1414,6 +1414,11 @@ const OVER_TIME_YAXIS_TITLES: Record<string, string> = {
     downloads: "Download counts",
 };
 
+const OVER_TIME_XAXIS_TITLES: Record<string, string> = {
+    monthly: "Month",
+    yearly:  "Year",
+};
+
 /**
  * Builds the shared layout options used by both single-series and grouped
  * over-time plots.  `peak_value` is the largest plotted value; it names the
@@ -1437,7 +1442,7 @@ function build_over_time_layout(dates: string[], peak_value: number): Partial<Pl
         },
         xaxis: {
             automargin: true,
-            title: { text: "Date", standoff: 12 },
+            title: { text: OVER_TIME_XAXIS_TITLES[TIME_AGGREGATION] ?? "Date", standoff: 12 },
             tickformat: tick_formats[TIME_AGGREGATION],
         },
         yaxis: {
