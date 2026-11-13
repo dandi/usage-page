@@ -1451,7 +1451,11 @@ function build_over_time_layout(dates: string[], peak_value: number): Partial<Pl
             ...build_metric_yaxis(OVER_TIME_METRIC, "s"),
             automargin: true,
             title: {
-                text: OVER_TIME_YAXIS_TITLES[OVER_TIME_METRIC] ?? METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC,
+                // A log axis is easy to misread as a linear one, its ticks
+                // aside, so the title says so.
+                text:
+                    (OVER_TIME_YAXIS_TITLES[OVER_TIME_METRIC] ?? METRIC_LABELS[OVER_TIME_METRIC] ?? OVER_TIME_METRIC) +
+                    (USE_LOG_SCALE ? " (log scale)" : ""),
                 standoff: 12,
             },
         },
