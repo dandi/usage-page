@@ -435,8 +435,10 @@ const BASE_TSV_URL = `${BASE_URL}/content/summaries`;
 const ARCHIVE_TOTALS_URL = `${BASE_URL}/content/archive_totals.json`;
 const ALL_DANDISET_TOTALS_URL = `${BASE_URL}/content/totals.json`;
 const REGION_CODES_TO_LATITUDE_LONGITUDE_URL = `${BASE_URL}/content/region_codes_to_coordinates.yaml`;
+// Gzipped JSONL, published on the `dist` branch like the two below; the
+// plain file on the `derivatives` branch was removed in October 2026.
 const DANDISET_ID_TO_TITLE_URL =
-    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-title/derivatives/derivatives/dandiset_id_to_title.jsonl";
+    "https://raw.githubusercontent.com/dandi-cache/dandiset-id-to-title/dist/derivatives/dandiset_id_to_title.jsonl.gz";
 // Content of each Dandiset (asset count and stored size), used to scale the raw
 // usage metrics into per-asset and per-stored-byte rates.  Both are gzipped
 // JSONL and are decompressed client-side.
@@ -1106,8 +1108,7 @@ const allDandisetTotalsPromise = fetchWithRetry(ALL_DANDISET_TOTALS_URL)
 
 // Dandiset titles are cosmetic (ID displays fall back to the bare ID when
 // missing), so a failure here is logged but does not block the rest of the page.
-const dandisetTitlesPromise = fetchWithRetry(DANDISET_ID_TO_TITLE_URL)
-    .then((response) => response.text())
+const dandisetTitlesPromise = fetch_maybe_gzipped_text(DANDISET_ID_TO_TITLE_URL)
     .then((dandiset_titles_text) => {
         Object.assign(DANDISET_TITLES, parse_dandiset_titles_jsonl(dandiset_titles_text));
     })
@@ -2112,6 +2113,10 @@ function load_dandiset_histogram(): Promise<void> {
                 font: { size: 24 }
             },
             xaxis: {
+                // A Dandiset without a title is labeled by its bare ID, which
+                // Plotly would read as a number, laying the bars out by ID with
+                // gaps between them rather than ranked side by side.
+                type: "category",
                 title: {
                     text: "(hover over a bar to see the Dandiset)",
                     font: { size: 12 }
