@@ -2716,9 +2716,9 @@ function unwrap_ring(ring: number[][]): number[][] {
 function world_basemap_geometry(): { land: object; borders: object } {
     const topology = WORLD_TOPOLOGY as any;
     const land = topojsonFeature(topology, topology.objects.land) as any;
+    // The land comes as MultiPolygons: lists of polygons, each a list of rings
     for (const feature of land.features) {
-        const { type, coordinates } = feature.geometry;
-        for (const polygon of type === "Polygon" ? [coordinates] : coordinates) {
+        for (const polygon of feature.geometry.coordinates) {
             polygon.forEach((ring: number[][], i: number) => (polygon[i] = unwrap_ring(ring)));
         }
     }
