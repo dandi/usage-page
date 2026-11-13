@@ -153,11 +153,16 @@ describe("page load", () => {
     });
 
     it("keeps the titles cosmetic: a Dandiset is listed by bare ID when they fail to load", async () => {
-        serve("/dandiset_id_to_title.jsonl", not_found);
+        serve("/dandiset_id_to_title.jsonl.gz", not_found);
         await load_page();
         const labels = Array.from(by_id<HTMLSelectElement>("dandiset_selector").options).map((o) => o.textContent);
         expect(labels).toContain("000001");
         expect(labels).not.toContain("000001 - Mock electrophysiology recordings");
+        // Bare IDs look like numbers, which must not turn the histogram's axis
+        // numeric and spread its bars out by ID
+        const { data, layout } = last_plot("histogram_plot");
+        expect(data[0].x).toContain("000001");
+        expect(layout.xaxis.type).toBe("category");
         expect(console.error).toHaveBeenCalledWith("Error loading dandiset titles:", expect.anything());
     });
 });
@@ -988,7 +993,7 @@ describe("usage per Dandiset", () => {
     });
 
     it("leaves a named bucket that is not a Dandiset unlinked", async () => {
-        serve("/dandiset_id_to_title.jsonl", '{"undetermined": "Unattributed usage"}\n');
+        serve("/dandiset_id_to_title.jsonl.gz", '{"undetermined": "Unattributed usage"}\n');
         await load_page();
         const row = table_rows("histogram_table").find((cells) => cells[0] === "undetermined")!;
         expect(row[1]).toBe("Unattributed usage");

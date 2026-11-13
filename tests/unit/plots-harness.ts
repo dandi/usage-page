@@ -151,7 +151,7 @@ function default_routes(): Route[] {
         [(url) => url === `${BASE_URL}/content/archive_totals.json`, () => ok(ARCHIVE_TOTALS)],
         [(url) => url === `${BASE_URL}/content/totals.json`, () => ok(ALL_DANDISET_TOTALS)],
         [(url) => url === `${BASE_URL}/content/region_codes_to_coordinates.yaml`, () => ok(REGION_COORDS_YAML)],
-        [(url) => url.endsWith("/dandiset_id_to_title.jsonl"), () => ok(DANDISET_TITLES_JSONL)],
+        [(url) => url.endsWith("/dandiset_id_to_title.jsonl.gz"), () => ok(gzipped(DANDISET_TITLES_JSONL))],
         [(url) => url.endsWith("/dandiset_id_to_number_of_assets.jsonl.gz"), () => ok(gzipped(NUMBER_OF_ASSETS_JSONL))],
         [(url) => url.endsWith("/dandiset_id_to_total_size.jsonl.gz"), () => ok(gzipped(TOTAL_SIZE_JSONL))],
         [summary("by_day.tsv"), () => ok(BY_DAY_TSV)],
