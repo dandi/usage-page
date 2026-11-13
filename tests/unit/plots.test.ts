@@ -268,7 +268,7 @@ describe("URL state", () => {
         const over_time = last_plot("over_time_plot");
         expect(over_time.layout.yaxis.type).toBe("log");
         expect(over_time.layout.title.text).toBe("Total views to date");
-        expect(over_time.layout.yaxis.title.text).toBe("Streaming views");
+        expect(over_time.layout.yaxis.title.text).toBe("Streaming views (log scale)");
         expect(over_time.data.map((trace: any) => trace.name)).toEqual([
             "DANDI:000001",
             "DANDI:000002",
@@ -550,8 +550,13 @@ describe("usage over time", () => {
             tickvals: [1e3, 1e6, 1e9, 1e12, 1e15],
             ticktext: ["KB", "MB", "GB", "TB", "PB"],
         });
+        expect(last_plot("over_time_plot").layout.yaxis.title.text).toBe("Data transferred (log scale)");
         expect(last_plot("histogram_plot").layout.yaxis.type).toBe("log");
         expect(url_params().get("log")).toBe("true");
+
+        check("log_scale", false);
+        await settle();
+        expect(last_plot("over_time_plot").layout.yaxis.title.text).toBe("Data transferred");
     });
 
     it("plots the chosen metric and leads the hover text with it", async () => {
