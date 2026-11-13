@@ -42,6 +42,12 @@ npm install
 npm run dev
 ```
 
+The region map is drawn over CARTO's basemap, which needs an API key (free for
+non-commercial use; see https://carto.com/basemaps/apikey/). The build reads it
+from `CARTO_API_KEY`, as in `CARTO_API_KEY=... npm run dev`; the deploy and
+preview workflows take it from the repository's `CARTO_API_KEY` Actions
+variable. Without one, the map is drawn over a plain background.
+
 ### Tests
 
 ```bash

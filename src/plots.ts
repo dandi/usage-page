@@ -49,6 +49,9 @@ import { feature as topojsonFeature } from "topojson-client";
 
 declare const __APP_VERSION__: string;
 declare const __GIT_HASH__: string;
+// CARTO's API key, from CARTO_API_KEY at build time, or "" for none.  It is not
+// a secret: it is sent with every basemap request the page makes.
+declare const __CARTO_API_KEY__: string;
 
 // ── Theme helpers (mirrors :root CSS variables in styles.css) ───────────────
 const DARK_THEME = {
@@ -2706,12 +2709,21 @@ function plain_basemap_style(theme: typeof DARK_THEME): object {
 }
 
 /**
+ * The URL of a CARTO basemap style, carrying the API key CARTO requires if the
+ * build was given one.  CARTO adds the key to every tile, glyph and sprite URL
+ * in the style it serves, so the style's URL is the only one that needs it.
+ */
+function carto_style_url(url: string): string {
+    return __CARTO_API_KEY__ ? `${url}?key=${encodeURIComponent(__CARTO_API_KEY__)}` : url;
+}
+
+/**
  * Load the basemap style for the choropleth in the given theme, or null if it
  * cannot be loaded.  Plotly's own CARTO styles are no fallback: they are served
  * from the same host as this one.
  */
 function load_basemap_style(theme: typeof DARK_THEME): Promise<object | null> {
-    return fetch(theme.mapStyleUrl)
+    return fetch(carto_style_url(theme.mapStyleUrl))
         .then((response) => {
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             return response.json();
