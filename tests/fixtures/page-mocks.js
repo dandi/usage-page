@@ -56,8 +56,12 @@ export async function setupDataMocks(page) {
     await page.route(/basemaps\.cartocdn\.com/, (route) =>
         route.fulfill({ status: 200, contentType: "application/json", body: basemap_style_for(route.request().url()) })
     );
-    await page.route("**/dandiset_id_to_title.jsonl", (route) =>
-        route.fulfill({ status: 200, contentType: "text/plain", body: DANDISET_TITLES_JSONL })
+    await page.route("**/dandiset_id_to_title.jsonl.gz", (route) =>
+        route.fulfill({
+            status: 200,
+            contentType: "application/octet-stream",
+            body: gzipSync(Buffer.from(DANDISET_TITLES_JSONL)),
+        })
     );
     // Served gzipped, exactly as the real derivatives are, so the page's
     // client-side decompression is exercised by the snapshot run too.
