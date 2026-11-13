@@ -55,6 +55,7 @@ npm test                   # unit tests (Vitest, in jsdom)
 npm run test:coverage      # the same, with a coverage report
 npm run test:e2e           # integration tests (Playwright, in Chromium)
 npm run test:visual        # screenshot comparison of the map against committed baselines
+npx playwright test --config configs/playwright.live.config.js   # the deployed site, live
 ```
 
 The unit tests cover the page's entry module (`src/plots.ts`) as well as its
