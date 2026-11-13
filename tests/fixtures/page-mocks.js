@@ -25,37 +25,15 @@ import {
 // Chromatic snapshots are always taken against stable, deterministic content
 // and are never affected by live data changing between runs.
 
-// The basemap the choropleth is drawn over is a MapLibre style fetched from
-// CARTO (positron for the light theme, dark matter for the dark one).  These
-// stand in for it: a single flat background layer and no tile sources, in the
-// rough tone of the basemap each replaces.  MapLibre needs *some* style to
-// initialize — given none it errors out and the map never draws at all, region
-// fills included — so this is what keeps the map in the snapshot while keeping
-// the snapshot off the network and off whatever the live basemap looks like on
-// the day.
-const BASEMAP_BACKGROUNDS = { "dark-matter": "#101a33", positron: "#e9edf3" };
-
-function basemap_style_for(url) {
-    const name = url.includes("dark-matter") ? "dark-matter" : "positron";
-    return JSON.stringify({
-        version: 8,
-        sources: {},
-        layers: [{ id: "background", type: "background", paint: { "background-color": BASEMAP_BACKGROUNDS[name] } }],
-    });
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
  * Registers Playwright route handlers that intercept every external data
- * request (raw.githubusercontent.com, and the CARTO basemap behind the
- * choropleth) and respond with the static fixture values above.  Must be
- * called before page.goto().
+ * request (raw.githubusercontent.com) and respond with the static fixture
+ * values above.  The basemap behind the choropleth ships with the page, so
+ * there is nothing of it to intercept.  Must be called before page.goto().
  */
 export async function setupDataMocks(page) {
-    await page.route(/basemaps\.cartocdn\.com/, (route) =>
-        route.fulfill({ status: 200, contentType: "application/json", body: basemap_style_for(route.request().url()) })
-    );
     await page.route("**/dandiset_id_to_title.jsonl.gz", (route) =>
         route.fulfill({
             status: 200,

@@ -45,13 +45,13 @@ import {
 } from "./region-codes.js";
 import { load as loadYaml } from "js-yaml";
 import Plotly from "plotly.js-dist-min";
-import { feature as topojsonFeature } from "topojson-client";
+import { feature as topojsonFeature, mesh as topojsonMesh } from "topojson-client";
+// Natural Earth's land and country borders at 1:110m (public domain), the world
+// the region map is drawn over.
+import WORLD_TOPOLOGY from "world-atlas/countries-110m.json";
 
 declare const __APP_VERSION__: string;
 declare const __GIT_HASH__: string;
-// CARTO's API key, from CARTO_API_KEY at build time, or "" for none.  It is not
-// a secret: it is sent with every basemap request the page makes.
-declare const __CARTO_API_KEY__: string;
 
 // ── Theme helpers (mirrors :root CSS variables in styles.css) ───────────────
 const DARK_THEME = {
@@ -61,7 +61,10 @@ const DARK_THEME = {
     text:          '#e0e0e0',
     textSecondary: '#a0a0b0',
     accent:        '#53a8b6',
-    mapStyleUrl:   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    // The region map's basemap
+    mapWater:      '#111a31',
+    mapLand:       '#222c48',
+    mapBorder:     '#3a4670',
 };
 
 const LIGHT_THEME = {
@@ -71,7 +74,9 @@ const LIGHT_THEME = {
     text:          '#1a1a2e',
     textSecondary: '#5a6580',
     accent:        '#53a8b6',
-    mapStyleUrl:   'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
+    mapWater:      '#dbe4ec',
+    mapLand:       '#f7f8fa',
+    mapBorder:     '#c3cdd8',
 };
 
 // Media query used to detect the OS / browser dark-mode preference.
@@ -2674,78 +2679,76 @@ function load_geographic_heatmap(dandiset_id: string): Promise<void | void[] | [
     return Promise.all([topRegionsPromise, pointsPromise]);
 }
 
+// Land and the borders between countries, worked out of WORLD_TOPOLOGY the
+// first time the map is drawn.
+let WORLD_BASEMAP: { land: object; borders: object } | null = null;
+
 /**
- * Returns a copy of a MapLibre basemap style with its labels made readable
- * over the choropleth.
+ * A ring of [longitude, latitude] points made continuous across the
+ * antimeridian.  The data is drawn on a sphere, where a ring may step from 179°
+ * to -179°; MapLibre draws in the plane, where that step would cross the whole
+ * map, so each such step is unwound into longitudes beyond ±180° instead, which
+ * MapLibre draws on the neighboring copy of the world.  A ring that comes back
+ * a whole turn round goes round a pole (Antarctica's), and is closed along it.
  */
-function readable_basemap_style(style: any): any {
-    const layers = (style.layers ?? []).map((layer: any) => {
-        if (layer.type !== "symbol") return layer;
-        const readable = {
-            ...layer,
-            paint: {
-                ...layer.paint,
-                "text-color": "#000000",
-                "text-halo-color": "#ffffff",
-                "text-halo-width": 1,
-                "text-halo-blur": 0,
-            },
-        };
-        if (layer.id === "place_continent") {
-            const not_america = ["!=", "name_en", "America"];
-            readable.filter = layer.filter ? ["all", layer.filter, not_america] : not_america;
+function unwrap_ring(ring: number[][]): number[][] {
+    let offset = 0;
+    const unwrapped = ring.map((point, i) => {
+        if (i > 0) {
+            const step = point[0] - ring[i - 1][0];
+            if (step > 180) offset -= 360;
+            else if (step < -180) offset += 360;
         }
-        return readable;
+        return [point[0] + offset, point[1]];
     });
-    return { ...style, layers };
+    if (offset === 0) return unwrapped;
+    const pole = Math.sign(unwrapped[0][1]) * 90;
+    const first = unwrapped[0];
+    const last = unwrapped[unwrapped.length - 1];
+    return [...unwrapped, [last[0], pole], [first[0], pole], first];
+}
+
+/** Natural Earth's land, made continuous across the antimeridian, and country borders. */
+function world_basemap_geometry(): { land: object; borders: object } {
+    const topology = WORLD_TOPOLOGY as any;
+    const land = topojsonFeature(topology, topology.objects.land) as any;
+    for (const feature of land.features) {
+        const { type, coordinates } = feature.geometry;
+        for (const polygon of type === "Polygon" ? [coordinates] : coordinates) {
+            polygon.forEach((ring: number[][], i: number) => (polygon[i] = unwrap_ring(ring)));
+        }
+    }
+    const borders = {
+        type: "Feature",
+        properties: {},
+        geometry: topojsonMesh(topology, topology.objects.countries, (a: unknown, b: unknown) => a !== b),
+    };
+    return { land, borders };
 }
 
 /**
- * A basemap that needs nothing from the network: the theme's background alone.
- * The choropleth is drawn over it when CARTO's basemap cannot be, so that the
- * regions are still painted, over a blank map, rather than not at all.
+ * The basemap the choropleth is drawn over, in the given theme: water, land
+ * and country borders, from data shipped with the page.  It names no URL, so
+ * drawing the map sends nothing about the visitor to anyone, and has nothing
+ * to fail to load.  It carries no place names, which would need font files.
  */
-function plain_basemap_style(theme: typeof DARK_THEME): object {
+function world_basemap_style(theme: typeof DARK_THEME): object {
+    WORLD_BASEMAP ??= world_basemap_geometry();
     return {
         version: 8,
-        sources: {},
-        layers: [{ id: "background", type: "background", paint: { "background-color": theme.surface } }],
+        sources: {
+            land: { type: "geojson", data: WORLD_BASEMAP.land },
+            borders: { type: "geojson", data: WORLD_BASEMAP.borders },
+        },
+        // No layer is named for water: Plotly draws the choropleth just above
+        // a layer whose id starts with "water", which here would put it below
+        // the land, out of sight.
+        layers: [
+            { id: "sea", type: "background", paint: { "background-color": theme.mapWater } },
+            { id: "land", type: "fill", source: "land", paint: { "fill-color": theme.mapLand } },
+            { id: "borders", type: "line", source: "borders", paint: { "line-color": theme.mapBorder, "line-width": 0.6 } },
+        ],
     };
-}
-
-/**
- * The URL of a CARTO basemap style, carrying the API key CARTO requires if the
- * build was given one.  CARTO adds the key to every tile, glyph and sprite URL
- * in the style it serves, so the style's URL is the only one that needs it.
- */
-function carto_style_url(url: string): string {
-    return __CARTO_API_KEY__ ? `${url}?key=${encodeURIComponent(__CARTO_API_KEY__)}` : url;
-}
-
-/**
- * Load the basemap style for the choropleth in the given theme, or null if it
- * cannot be loaded.  Plotly's own CARTO styles are no fallback: they are served
- * from the same host as this one.
- */
-function load_basemap_style(theme: typeof DARK_THEME): Promise<object | null> {
-    return fetch(carto_style_url(theme.mapStyleUrl))
-        .then((response) => {
-            if (!response.ok) throw new Error(`HTTP error ${response.status}`);
-            return response.json();
-        })
-        .then((style) => {
-            // CARTO can answer with something other than a style, such as a
-            // request it will not serve without an API key, which MapLibre
-            // would reject and Plotly fail the whole plot over.
-            if (style?.version !== 8 || typeof style.sources !== "object" || !Array.isArray(style.layers)) {
-                throw new Error("The basemap style is not a MapLibre style");
-            }
-            return readable_basemap_style(style);
-        })
-        .catch((error) => {
-            console.warn("Failed to load the basemap style; drawing a plain one:", error);
-            return null;
-        });
 }
 
 // Function to fetch and render choropleth over geography
@@ -2757,9 +2760,8 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             if (!r.ok) throw new Error(`Failed to fetch TSV file: ${r.statusText}`);
             return r.text();
         }),
-        load_basemap_style(theme),
     ])
-    .then(([, text, map_style]) => {
+    .then(([, text]) => {
         // load_choropleth_data() either assigns the boundaries or rejects into
         // the catch below, so by here there are always boundaries to paint.
         const features = GEOJSON_DATA!.features;
@@ -2953,17 +2955,14 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // that line needs (ATTRIBUTION_ONE_LINE_PX, at the font size set
             // in the annotation), which no credit on its own exceeds.
             const ATTRIBUTION_ONE_LINE_PX = 430;
-            // CARTO and OpenStreetMap are credited only while their basemap
-            // is the one drawn.
-            const boundary_credit =
-                'Geographic boundaries are defined by <a href="https://gadm.org/" target="_blank">GADM v4.1</a>';
-            const basemap_credits = [
-                '<a href="https://carto.com/attributions" target="_blank">© CARTO</a>',
-                '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
+            const attribution_credits = [
+                'Geographic boundaries are defined by <a href="https://gadm.org/" target="_blank">GADM v4.1</a>',
+                'Basemap from <a href="https://www.naturalearthdata.com/" target="_blank">Natural Earth</a>',
             ];
             const is_narrow_map = mapWidth - 24 < ATTRIBUTION_ONE_LINE_PX;
-            const attribution_text_for = (credits: string[]) =>
-                is_narrow_map ? credits.join("<br>") : credits.join(" | ");
+            const attribution_text = is_narrow_map
+                ? attribution_credits.join("<br>")
+                : attribution_credits.join(" | ");
 
             // Plotly's default margins leave room for the axis labels of a
             // cartesian plot, which a map has none of.  They cost nothing on a
@@ -2996,7 +2995,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // margin below it, so that they cover none of the map.
             annotations: [
                 {
-                    // The text, which depends on the basemap drawn, is set as it is drawn
+                    text: attribution_text,
                     showarrow: false,
                     xref: "paper",
                     yref: "paper",
@@ -3013,34 +3012,17 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 },
             ],
         });
-        const draw_over = (style: object, is_plain = false) => {
-            (layout as any).annotations[0].text = attribution_text_for(
-                is_plain ? [boundary_credit] : [boundary_credit, ...basemap_credits],
-            );
-            (layout as any).map = {
-                style,
-                center: default_view.center,
-                zoom: default_view.zoom,
-                minzoom: default_view.min_zoom,
-            };
-            return Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
+        (layout as any).map = {
+            style: world_basemap_style(theme),
+            center: default_view.center,
+            zoom: default_view.zoom,
+            minzoom: default_view.min_zoom,
         };
-
-        // Plotly gives up on the whole plot if any part of the basemap fails
-        // to load while the map is first drawn (one tile CARTO cannot serve is
-        // enough), so a map that fails over CARTO's basemap is drawn again over
-        // a plain one rather than replaced by an error.
-        const drawn = map_style
-            ? draw_over(map_style).catch((error) => {
-                console.warn("Failed to draw over the basemap; drawing over a plain one:", error);
-                return draw_over(plain_basemap_style(theme), true);
-            })
-            : draw_over(plain_basemap_style(theme), true);
 
         // Returned so that a draw that fails, or anything thrown while wiring
         // up the map it drew, reaches the catch below rather than going
         // unhandled.
-        return drawn.then(() => {
+        return Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG).then(() => {
             set_plot_source_url(plot_element_id, by_region_summary_tsv_url);
             const el = document.getElementById(plot_element_id);
             if (el && (el as any)._fullLayout && (el as any)._fullLayout.map && (el as any)._fullLayout.map._subplot) {

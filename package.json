@@ -1,6 +1,6 @@
 {
   "name": "access-page",
-  "version": "1.24.1",
+  "version": "1.26.0",
   "description": "Visualizations of data usage across the archive.",
   "private": true,
   "type": "module",
@@ -60,7 +60,8 @@
   "dependencies": {
     "js-yaml": "^4.3.2",
     "plotly.js-dist-min": "^3.6.0",
-    "topojson-client": "^3.1.0"
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "overrides": {
     "esbuild": "^0.28.1"

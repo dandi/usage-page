@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Smoke test of the deployed site, over live data and the live basemap.
+ * Smoke test of the deployed site, over live data.
  * Every other suite stands in for the network, which is what keeps them
  * stable and also what leaves them blind to a change upstream.  This one is run
  * daily rather than on pull requests, so that an upstream outage raises an

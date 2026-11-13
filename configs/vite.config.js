@@ -22,8 +22,5 @@ export default defineConfig({
     define: {
         __APP_VERSION__: JSON.stringify(version),
         __GIT_HASH__: JSON.stringify(gitHash),
-        // CARTO requires an API key for its basemaps; without one the region
-        // map is drawn over a plain background.  The key ends up in the page.
-        __CARTO_API_KEY__: JSON.stringify(process.env.CARTO_API_KEY ?? ""),
     },
 });
