@@ -1,3 +1,10 @@
+/* Source Sans 3 (SIL Open Font License 1.1), in the weights the page uses,
+   served with the page itself rather than by Google Fonts, which would be
+   sent every visitor's address. */
+@import "@fontsource/source-sans-3/300.css";
+@import "@fontsource/source-sans-3/400.css";
+@import "@fontsource/source-sans-3/600.css";
+
 :root {
     /* ── Theme colors — adjust these variables to customize the color scheme ── */
     --color-bg: #1a1a2e;
