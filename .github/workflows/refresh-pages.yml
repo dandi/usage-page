@@ -25,12 +25,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # CARTO requires an API key for the region map's basemap. It is not a
-      # secret, since it ends up in the page, so it is kept as a variable.
       - name: Build site
         run: npm run build
-        env:
-          CARTO_API_KEY: ${{ vars.CARTO_API_KEY }}
 
       # Leaves `pr-preview/` alone, which holds the open pull requests'
       # previews, and rebases rather than force-pushes so that a preview

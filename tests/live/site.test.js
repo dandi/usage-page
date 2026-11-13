@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-// The page as visitors get it: deployed, over live data and the live basemap.
+// The page as visitors get it: deployed, over live data.
 // When CARTO moved its basemap behind an API key, the region map showed
 // "Failed to load data for geographic choropleth." to every visitor while
 // every suite passed: the mocked ones never see CARTO, and the integration

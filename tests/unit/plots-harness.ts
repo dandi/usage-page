@@ -325,12 +325,11 @@ export function install_environment(): void {
         callback(0);
         return 0;
     }) as any;
-    Object.assign(globalThis, { __APP_VERSION__: "1.2.3", __GIT_HASH__: "abcdef12", __CARTO_API_KEY__: "" });
+    Object.assign(globalThis, { __APP_VERSION__: "1.2.3", __GIT_HASH__: "abcdef12" });
 }
 
 /** Resets the routes, stubs and spies before a test.  Call from beforeEach. */
 export function before_each(): void {
-    (globalThis as any).__CARTO_API_KEY__ = "";
     routes = default_routes();
     in_flight = 0;
     media_query = null;

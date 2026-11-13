@@ -205,7 +205,7 @@ describe("theme", () => {
         expect(plotly.newPlot.mock.calls.length).toBeGreaterThan(drawn_before);
         expect(last_plot("over_time_plot").layout.paper_bgcolor).toBe("#ffffff");
         expect(last_plot("histogram_plot").layout.font.color).toBe("#1a1a2e");
-        expect(last_plot("geography_heatmap").layout.map.style.layers[0].paint["background-color"]).toBe("#ffffff");
+        expect(last_plot("geography_heatmap").layout.map.style.layers[0].paint["background-color"]).toBe("#dbe4ec");
     });
 
     it("follows a change of the browser's preference only while no choice is stored", async () => {

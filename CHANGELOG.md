@@ -4,6 +4,7 @@
 
 #### 🚀 Enhancement
 
+- Drew the region map over Natural Earth's land and borders, shipped with the page, instead of CARTO's basemap, so the map no longer sends visitors' addresses to CARTO or needs its API key; it no longer shows CARTO's place names. ([#307](https://github.com/dandi/usage-page/pull/307))
 - Restored CARTO's basemap under the region map by passing it the API key CARTO now requires, read at build time from `CARTO_API_KEY` (the repository's Actions variable of that name, for deploys and previews). ([#303](https://github.com/dandi/usage-page/pull/303))
 - Added a "Neuroimaging" asset type to the over-time plot's legend tooltips, following its addition upstream in [dandi-s3-log-extraction#104](https://github.com/dandi/dandi-s3-log-extraction/pull/104). ([#293](https://github.com/dandi/usage-page/pull/293))
 - Added axis titles to the over-time plot, such as "Date" (or "Month" and "Year" when binned that way), "Data transferred", "Download counts", and "Streaming views", and retitled its cumulative view from "Total PB to date" to "Total data transferred to date". ([#296](https://github.com/dandi/usage-page/pull/296))

@@ -222,12 +222,14 @@ describe("usage by region, as countries", () => {
         // No borders within a country, and no seams where its boundaries meet
         expect(data[0].marker).toEqual({ line: { color: "white", width: 0 }, opacity: 1 });
         expect(layout.title.text).toBe("Usage by region");
-        // The basemap is not served here, so the map is drawn over a plain one
         expect(layout.map).toMatchObject({
             style: {
                 version: 8,
-                sources: {},
-                layers: [{ type: "background", paint: { "background-color": "#16213e" } }],
+                layers: [
+                    { id: "sea", type: "background", paint: { "background-color": "#111a31" } },
+                    { id: "land", type: "fill", source: "land", paint: { "fill-color": "#222c48" } },
+                    { id: "borders", type: "line", source: "borders", paint: { "line-color": "#3a4670" } },
+                ],
             },
             center: { lat: 20 },
         });
@@ -235,36 +237,56 @@ describe("usage by region, as countries", () => {
         expect(fake_map().setMinZoom).toHaveBeenCalledWith(layout.map.minzoom);
     });
 
-    it("draws over the theme's basemap with its labels made readable in the layout, where image downloads see them", async () => {
-        serve(
-            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
-            JSON.stringify({
-                version: 8,
-                sources: {},
-                layers: [
-                    { id: "background", type: "background" },
-                    { id: "place_continent", type: "symbol", filter: ["==", "class", "continent"] },
-                ],
-            })
+    it("draws over a basemap shipped with the page, which sends nothing about the visitor anywhere", async () => {
+        await load_page();
+        const { style } = last_plot("geography_heatmap").layout.map;
+        // Natural Earth's land, and the borders between its countries
+        const [land] = style.sources.land.data.features;
+        expect(land.geometry.type).toBe("MultiPolygon");
+        expect(land.geometry.coordinates.length).toBeGreaterThan(100);
+        expect(style.sources.borders.data.geometry.type).toBe("MultiLineString");
+        // Nothing in the style for MapLibre to fetch: no tiles, glyphs or sprite
+        expect(JSON.stringify(style)).not.toMatch(/https?:/);
+        expect(fetched_urls().filter((url) => /carto|openstreetmap/.test(url))).toEqual([]);
+    });
+
+    it("keeps the basemap clear of the two ways its data would draw wrongly", async () => {
+        await load_page();
+        const { style } = last_plot("geography_heatmap").layout.map;
+        // Plotly draws the choropleth just above a layer whose id starts with
+        // "water", so one here would put the regions under the land
+        expect(style.layers.filter((layer: any) => layer.id.startsWith("water"))).toEqual([]);
+        // No land outline steps across the antimeridian, which MapLibre would
+        // draw as a line across the whole map.  A ring closed along a pole
+        // runs the whole way round there, which is off the edge of the map.
+        const rings = style.sources.land.data.features.flatMap((feature: any) => feature.geometry.coordinates.flat());
+        const on_a_pole = (point: number[]) => Math.abs(point[1]) === 90;
+        const steps = rings.flatMap((ring: number[][]) =>
+            ring
+                .slice(1)
+                .map((point, i) => [ring[i], point])
+                .filter(([from, to]) => !(on_a_pole(from) && on_a_pole(to)))
+                .map(([from, to]) => Math.abs(to[0] - from[0]))
         );
-        await load_page();
-        const [background, continent] = last_plot("geography_heatmap").layout.map.style.layers;
-        expect(background).toEqual({ id: "background", type: "background" });
-        expect(continent.paint["text-color"]).toBe("#000000");
-        expect(continent.filter).toEqual(["all", ["==", "class", "continent"], ["!=", "name_en", "America"]]);
+        expect(Math.max(...steps)).toBeLessThan(180);
+        // Antarctica, which circles the pole, is closed along it
+        expect(rings.some((ring: number[][]) => ring.some(([, latitude]) => latitude === -90))).toBe(true);
     });
 
-    it("asks CARTO for the basemap without a key when the build was given none", async () => {
-        await load_page();
-        expect(fetched_urls()).toContain("https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
-    });
-
-    it("asks CARTO for the basemap with the key the build was given", async () => {
-        (globalThis as any).__CARTO_API_KEY__ = "a key&more";
+    it("draws the basemap in the theme's colors", async () => {
         await load_page({ theme: "light" });
-        expect(fetched_urls()).toContain(
-            "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key=a%20key%26more"
-        );
+        const [water, land, borders] = last_plot("geography_heatmap").layout.map.style.layers;
+        expect(water.paint["background-color"]).toBe("#dbe4ec");
+        expect(land.paint["fill-color"]).toBe("#f7f8fa");
+        expect(borders.paint["line-color"]).toBe("#c3cdd8");
+    });
+
+    it("credits the boundaries and the basemap, and no one whose basemap it no longer draws", async () => {
+        await load_page();
+        const credits = last_plot("geography_heatmap").layout.annotations[0].text;
+        expect(credits).toContain("GADM v4.1");
+        expect(credits).toContain("Natural Earth");
+        expect(credits).not.toMatch(/CARTO|OpenStreetMap/);
     });
 
     it("drops the part of a boundary that crosses the antimeridian, and keeps the rest", async () => {
@@ -345,10 +367,6 @@ describe("usage by region, as countries", () => {
     });
 
     it("breaks the credits onto a line each, and trims the margins, on a map too narrow for one line", async () => {
-        serve(
-            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
-            JSON.stringify({ version: 8, sources: {}, layers: [] })
-        );
         await load_page();
         const wide = last_plot("geography_heatmap").layout;
         expect(wide.annotations[0].text).toContain(" | ");
@@ -434,49 +452,6 @@ describe("a choropleth that cannot be drawn", () => {
             "Error:",
             expect.objectContaining({ message: "WebGL context lost" })
         );
-    });
-
-    it("draws the map again over a plain basemap, crediting only the boundaries, when it fails over CARTO's", async () => {
-        serve(
-            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
-            JSON.stringify({ version: 8, sources: { carto: { type: "vector" } }, layers: [] })
-        );
-        // Both draws are handed the same layout, so what each was drawn with is noted as it is drawn
-        const drawn_with: Array<{ style: any; credits: string }> = [];
-        plotly.newPlot.mockImplementation(async (target, data, layout, config) => {
-            if (target === "geography_heatmap") {
-                const { map, annotations } = layout as any;
-                drawn_with.push({ style: map.style, credits: annotations[0].text });
-                // As Plotly does when MapLibre rejects the basemap or a tile of it fails to load
-                if ("carto" in map.style.sources) throw new Error("Map error.");
-            }
-            await draw_plot(target, data as any[], layout, config);
-        });
-        await load_page();
-        expect(drawn_with).toHaveLength(2);
-        expect(drawn_with[0].credits).toContain("© CARTO");
-        expect(drawn_with[1].style).toEqual({
-            version: 8,
-            sources: {},
-            layers: [{ id: "background", type: "background", paint: { "background-color": "#16213e" } }],
-        });
-        expect(drawn_with[1].credits).toContain("GADM v4.1");
-        expect(drawn_with[1].credits).not.toContain("CARTO");
-        expect(drawn_with[1].credits).not.toContain("OpenStreetMap");
-        expect(by_id("geography_heatmap").textContent).not.toContain("Failed to load");
-        expect(console.error).not.toHaveBeenCalledWith("Error:", expect.anything());
-    });
-
-    it("draws over a plain basemap straight away when CARTO answers with something other than a style", async () => {
-        serve(
-            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
-            JSON.stringify({ error: "API key required" })
-        );
-        await load_page();
-        expect(plot_calls("geography_heatmap")).toHaveLength(1);
-        const { layout } = last_plot("geography_heatmap");
-        expect(layout.map.style.sources).toEqual({});
-        expect(layout.annotations[0].text).not.toContain("CARTO");
     });
 
     it("reports the map it drew failing to answer", async () => {

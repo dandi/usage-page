@@ -441,7 +441,7 @@ input[type="number"]:focus {
 }
 
 /* Hide the built-in MapLibre attribution widget — credits are surfaced via
-   the custom annotation below the map instead (GADM | © CARTO | © OSM). */
+   the custom annotation below the map instead (GADM | Natural Earth). */
 #geography_heatmap .maplibregl-ctrl-attrib {
     display: none;
 }

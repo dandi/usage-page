@@ -12,7 +12,7 @@ jobs:
         permissions:
             contents: read
 
-    # The deployed site over live data and the live basemap, which the tests
+    # The deployed site over live data, which the tests
     # above stand in for; see configs/playwright.live.config.js.
     live-site:
         name: Live site (Playwright)
