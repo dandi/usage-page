@@ -30,6 +30,7 @@
 - Stopped the control bars above each plot from running off the side of a narrow viewport and taking the whole page into a sideways scroll; they now wrap onto as many rows as they need. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Stopped the tooltip of an info icon near the edge of a narrow viewport from scrolling the page sideways while hidden. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the "Undetermined file types" series of the over-time plot grouped by asset type, which weighed the archive total against the weekly asset-type breakdown only after binning and so reported the days around each month and year boundary as undetermined bytes. The series is now left out entirely when every byte is accounted for. ([#249](https://github.com/dandi/usage-page/pull/249))
+- Drew the drop-down arrow of every menu 10px in from its right-hand edge, where the browser's own had sat close enough to the rounded corner to look clipped. ([#302](https://github.com/dandi/usage-page/pull/302))
 
 #### 🏠 Internal
 
