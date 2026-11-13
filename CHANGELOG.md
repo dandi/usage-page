@@ -30,9 +30,11 @@
 - Stopped the control bars above each plot from running off the side of a narrow viewport and taking the whole page into a sideways scroll; they now wrap onto as many rows as they need. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Stopped the tooltip of an info icon near the edge of a narrow viewport from scrolling the page sideways while hidden. ([#251](https://github.com/dandi/usage-page/pull/251))
 - Fixed the "Undetermined file types" series of the over-time plot grouped by asset type, which weighed the archive total against the weekly asset-type breakdown only after binning and so reported the days around each month and year boundary as undetermined bytes. The series is now left out entirely when every byte is accounted for. ([#249](https://github.com/dandi/usage-page/pull/249))
+- Drew the drop-down arrow of every menu 10px in from its right-hand edge, where the browser's own had sat close enough to the rounded corner to look clipped. ([#302](https://github.com/dandi/usage-page/pull/302))
 
 #### 🏠 Internal
 
+- Added a daily smoke test of the deployed site over live data and the live basemap, failing on any missing plot or logged error or warning, since every other suite stands in for the network and so missed the region map breaking when CARTO changed its basemap. ([#301](https://github.com/dandi/usage-page/pull/301))
 - Disabled Dependabot rebases, which force-push and so fail on protected branches. ([#285](https://github.com/dandi/usage-page/pull/285))
 - Enabled the required Chromatic checks on pull requests from forks by building read-only and uploading from a separate `workflow_run` workflow, since a fork's own run has no project token. ([#268](https://github.com/dandi/usage-page/pull/268))
 - Enabled previews for pull requests from forks by building them read-only and deploying them from a separate `workflow_run` workflow, since a fork's own run cannot push to `gh-pages`. ([#266](https://github.com/dandi/usage-page/pull/266))

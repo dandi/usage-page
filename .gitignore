@@ -7,5 +7,6 @@ storybook-static/
 playwright-report/
 playwright-report-chromatic/
 playwright-report-visual/
+playwright-report-live/
 test-results/
 coverage/
