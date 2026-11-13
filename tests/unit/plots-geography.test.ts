@@ -222,7 +222,15 @@ describe("usage by region, as countries", () => {
         // No borders within a country, and no seams where its boundaries meet
         expect(data[0].marker).toEqual({ line: { color: "white", width: 0 }, opacity: 1 });
         expect(layout.title.text).toBe("Usage by region");
-        expect(layout.map).toMatchObject({ style: "carto-darkmatter", center: { lat: 20 } });
+        // The basemap is not served here, so the map is drawn over a plain one
+        expect(layout.map).toMatchObject({
+            style: {
+                version: 8,
+                sources: {},
+                layers: [{ type: "background", paint: { "background-color": "#16213e" } }],
+            },
+            center: { lat: 20 },
+        });
         expect(layout.map.minzoom).toBeCloseTo(layout.map.zoom - 0.15);
         expect(fake_map().setMinZoom).toHaveBeenCalledWith(layout.map.minzoom);
     });
@@ -232,6 +240,7 @@ describe("usage by region, as countries", () => {
             /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
             JSON.stringify({
                 version: 8,
+                sources: {},
                 layers: [
                     { id: "background", type: "background" },
                     { id: "place_continent", type: "symbol", filter: ["==", "class", "continent"] },
@@ -323,6 +332,10 @@ describe("usage by region, as countries", () => {
     });
 
     it("breaks the credits onto a line each, and trims the margins, on a map too narrow for one line", async () => {
+        serve(
+            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
+            JSON.stringify({ version: 8, sources: {}, layers: [] })
+        );
         await load_page();
         const wide = last_plot("geography_heatmap").layout;
         expect(wide.annotations[0].text).toContain(" | ");
@@ -408,6 +421,49 @@ describe("a choropleth that cannot be drawn", () => {
             "Error:",
             expect.objectContaining({ message: "WebGL context lost" })
         );
+    });
+
+    it("draws the map again over a plain basemap, crediting only the boundaries, when it fails over CARTO's", async () => {
+        serve(
+            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
+            JSON.stringify({ version: 8, sources: { carto: { type: "vector" } }, layers: [] })
+        );
+        // Both draws are handed the same layout, so what each was drawn with is noted as it is drawn
+        const drawn_with: Array<{ style: any; credits: string }> = [];
+        plotly.newPlot.mockImplementation(async (target, data, layout, config) => {
+            if (target === "geography_heatmap") {
+                const { map, annotations } = layout as any;
+                drawn_with.push({ style: map.style, credits: annotations[0].text });
+                // As Plotly does when MapLibre rejects the basemap or a tile of it fails to load
+                if ("carto" in map.style.sources) throw new Error("Map error.");
+            }
+            await draw_plot(target, data as any[], layout, config);
+        });
+        await load_page();
+        expect(drawn_with).toHaveLength(2);
+        expect(drawn_with[0].credits).toContain("© CARTO");
+        expect(drawn_with[1].style).toEqual({
+            version: 8,
+            sources: {},
+            layers: [{ id: "background", type: "background", paint: { "background-color": "#16213e" } }],
+        });
+        expect(drawn_with[1].credits).toContain("GADM v4.1");
+        expect(drawn_with[1].credits).not.toContain("CARTO");
+        expect(drawn_with[1].credits).not.toContain("OpenStreetMap");
+        expect(by_id("geography_heatmap").textContent).not.toContain("Failed to load");
+        expect(console.error).not.toHaveBeenCalledWith("Error:", expect.anything());
+    });
+
+    it("draws over a plain basemap straight away when CARTO answers with something other than a style", async () => {
+        serve(
+            /basemaps\.cartocdn\.com\/gl\/dark-matter-gl-style\/style\.json$/,
+            JSON.stringify({ error: "API key required" })
+        );
+        await load_page();
+        expect(plot_calls("geography_heatmap")).toHaveLength(1);
+        const { layout } = last_plot("geography_heatmap");
+        expect(layout.map.style.sources).toEqual({});
+        expect(layout.annotations[0].text).not.toContain("CARTO");
     });
 
     it("reports the map it drew failing to answer", async () => {
