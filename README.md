@@ -59,12 +59,6 @@ controls. Coverage from both the unit and the integration tests is reported
 to Codecov; to see what the integration tests exercise in the browser, run
 `npm run test:e2e:coverage` and then `npm run coverage:integration`.
 
-Every suite but the last stands in for the network, so none of them can see a
-change upstream: a data file that moves, or a basemap that stops loading. The
-live suite loads the deployed site (or `LIVE_URL`, such as a pull request's
-preview) over live data, and fails if any plot is missing or the page logs any
-error or warning. It runs daily, and its failures are emailed with the rest.
-
 ## Documentation
 
 - [Region codes](docs/README.md) — how the geographic section reads the ISO
