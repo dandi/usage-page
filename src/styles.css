@@ -15,6 +15,9 @@
     /* Tooltips sit on --color-header, which is dark under both themes, so their
        text stays light in both and is not part of the light-theme overrides. */
     --color-tooltip-text: #e0e0e0;
+    /* The drop-down arrow of a <select>, stroked in --color-text, which a data
+       URI cannot refer to, so it is repeated in the light-theme overrides. */
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%23e0e0e0' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     /* ─────────────────────────────────────────────────────────────────────── */
     --font-main: 'Source Sans 3', -apple-system, sans-serif;
     --radius: 6px;
@@ -22,6 +25,7 @@
 
 /* ── Light theme overrides ── */
 [data-theme="light"] {
+    --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='%231a1a2e' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     --color-bg: #f5f7fa;
     --color-surface: #ffffff;
     --color-header: #0f3460;
@@ -347,14 +351,20 @@ label {
    and the bar around it — off the side of the screen.  Capping it clips the
    label of the selected Dandiset instead; the drop-down itself is drawn by the
    browser at whatever width its options need, so nothing becomes unreadable at
-   the point of choosing. */
+   the point of choosing.
+
+   The arrow is the page's own rather than the browser's, which sits so close
+   to the right-hand edge that the rounded corner seems to clip it, and which
+   padding does not move.  It is drawn 10px in from the edge, in the padding
+   kept clear for it. */
 select {
+    appearance: none;
     font-family: var(--font-main);
     font-size: 0.85em;
-    padding: 4px 8px;
+    padding: 4px 28px 4px 8px;
     border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: var(--color-bg);
+    background: var(--select-arrow) no-repeat right 10px center / 10px auto var(--color-bg);
     color: var(--color-text);
     cursor: pointer;
     outline: none;
