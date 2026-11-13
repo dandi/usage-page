@@ -58,7 +58,6 @@ const DARK_THEME = {
     text:          '#e0e0e0',
     textSecondary: '#a0a0b0',
     accent:        '#53a8b6',
-    mapStyle:      'carto-darkmatter',
     mapStyleUrl:   'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
 };
 
@@ -69,7 +68,6 @@ const LIGHT_THEME = {
     text:          '#1a1a2e',
     textSecondary: '#5a6580',
     accent:        '#53a8b6',
-    mapStyle:      'carto-positron',
     mapStyleUrl:   'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json',
 };
 
@@ -2695,30 +2693,54 @@ function readable_basemap_style(style: any): any {
 }
 
 /**
- * Load the basemap style for the choropleth in the given theme.
+ * A basemap that needs nothing from the network: the theme's background alone.
+ * The choropleth is drawn over it when CARTO's basemap cannot be, so that the
+ * regions are still painted, over a blank map, rather than not at all.
  */
-function load_basemap_style(theme: typeof DARK_THEME): Promise<object | string> {
+function plain_basemap_style(theme: typeof DARK_THEME): object {
+    return {
+        version: 8,
+        sources: {},
+        layers: [{ id: "background", type: "background", paint: { "background-color": theme.surface } }],
+    };
+}
+
+/**
+ * Load the basemap style for the choropleth in the given theme, or null if it
+ * cannot be loaded.  Plotly's own CARTO styles are no fallback: they are served
+ * from the same host as this one.
+ */
+function load_basemap_style(theme: typeof DARK_THEME): Promise<object | null> {
     return fetch(theme.mapStyleUrl)
         .then((response) => {
             if (!response.ok) throw new Error(`HTTP error ${response.status}`);
             return response.json();
         })
-        .then(readable_basemap_style)
+        .then((style) => {
+            // CARTO can answer with something other than a style, such as a
+            // request it will not serve without an API key, which MapLibre
+            // would reject and Plotly fail the whole plot over.
+            if (style?.version !== 8 || typeof style.sources !== "object" || !Array.isArray(style.layers)) {
+                throw new Error("The basemap style is not a MapLibre style");
+            }
+            return readable_basemap_style(style);
+        })
         .catch((error) => {
-            console.warn("Failed to load the basemap style; drawing CARTO's own:", error);
-            return theme.mapStyle;
+            console.warn("Failed to load the basemap style; drawing a plain one:", error);
+            return null;
         });
 }
 
 // Function to fetch and render choropleth over geography
 function load_geographic_choropleth(dandiset_id: string, plot_element_id: string, by_region_summary_tsv_url: string): Promise<void> {
+    const theme = getTheme();
     return Promise.all([
         load_choropleth_data(),
         fetch(by_region_summary_tsv_url).then(r => {
             if (!r.ok) throw new Error(`Failed to fetch TSV file: ${r.statusText}`);
             return r.text();
         }),
-        load_basemap_style(getTheme()),
+        load_basemap_style(theme),
     ])
     .then(([, text, map_style]) => {
         // load_choropleth_data() either assigns the boundaries or rejects into
@@ -2914,15 +2936,17 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // that line needs (ATTRIBUTION_ONE_LINE_PX, at the font size set
             // in the annotation), which no credit on its own exceeds.
             const ATTRIBUTION_ONE_LINE_PX = 430;
-            const attribution_credits = [
-                'Geographic boundaries are defined by <a href="https://gadm.org/" target="_blank">GADM v4.1</a>',
+            // CARTO and OpenStreetMap are credited only while their basemap
+            // is the one drawn.
+            const boundary_credit =
+                'Geographic boundaries are defined by <a href="https://gadm.org/" target="_blank">GADM v4.1</a>';
+            const basemap_credits = [
                 '<a href="https://carto.com/attributions" target="_blank">© CARTO</a>',
                 '<a href="https://www.openstreetmap.org/copyright" target="_blank">© OpenStreetMap contributors</a>',
             ];
             const is_narrow_map = mapWidth - 24 < ATTRIBUTION_ONE_LINE_PX;
-            const attribution_text = is_narrow_map
-                ? attribution_credits.join("<br>")
-                : attribution_credits.join(" | ");
+            const attribution_text_for = (credits: string[]) =>
+                is_narrow_map ? credits.join("<br>") : credits.join(" | ");
 
             // Plotly's default margins leave room for the axis labels of a
             // cartesian plot, which a map has none of.  They cost nothing on a
@@ -2955,7 +2979,7 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
             // margin below it, so that they cover none of the map.
             annotations: [
                 {
-                    text: attribution_text,
+                    // The text, which depends on the basemap drawn, is set as it is drawn
                     showarrow: false,
                     xref: "paper",
                     yref: "paper",
@@ -2972,17 +2996,34 @@ function load_geographic_choropleth(dandiset_id: string, plot_element_id: string
                 },
             ],
         });
-        (layout as any).map = {
-            style: map_style,
-            center: default_view.center,
-            zoom: default_view.zoom,
-            minzoom: default_view.min_zoom,
+        const draw_over = (style: object, is_plain = false) => {
+            (layout as any).annotations[0].text = attribution_text_for(
+                is_plain ? [boundary_credit] : [boundary_credit, ...basemap_credits],
+            );
+            (layout as any).map = {
+                style,
+                center: default_view.center,
+                zoom: default_view.zoom,
+                minzoom: default_view.min_zoom,
+            };
+            return Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG);
         };
+
+        // Plotly gives up on the whole plot if any part of the basemap fails
+        // to load while the map is first drawn (one tile CARTO cannot serve is
+        // enough), so a map that fails over CARTO's basemap is drawn again over
+        // a plain one rather than replaced by an error.
+        const drawn = map_style
+            ? draw_over(map_style).catch((error) => {
+                console.warn("Failed to draw over the basemap; drawing over a plain one:", error);
+                return draw_over(plain_basemap_style(theme), true);
+            })
+            : draw_over(plain_basemap_style(theme), true);
 
         // Returned so that a draw that fails, or anything thrown while wiring
         // up the map it drew, reaches the catch below rather than going
         // unhandled.
-        return Plotly.newPlot(plot_element_id, plot_info as Plotly.Data[], layout, PLOTLY_CONFIG).then(() => {
+        return drawn.then(() => {
             set_plot_source_url(plot_element_id, by_region_summary_tsv_url);
             const el = document.getElementById(plot_element_id);
             if (el && (el as any)._fullLayout && (el as any)._fullLayout.map && (el as any)._fullLayout.map._subplot) {
