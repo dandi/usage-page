@@ -36,9 +36,13 @@ jobs:
         if: github.event.action != 'closed'
         run: npm ci
 
+      # Without the key (as on a fork) the region map is drawn over a plain
+      # background instead of CARTO's basemap.
       - name: Build site
         if: github.event.action != 'closed'
         run: npm run build
+        env:
+          CARTO_API_KEY: ${{ vars.CARTO_API_KEY }}
 
       - name: Upload site
         if: github.event.action != 'closed'

@@ -254,6 +254,19 @@ describe("usage by region, as countries", () => {
         expect(continent.filter).toEqual(["all", ["==", "class", "continent"], ["!=", "name_en", "America"]]);
     });
 
+    it("asks CARTO for the basemap without a key when the build was given none", async () => {
+        await load_page();
+        expect(fetched_urls()).toContain("https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json");
+    });
+
+    it("asks CARTO for the basemap with the key the build was given", async () => {
+        (globalThis as any).__CARTO_API_KEY__ = "a key&more";
+        await load_page({ theme: "light" });
+        expect(fetched_urls()).toContain(
+            "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json?key=a%20key%26more"
+        );
+    });
+
     it("drops the part of a boundary that crosses the antimeridian, and keeps the rest", async () => {
         await load_page();
         const features = last_plot("geography_heatmap").data[0].geojson.features;
