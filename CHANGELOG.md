@@ -9,6 +9,7 @@
 
 #### 🐛 Bug Fix
 
+- Drew the region map over a plain background when CARTO's basemap cannot be loaded, rather than replacing the whole map with "Failed to load data for geographic choropleth.", which CARTO's move to API-keyed basemaps had left every visitor seeing. CARTO and OpenStreetMap are now credited only while their basemap is drawn. ([#300](https://github.com/dandi/usage-page/pull/300))
 - Added tick marks to both maps' legends, labeled them with a quantity such as "1 TB" in place of "TB", and sized their labels to the window's width. ([#274](https://github.com/dandi/usage-page/pull/274))
 - Moved the region map's credits out from over the map to just below it, where they no longer cover any of it. ([#265](https://github.com/dandi/usage-page/pull/265))
 - Drew the region map's continent labels in black on a white halo, so they stay readable over the choropleth's fills. ([#267](https://github.com/dandi/usage-page/pull/267))
