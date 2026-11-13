@@ -49,6 +49,7 @@ npm test                   # unit tests (Vitest, in jsdom)
 npm run test:coverage      # the same, with a coverage report
 npm run test:e2e           # integration tests (Playwright, in Chromium)
 npm run test:visual        # screenshot comparison of the map against committed baselines
+npx playwright test --config configs/playwright.live.config.js   # the deployed site, live
 ```
 
 The unit tests cover the page's entry module (`src/plots.ts`) as well as its
@@ -57,6 +58,12 @@ stands in for Plotly and for the network, and drives the page through its
 controls. Coverage from both the unit and the integration tests is reported
 to Codecov; to see what the integration tests exercise in the browser, run
 `npm run test:e2e:coverage` and then `npm run coverage:integration`.
+
+Every suite but the last stands in for the network, so none of them can see a
+change upstream: a data file that moves, or a basemap that stops loading. The
+live suite loads the deployed site (or `LIVE_URL`, such as a pull request's
+preview) over live data, and fails if any plot is missing or the page logs any
+error or warning. It runs daily, and its failures are emailed with the rest.
 
 ## Documentation
 
