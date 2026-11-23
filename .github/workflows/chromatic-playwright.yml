@@ -10,6 +10,9 @@ on:
     push:
     pull_request:
 
+permissions:
+    contents: read
+
 jobs:
     chromatic-playwright:
         # Named for the required check it satisfies; Chromatic's own statuses
@@ -18,9 +21,10 @@ jobs:
         # A branch in this repository is already built on push, which a fork's
         # branch never is here, so only a fork's pull request is built as one.
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
+        # Pinned rather than `ubuntu-latest`: a runner image bump (system
+        # fonts, antialiasing, rasterizer) shifts screenshot pixels on its own,
+        # with no code change to explain it.
+        runs-on: ubuntu-24.04
         steps:
             - name: Checkout code
               uses: actions/checkout@v7
@@ -28,6 +32,28 @@ jobs:
                   # The commit Chromatic reports on, rather than the merge
                   # commit a pull request would otherwise check out.
                   ref: ${{ github.event.pull_request.head.sha || github.sha }}
+                  # The whole history, for the behind-main report below.
+                  fetch-depth: 0
+            # The `ubuntu-24.04` label is not a fixed machine: the image behind
+            # it is rebuilt roughly weekly, with new fonts and rasterizer
+            # libraries. Printed so a snapshot diff with no code change behind
+            # it can be checked against the image its baseline used.
+            - name: Report the runner image
+              run: |
+                  echo "Runner image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+            # Chromatic takes the branch's own last build as the baseline, so a
+            # branch that has not seen `main` in a week diffs against a
+            # week-old page and reports `main`'s changes as its own.
+            - name: Report how far the branch is behind main
+              if: github.ref != 'refs/heads/main'
+              run: |
+                  git fetch --no-tags --quiet origin main
+                  behind=$(git rev-list --count HEAD..origin/main)
+                  if [ "$behind" -eq 0 ]; then
+                      echo "Branch is up to date with main."
+                  else
+                      echo "::notice::This branch is $behind commit(s) behind main. Chromatic diffs it against the branch's own last build, so the changes it reports may be main's rather than this branch's; merge main in before reading them."
+                  fi
             - uses: actions/setup-node@v7
               with:
                   node-version: lts/*
