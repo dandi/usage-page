@@ -38,6 +38,7 @@
 
 #### 🏠 Internal
 
+- Stopped `chromatic-publish.yml` from checking out the commit it uploads, which may come from a fork while the Chromatic tokens are in reach, and pinned the Chromatic builds' runner image so that an image bump does not shift snapshot pixels. ([#308](https://github.com/dandi/usage-page/pull/308))
 - Served the Source Sans 3 font with the page instead of from Google Fonts, so loading the page no longer sends visitors' addresses to Google. ([#306](https://github.com/dandi/usage-page/pull/306))
 - Added a daily smoke test of the deployed site over live data and the live basemap, failing on any missing plot or logged error or warning, since every other suite stands in for the network and so missed the region map breaking when CARTO changed its basemap. ([#301](https://github.com/dandi/usage-page/pull/301))
 - Disabled Dependabot rebases, which force-push and so fail on protected branches. ([#285](https://github.com/dandi/usage-page/pull/285))
