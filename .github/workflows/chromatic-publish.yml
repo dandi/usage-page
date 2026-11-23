@@ -5,10 +5,11 @@ name: Chromatic publish
 # cannot upload for it themselves; `workflow_run` always runs this file as it
 # is on `main`, with the project tokens.
 #
-# Nothing from the pushed commit is executed here. The Chromatic CLI is
-# installed from `main`, and the commit is checked out only so that the CLI
-# can read its git history, which is how Chromatic picks the baselines to
-# compare the build against.
+# It holds the project tokens while handling a commit that may come from a
+# fork, so nothing from that commit is executed here. The Chromatic CLI is
+# installed from `main`, the Storybook is the artifact, and the commit is
+# fetched but never checked out: the CLI needs only its git history, which is
+# how Chromatic picks the baselines to compare the build against.
 
 on:
     workflow_run:
@@ -18,13 +19,16 @@ on:
         types:
             - completed
 
+permissions:
+    contents: read
+
 jobs:
     publish:
         name: Publish to Chromatic
         # A fork running these workflows on its own pushes has no project
         # tokens to publish with.
         if: github.repository == 'dandi/usage-page' && github.event.workflow_run.conclusion == 'success'
-        runs-on: ubuntu-latest
+        runs-on: ubuntu-24.04
         permissions:
             actions: read
             contents: read
@@ -33,6 +37,8 @@ jobs:
               uses: actions/checkout@v7
               with:
                   path: main
+                  # Leaves the job's token out of this checkout's .git/config.
+                  persist-credentials: false
 
             - uses: actions/setup-node@v7
               with:
@@ -40,13 +46,14 @@ jobs:
                   cache: npm
                   cache-dependency-path: main/package-lock.json
 
+            # No package script runs while the tokens are in reach.
             - name: Install the Chromatic CLI
               working-directory: main
               run: npm ci --ignore-scripts
 
             # By hash, since a fork's commit is on none of this repository's
             # branches.
-            - name: Checkout the built commit
+            - name: Fetch the built commit
               env:
                   HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
                   SERVER_URL: ${{ github.server_url }}
@@ -55,7 +62,14 @@ jobs:
                   cd commit
                   git remote add origin "$SERVER_URL/$GITHUB_REPOSITORY.git"
                   git fetch --quiet --no-tags origin '+refs/heads/*:refs/remotes/origin/*' "$HEAD_SHA"
-                  git checkout --quiet --detach "$HEAD_SHA"
+                  # HEAD at the built commit, for its history, with none of
+                  # its files written to disk: run inside a checkout, the CLI
+                  # loads the repository's Storybook config and starts its
+                  # package manager, which honors repository-local
+                  # configuration, with the token in the environment.
+                  git update-ref --no-deref HEAD "$HEAD_SHA"
+                  # The CLI refuses to start without a package.json.
+                  echo '{}' > package.json
 
             - name: Download build
               uses: actions/download-artifact@v8
@@ -68,19 +82,25 @@ jobs:
             - name: Publish to Chromatic
               working-directory: commit
               env:
-                  CHROMATIC_PROJECT_TOKEN: ${{ github.event.workflow_run.name == 'Chromatic (Playwright)' && secrets.CHROMATIC_PLAYWRIGHT_PROJECT_TOKEN || secrets.CHROMATIC_STORYBOOK_PROJECT_TOKEN }}
+                  # Each token behind its own condition, so a missing secret
+                  # stays empty and the CLI stops, rather than falling through
+                  # to the other project's token and uploading into its
+                  # baseline.
+                  CHROMATIC_PROJECT_TOKEN: ${{ github.event.workflow_run.name == 'Chromatic (Playwright)' && secrets.CHROMATIC_PLAYWRIGHT_PROJECT_TOKEN || github.event.workflow_run.name != 'Chromatic (Playwright)' && secrets.CHROMATIC_STORYBOOK_PROJECT_TOKEN || '' }}
                   # What the Chromatic action reports for a pull request; set
                   # by hand since this runs on `workflow_run`, not on the push
                   # or pull request itself.
                   CHROMATIC_SHA: ${{ github.event.workflow_run.head_sha }}
                   CHROMATIC_BRANCH: ${{ github.event.workflow_run.head_branch }}
                   CHROMATIC_SLUG: ${{ github.event.workflow_run.head_repository.full_name }}
-                  # Only a push to this repository's own `main` is accepted as
-                  # the new baseline; a fork's branch may be named `main` too.
-                  AUTO_ACCEPT: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
+                  # Only a push to this repository's own default branch is
+                  # accepted as the new baseline; a fork's branch may carry
+                  # the same name.
+                  AUTO_ACCEPT: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == github.event.repository.default_branch && github.event.workflow_run.head_repository.full_name == github.repository }}
               run: |
-                  # An explicit, empty config file, so that a
-                  # `chromatic.config.json` in the commit is not read.
+                  # An explicit, empty config file, written outside the commit,
+                  # so that no `chromatic.config.json` is looked for in the
+                  # working directory.
                   echo '{}' > "$RUNNER_TEMP/chromatic.config.json"
                   args=(
                       --storybook-build-dir "$RUNNER_TEMP/storybook-static"
